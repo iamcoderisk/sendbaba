@@ -8,6 +8,10 @@ class Contact(db.Model):
     id = db.Column(db.String(36), primary_key=True)
     organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False, index=True)
     
+    # Team member tracking
+    created_by_user_id = db.Column(db.String(36), db.ForeignKey('users.id'), index=True)
+    created_by_team_member_id = db.Column(db.Integer, db.ForeignKey('team_members.id'), index=True)
+    
     # Contact info
     email = db.Column(db.String(255), nullable=False, index=True)
     first_name = db.Column(db.String(100))
@@ -28,16 +32,20 @@ class Contact(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    subscribed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    unsubscribed_at = db.Column(db.DateTime)
     
     # Constraints
     __table_args__ = (
         db.UniqueConstraint('organization_id', 'email', name='unique_contact_per_org'),
     )
     
-    def __init__(self, organization_id, email, **kwargs):
+    def __init__(self, organization_id, email, created_by_user_id=None, created_by_team_member_id=None, **kwargs):
         self.id = str(uuid.uuid4())
         self.organization_id = organization_id
         self.email = email.lower().strip()
+        self.created_by_user_id = created_by_user_id
+        self.created_by_team_member_id = created_by_team_member_id
         
         for key, value in kwargs.items():
             if hasattr(self, key):
@@ -59,15 +67,19 @@ class Contact(db.Model):
             'email': self.email,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'full_name': self.full_name,
             'phone': self.phone,
             'company': self.company,
             'custom_fields': self.custom_fields,
             'status': self.status,
             'lists': self.lists or [],
             'tags': self.tags or [],
+            'created_by_user_id': self.created_by_user_id,
+            'created_by_team_member_id': self.created_by_team_member_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
 
 class ContactList(db.Model):
     __tablename__ = 'contact_lists'
@@ -97,11 +109,13 @@ class ContactList(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
+
 class BulkImport(db.Model):
     __tablename__ = 'bulk_imports'
     
     id = db.Column(db.String(36), primary_key=True)
     organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False, index=True)
+    created_by_user_id = db.Column(db.String(36), db.ForeignKey('users.id'))
     
     filename = db.Column(db.String(255))
     status = db.Column(db.String(20), default='processing', index=True)  # processing, completed, failed
@@ -120,9 +134,10 @@ class BulkImport(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime)
     
-    def __init__(self, organization_id, filename=None):
+    def __init__(self, organization_id, created_by_user_id=None, filename=None):
         self.id = str(uuid.uuid4())
         self.organization_id = organization_id
+        self.created_by_user_id = created_by_user_id
         self.filename = filename
     
     def to_dict(self):

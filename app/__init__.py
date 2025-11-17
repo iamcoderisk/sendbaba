@@ -30,6 +30,7 @@ def create_app():
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '60b55ca25a3391f98774c37d68c65b88')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://emailer:SecurePassword123@localhost:5432/emailer')
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"connect_args": {"options": "-c search_path=public"}}
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize extensions
@@ -75,11 +76,6 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Campaigns: {e}")
         
-        try:
-            from app.controllers.contact_controller import contact_bp
-            app.register_blueprint(contact_bp)
-            logger.info("✅ Contacts")
-        except Exception as e:
             logger.error(f"❌ Contacts: {e}")
         
         try:
@@ -184,6 +180,30 @@ def create_app():
             logger.info("✅ API Documentation")
         except Exception as e:
             logger.error(f"❌ API Documentation: {e}")
+        
+        # Register Team Management Blueprint
+        try:
+            from app.controllers.team_controller import team_bp
+            app.register_blueprint(team_bp)
+            logger.info("✅ Team Management")
+        except Exception as e:
+            logger.error(f"❌ Team Management: {e}")
+        
+        # Register Team Invitation Blueprint
+        try:
+            from app.controllers.team_invite_controller import team_invite_bp
+            app.register_blueprint(team_invite_bp)
+            logger.info("✅ Team Invitations")
+        except Exception as e:
+            logger.error(f"❌ Team Invitations: {e}")
+        
+        # Register Contacts Controller
+        try:
+            from app.controllers.contact_controller import contact_bp
+            app.register_blueprint(contact_bp)
+            logger.info("✅ Contacts")
+        except Exception as e:
+            logger.error(f"❌ Contacts: {e}")
     
     @login_manager.user_loader
     def load_user(user_id):
@@ -197,3 +217,5 @@ def create_app():
                 return None
     
     return app
+
+

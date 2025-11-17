@@ -47,3 +47,20 @@ class User(UserMixin, db.Model):
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
         return self.email
+
+    def is_admin(self):
+        """Check if user is admin or owner"""
+        return self.role in ['admin', 'owner']
+    
+    def is_owner(self):
+        """Check if user is organization owner"""
+        return self.role == 'owner'
+    
+    def can_see_all_org_data(self):
+        """Check if user can see all organization data"""
+        return self.role in ['admin', 'owner']
+    
+    def can_manage_users(self):
+        """Check if user can manage other users"""
+        return self.role in ['admin', 'owner']
+

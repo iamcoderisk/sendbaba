@@ -1,16 +1,17 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from app import db
 from app.models.user import User
 from app.models.organization import Organization
+from app.models.team import TeamMember
 from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """User login"""
+    """User login - checks both regular users and team members"""
     if current_user.is_authenticated:
         return redirect('/dashboard/')
     
@@ -22,6 +23,7 @@ def login():
             flash('Please enter email and password', 'error')
             return render_template('auth/login.html')
         
+        # Try to find user
         user = User.query.filter_by(email=email).first()
         
         if user and check_password_hash(user.password_hash, password):
@@ -30,6 +32,12 @@ def login():
             # Update last login
             try:
                 user.last_login = datetime.utcnow()
+                
+                # Also update team member if linked
+                team_member = TeamMember.query.filter_by(user_id=user.id).first()
+                if team_member:
+                    team_member.last_login = datetime.utcnow()
+                
                 db.session.commit()
             except:
                 pass
@@ -38,7 +46,12 @@ def login():
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect('/dashboard/')
         else:
-            flash('Invalid email or password', 'error')
+            # Check if they're a team member who hasn't accepted invitation yet
+            team_member = TeamMember.query.filter_by(email=email, invitation_accepted=False).first()
+            if team_member:
+                flash('Please accept your team invitation first. Check your email for the invitation link.', 'warning')
+            else:
+                flash('Invalid email or password', 'error')
     
     return render_template('auth/login.html')
 
@@ -76,11 +89,14 @@ def register():
             # Create user
             user = User(
                 email=email,
-                name=name,
-                organization_id=org.id,
-                password_hash=generate_password_hash(password),
-                created_at=datetime.utcnow()
+                password=password,
+                first_name=name.split()[0] if name else '',
+                last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else ''
             )
+            user.organization_id = org.id
+            user.role = 'owner'
+            user.is_verified = True
+            
             db.session.add(user)
             db.session.commit()
             
@@ -120,26 +136,21 @@ def forgot_password():
 # Legacy routes for backward compatibility
 @auth_bp.route('/signup', methods=['GET', 'POST'])
 def signup():
-    """Legacy /signup route"""
     return register()
 
 @auth_bp.route('/auth/login', methods=['GET', 'POST'])
 def auth_login():
-    """Legacy /auth/login route"""
     return login()
 
 @auth_bp.route('/auth/register', methods=['GET', 'POST'])
 def auth_register():
-    """Legacy /auth/register route"""
     return register()
 
 @auth_bp.route('/auth/signup', methods=['GET', 'POST'])
 def auth_signup():
-    """Legacy /auth/signup route"""
     return register()
 
 @auth_bp.route('/auth/logout')
 @login_required
 def auth_logout():
-    """Legacy /auth/logout route"""
     return logout()
