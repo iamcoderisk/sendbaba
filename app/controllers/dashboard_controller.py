@@ -1,12 +1,7 @@
 from flask import Blueprint, render_template, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models.email import Email
-from app.models.contact import Contact
-from app.models.domain import Domain
-from app.models.campaign import Campaign
-from app.utils.permissions import can_see_all_org_data
-from sqlalchemy import func, and_
+from sqlalchemy import text, func
 from datetime import datetime, timedelta
 import logging
 
@@ -19,109 +14,198 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/dashboard')
 @login_required
 def index():
-    """Dashboard with role-based stats"""
+    """Modern dashboard with advanced analytics"""
     try:
-        # Base filters
-        org_filter = {'organization_id': current_user.organization_id}
+        org_id = current_user.organization_id
         
-        # Add user filter for non-admins
-        if not can_see_all_org_data():
-            user_filter = {'created_by_user_id': current_user.id}
-        else:
-            user_filter = {}
+        # Get comprehensive stats
+        stats = get_dashboard_stats(org_id)
         
-        # Combine filters
-        email_filters = {**org_filter}
-        contact_filters = {**org_filter, **user_filter}
-        domain_filters = {**org_filter, **user_filter}
-        campaign_filters = {**org_filter, **user_filter}
+        # Get chart data
+        email_trends = get_email_trends(org_id)
+        campaign_performance = get_campaign_performance(org_id)
+        contact_growth = get_contact_growth(org_id)
         
-        # Get stats based on role
-        emails_sent = Email.query.filter_by(**email_filters).filter(
-            Email.created_at >= datetime.utcnow() - timedelta(days=30)
-        ).count()
-        
-        total_contacts = Contact.query.filter_by(**contact_filters).filter_by(status='active').count()
-        
-        domains = Domain.query.filter_by(**domain_filters).count()
-        
-        queued = Email.query.filter_by(**email_filters).filter_by(status='queued').count()
-        
-        # Recent campaigns
-        recent_campaigns = Campaign.query.filter_by(**campaign_filters).order_by(
-            Campaign.created_at.desc()
-        ).limit(5).all()
-        
-        stats = {
-            'emails_sent': emails_sent,
-            'total_contacts': total_contacts,
-            'domains': domains,
-            'queued': queued,
-            'user_role': current_user.role,
-            'is_admin': can_see_all_org_data()
-        }
-        
-        logger.info(f"Dashboard stats for user {current_user.id} (role: {current_user.role}): {stats}")
-        
-        return render_template('dashboard/index.html', 
-                             stats=stats, 
-                             recent_campaigns=recent_campaigns)
+        return render_template('dashboard/index.html',
+                             stats=stats,
+                             email_trends=email_trends,
+                             campaign_performance=campaign_performance,
+                             contact_growth=contact_growth)
     
     except Exception as e:
         logger.error(f"Dashboard error: {e}", exc_info=True)
-        return render_template('dashboard/index.html', 
-                             stats={
-                                 'emails_sent': 0,
-                                 'total_contacts': 0,
-                                 'domains': 0,
-                                 'queued': 0,
-                                 'user_role': getattr(current_user, 'role', 'member'),
-                                 'is_admin': False
-                             },
-                             recent_campaigns=[])
+        return render_template('dashboard/index.html',
+                             stats={},
+                             email_trends=[],
+                             campaign_performance=[],
+                             contact_growth=[])
 
 
-@dashboard_bp.route('/dashboard/stats')
-@login_required
-def stats():
-    """API endpoint for dashboard stats"""
+def get_dashboard_stats(org_id):
+    """Get comprehensive dashboard statistics"""
     try:
-        org_filter = {'organization_id': current_user.organization_id}
+        # Emails sent (30 days)
+        emails_result = db.session.execute(text("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+                COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
+                COUNT(CASE WHEN status = 'queued' THEN 1 END) as queued
+            FROM emails 
+            WHERE organization_id = :org_id 
+            AND created_at >= :date
+        """), {
+            'org_id': org_id,
+            'date': datetime.utcnow() - timedelta(days=30)
+        })
+        emails = emails_result.fetchone()
         
-        if not can_see_all_org_data():
-            user_filter = {'created_by_user_id': current_user.id}
-        else:
-            user_filter = {}
+        # Contacts
+        contacts_result = db.session.execute(text("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
+                COUNT(CASE WHEN status = 'unsubscribed' THEN 1 END) as unsubscribed
+            FROM contacts 
+            WHERE organization_id = :org_id
+        """), {'org_id': org_id})
+        contacts = contacts_result.fetchone()
         
-        contact_filters = {**org_filter, **user_filter}
+        # Campaigns
+        campaigns_result = db.session.execute(text("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+                COUNT(CASE WHEN status = 'draft' THEN 1 END) as drafts
+            FROM campaigns 
+            WHERE organization_id = :org_id
+        """), {'org_id': org_id})
+        campaigns = campaigns_result.fetchone()
         
-        stats = {
-            'total_contacts': Contact.query.filter_by(**contact_filters).count(),
-            'active_contacts': Contact.query.filter_by(**contact_filters).filter_by(status='active').count(),
-            'emails_sent_today': Email.query.filter_by(**org_filter).filter(
-                Email.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0)
-            ).count(),
-            'user_role': current_user.role,
-            'viewing_scope': 'organization' if can_see_all_org_data() else 'personal'
+        # Domains
+        domains_result = db.session.execute(text("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN dns_verified = true THEN 1 END) as verified
+            FROM domains 
+            WHERE organization_id = :org_id
+        """), {'org_id': org_id})
+        domains = domains_result.fetchone()
+        
+        # Calculate growth rates
+        prev_month_emails = db.session.execute(text("""
+            SELECT COUNT(*) FROM emails 
+            WHERE organization_id = :org_id 
+            AND created_at >= :start AND created_at < :end
+        """), {
+            'org_id': org_id,
+            'start': datetime.utcnow() - timedelta(days=60),
+            'end': datetime.utcnow() - timedelta(days=30)
+        }).scalar() or 1
+        
+        email_growth = ((emails[0] - prev_month_emails) / prev_month_emails * 100) if prev_month_emails > 0 else 0
+        
+        return {
+            'emails_sent': emails[1] or 0,
+            'emails_total': emails[0] or 0,
+            'emails_failed': emails[2] or 0,
+            'emails_queued': emails[3] or 0,
+            'email_growth': round(email_growth, 1),
+            'contacts_total': contacts[0] or 0,
+            'contacts_active': contacts[1] or 0,
+            'contacts_unsubscribed': contacts[2] or 0,
+            'campaigns_total': campaigns[0] or 0,
+            'campaigns_sent': campaigns[1] or 0,
+            'campaigns_drafts': campaigns[2] or 0,
+            'domains_total': domains[0] or 0,
+            'domains_verified': domains[1] or 0,
+            'delivery_rate': round((emails[1] / emails[0] * 100) if emails[0] > 0 else 0, 1)
         }
-        
-        return jsonify(stats)
     
     except Exception as e:
         logger.error(f"Stats error: {e}")
-        return jsonify({'error': str(e)}), 500
+        return {}
 
-@dashboard_bp.route('/dashboard/send-email', methods=['GET', 'POST'])
-@login_required
-def send_single_email():
-    """Send single email page"""
+
+def get_email_trends(org_id):
+    """Get email sending trends for last 7 days"""
     try:
-        domains_result = db.session.execute(
-            text("SELECT id, domain_name, dns_verified FROM domains WHERE organization_id = :org_id"),
-            {'org_id': current_user.organization_id}
-        )
-        domains = [dict(row._mapping) for row in domains_result]
-        return render_template('dashboard/send_email.html', domains=domains)
+        result = db.session.execute(text("""
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+                COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed
+            FROM emails 
+            WHERE organization_id = :org_id 
+            AND created_at >= :date
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        """), {
+            'org_id': org_id,
+            'date': datetime.utcnow() - timedelta(days=7)
+        })
+        
+        return [dict(row._mapping) for row in result]
+    
     except Exception as e:
-        logger.error(f"Send email page error: {e}", exc_info=True)
-        return render_template('dashboard/send_email.html', domains=[])
+        logger.error(f"Email trends error: {e}")
+        return []
+
+
+def get_campaign_performance(org_id):
+    """Get top performing campaigns"""
+    try:
+        result = db.session.execute(text("""
+            SELECT 
+                name,
+                COALESCE(emails_sent, sent_count, 0) as sent,
+                COALESCE(total_recipients, 0) as recipients,
+                status
+            FROM campaigns 
+            WHERE organization_id = :org_id 
+            ORDER BY created_at DESC
+            LIMIT 5
+        """), {'org_id': org_id})
+        
+        return [dict(row._mapping) for row in result]
+    
+    except Exception as e:
+        logger.error(f"Campaign performance error: {e}")
+        return []
+
+
+def get_contact_growth(org_id):
+    """Get contact growth over last 30 days"""
+    try:
+        result = db.session.execute(text("""
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) as new_contacts
+            FROM contacts 
+            WHERE organization_id = :org_id 
+            AND created_at >= :date
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        """), {
+            'org_id': org_id,
+            'date': datetime.utcnow() - timedelta(days=30)
+        })
+        
+        return [dict(row._mapping) for row in result]
+    
+    except Exception as e:
+        logger.error(f"Contact growth error: {e}")
+        return []
+
+
+@dashboard_bp.route('/dashboard/api/stats')
+@login_required
+def api_stats():
+    """API endpoint for real-time stats"""
+    try:
+        stats = get_dashboard_stats(current_user.organization_id)
+        return jsonify({'success': True, 'data': stats})
+    except Exception as e:
+        logger.error(f"API stats error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
