@@ -125,7 +125,7 @@ def send_email():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def send_email():
+def send_email_v2():
     """Send email from dashboard"""
     try:
         from_name = request.form.get('from_name', 'noreply')
@@ -557,7 +557,7 @@ def parse_contacts_file():
 
 @api_bp.route('/contacts/import', methods=['POST'])
 @login_required
-def import_contacts():
+def import_contacts_v2():
     """Import contacts with mapping"""
     try:
         data = request.json
@@ -621,7 +621,7 @@ def import_contacts():
 
 @api_bp.route('/contacts/<contact_id>/delete', methods=['POST'])
 @login_required
-def delete_contact(contact_id):
+def delete_contact_v2(contact_id):
     """Delete single contact"""
     try:
         db.session.execute(
@@ -655,3 +655,40 @@ def bulk_delete_contacts():
     except Exception as e:
         logger.error(f"Bulk delete error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+def check_daily_limit(organization_id):
+    """Check if organization has exceeded daily email limit"""
+    from sqlalchemy import text
+    from datetime import datetime, timedelta
+    
+    # Get organization's daily limit
+    result = db.session.execute(text("""
+        SELECT team_daily_limit, team_plan
+        FROM organizations
+        WHERE id = :org_id
+    """), {'org_id': organization_id}).fetchone()
+    
+    if not result:
+        return {'allowed': False, 'reason': 'Organization not found'}
+    
+    daily_limit = result[0] or 5000
+    plan = result[1] or 'individual'
+    
+    # Count emails sent today
+    today = datetime.utcnow().date()
+    sent_today = db.session.execute(text("""
+        SELECT COUNT(*)
+        FROM emails
+        WHERE organization_id = :org_id
+        AND DATE(created_at) = :today
+    """), {'org_id': organization_id, 'today': today}).scalar()
+    
+    remaining = daily_limit - (sent_today or 0)
+    
+    return {
+        'allowed': sent_today < daily_limit,
+        'sent_today': sent_today,
+        'daily_limit': daily_limit,
+        'remaining': remaining,
+        'plan': plan
+    }

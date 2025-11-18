@@ -37,3 +37,12 @@ class Organization(db.Model):
     def regenerate_api_key(self):
         self.api_key = secrets.token_urlsafe(32)
         self.api_secret = secrets.token_urlsafe(32)
+    
+    # Team Plan fields
+    team_plan = db.Column(db.String(50), default='individual')
+    team_daily_limit = db.Column(db.Integer, default=5000)
+    team_member_count = db.Column(db.Integer, default=1)
+    team_plan_price = db.Column(db.Numeric(10, 2), default=0.00)
+    team_plan_expires_at = db.Column(db.DateTime)
+    stripe_subscription_id = db.Column(db.String(255))
+

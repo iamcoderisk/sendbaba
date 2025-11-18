@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify
 from flask_login import login_required, current_user
+from app import db
 from app.models.email import Email
 from app.models.contact import Contact
 from app.models.domain import Domain
@@ -109,3 +110,18 @@ def stats():
     except Exception as e:
         logger.error(f"Stats error: {e}")
         return jsonify({'error': str(e)}), 500
+
+@dashboard_bp.route('/dashboard/send-email', methods=['GET', 'POST'])
+@login_required
+def send_single_email():
+    """Send single email page"""
+    try:
+        domains_result = db.session.execute(
+            text("SELECT id, domain_name, dns_verified FROM domains WHERE organization_id = :org_id"),
+            {'org_id': current_user.organization_id}
+        )
+        domains = [dict(row._mapping) for row in domains_result]
+        return render_template('dashboard/send_email.html', domains=domains)
+    except Exception as e:
+        logger.error(f"Send email page error: {e}", exc_info=True)
+        return render_template('dashboard/send_email.html', domains=[])

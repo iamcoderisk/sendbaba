@@ -59,6 +59,9 @@ def create_app():
             from app.controllers.dashboard_controller import dashboard_bp
             app.register_blueprint(dashboard_bp)
             logger.info("✅ Dashboard")
+        
+            logger.error(f"❌ Bulk Send: {e}")
+
         except Exception as e:
             logger.error(f"❌ Dashboard: {e}")
         
@@ -204,6 +207,14 @@ def create_app():
             logger.info("✅ Contacts")
         except Exception as e:
             logger.error(f"❌ Contacts: {e}")
+    
+        # Register Pricing Blueprint
+        try:
+            from app.controllers.pricing_controller import pricing_bp
+            app.register_blueprint(pricing_bp)
+            logger.info("✅ Pricing")
+        except Exception as e:
+            logger.error(f"❌ Pricing: {e}")
     
     @login_manager.user_loader
     def load_user(user_id):

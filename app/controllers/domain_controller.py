@@ -19,18 +19,19 @@ def list_domains():
         
         # Non-admins only see their own domains
         if not can_see_all_org_data():
-            query = query.filter_by(created_by_user_id=current_user.id)
+            pass  # Team filtering removed - show all org domains
+        # query = query.filter_by(created_by_user_id=current_user.id)
         
         domains = query.order_by(Domain.created_at.desc()).all()
         
-        return render_template('dashboard/domains/list.html', 
+        return render_template('dashboard/domains.html', 
                              domains=domains,
                              is_admin=can_see_all_org_data())
     
     except Exception as e:
         logger.error(f"List domains error: {e}", exc_info=True)
         flash('Error loading domains', 'error')
-        return render_template('dashboard/domains/list.html', 
+        return render_template('dashboard/domains.html', 
                              domains=[],
                              is_admin=False)
 
