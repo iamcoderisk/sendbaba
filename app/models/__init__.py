@@ -1,39 +1,42 @@
-from app.models.user import User
+"""
+Models package
+Import order matters for SQLAlchemy relationships
+"""
+# Import base models first
 from app.models.organization import Organization
-from app.models.email import Email, EmailTracking, EmailClick, EmailOpen, EmailBounce, EmailUnsubscribe
-from app.models.contact import Contact, ContactList
-from app.models.campaign import Campaign, CampaignRecipient, CampaignAnalytics
-from app.models.template import EmailTemplate
-from app.models.domain import Domain
-from app.models.suppression import SuppressionList
-from app.models.pricing import PricingPlan, Subscription
-from app.models.payment import PaymentMethod, Transaction
+from app.models.user import User
 
-# Import reply models if they exist, but don't fail if they don't
-try:
-    from app.models.reply import EmailReply
-except ImportError:
-    pass
+# Then dependent models
+from app.models.domain import Domain
+from app.models.contact import Contact, ContactList, BulkImport
+from app.models.email import (
+    Email, 
+    EmailTracking, 
+    EmailClick, 
+    EmailOpen, 
+    EmailBounce, 
+    EmailUnsubscribe,
+    DNSRecord
+)
+from app.models.campaign import Campaign
+from app.models.segment import Segment
+from app.models.suppression import SuppressionList
 
 __all__ = [
+    'Organization',
     'User',
-    'Organization', 
+    'Domain',
+    'Contact',
+    'ContactList',
+    'BulkImport',
     'Email',
     'EmailTracking',
     'EmailClick',
     'EmailOpen',
     'EmailBounce',
     'EmailUnsubscribe',
-    'Contact',
-    'ContactList',
+    'DNSRecord',
     'Campaign',
-    'CampaignRecipient',
-    'CampaignAnalytics',
-    'EmailTemplate',
-    'Domain',
-    'SuppressionList',
-    'PricingPlan',
-    'Subscription',
-    'PaymentMethod',
-    'Transaction',
+    'Segment',
+    'SuppressionList'
 ]

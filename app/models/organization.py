@@ -1,48 +1,37 @@
 from app import db
 from datetime import datetime
 import uuid
-import secrets
 
 class Organization(db.Model):
     __tablename__ = 'organizations'
     
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    
     name = db.Column(db.String(255), nullable=False)
-    slug = db.Column(db.String(100), unique=True, index=True)
     
-    api_key = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    api_secret = db.Column(db.String(64), unique=True, nullable=False)
-    
-    timezone = db.Column(db.String(50), default='UTC')
-    default_from_email = db.Column(db.String(255))
-    default_from_name = db.Column(db.String(200))
-    webhook_url = db.Column(db.String(500))
-    webhook_secret = db.Column(db.String(64))
-    
+    # Settings
     is_active = db.Column(db.Boolean, default=True)
     
+    # Limits
+    email_limit = db.Column(db.Integer, default=1000)
+    
+    # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    domains = db.relationship('Domain', backref='organization', lazy=True, cascade='all, delete-orphan')
+    # Relationships with backref
+    users = db.relationship('User', backref='organization', lazy='dynamic')
+    domains = db.relationship('Domain', backref='organization', lazy='dynamic')
     
-    def __init__(self, name, slug=None):
-        self.id = str(uuid.uuid4())
-        self.name = name
-        self.slug = slug or name.lower().replace(' ', '-').replace('_', '-')[:50] + '-' + secrets.token_hex(4)
-        self.api_key = secrets.token_urlsafe(32)
-        self.api_secret = secrets.token_urlsafe(32)
-        self.webhook_secret = secrets.token_urlsafe(16)
+    def __init__(self, **kwargs):
+        if 'id' not in kwargs:
+            kwargs['id'] = str(uuid.uuid4())
+        super().__init__(**kwargs)
     
-    def regenerate_api_key(self):
-        self.api_key = secrets.token_urlsafe(32)
-        self.api_secret = secrets.token_urlsafe(32)
-    
-    # Team Plan fields
-    team_plan = db.Column(db.String(50), default='individual')
-    team_daily_limit = db.Column(db.Integer, default=5000)
-    team_member_count = db.Column(db.Integer, default=1)
-    team_plan_price = db.Column(db.Numeric(10, 2), default=0.00)
-    team_plan_expires_at = db.Column(db.DateTime)
-    stripe_subscription_id = db.Column(db.String(255))
-
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'is_active': self.is_active,
+            'email_limit': self.email_limit,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
