@@ -1,8 +1,8 @@
 """
-SendBaba SMTP with Working TLS - FINAL FIX
+SendBaba Enterprise SMTP Relay Server
+Production-ready with multi-tenant DKIM support
 """
 import smtplib
-import ssl
 import dns.resolver
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 
 class DomainDKIM:
-    """DKIM signing"""
+    """DKIM handler for each domain"""
+    
     def __init__(self, domain: str, selector: str = 'mail'):
         self.domain = domain
         self.selector = selector
@@ -30,13 +31,15 @@ class DomainDKIM:
             try:
                 with open(self.private_key_path, 'rb') as f:
                     self.private_key = f.read()
-                logger.info(f"✅ DKIM: {domain}")
-            except:
-                pass
+                logger.info(f"✅ DKIM loaded: {domain}")
+            except Exception as e:
+                logger.warning(f"⚠️  DKIM load failed: {e}")
     
     def sign(self, message_bytes: bytes) -> bytes:
+        """Sign message with DKIM"""
         if not self.private_key:
             return message_bytes
+        
         try:
             import dkim
             signature = dkim.sign(
@@ -44,17 +47,23 @@ class DomainDKIM:
                 selector=self.selector.encode('utf-8'),
                 domain=self.domain.encode('utf-8'),
                 privkey=self.private_key,
-                include_headers=[b'from', b'to', b'subject', b'date', b'message-id']
+                include_headers=[
+                    b'from', b'to', b'subject', b'date',
+                    b'message-id', b'mime-version', b'content-type'
+                ]
             )
+            
             if signature and signature != message_bytes:
                 return signature + message_bytes
             return message_bytes
-        except:
+            
+        except Exception as e:
+            logger.error(f"DKIM signing failed: {e}")
             return message_bytes
 
 
-class ProfessionalSMTPRelay:
-    """Professional SMTP with TLS"""
+class SMTPRelay:
+    """Enterprise SMTP Relay"""
     
     def __init__(self):
         self.mx_cache = {}
@@ -72,18 +81,23 @@ class ProfessionalSMTPRelay:
             cache_time, mx_list = self.mx_cache[domain]
             if time.time() - cache_time < 3600:
                 return mx_list
+        
         try:
             mx_records = dns.resolver.resolve(domain, 'MX')
-            mx_list = [str(r.exchange).rstrip('.') for r in sorted(mx_records, key=lambda x: x.preference)]
+            mx_servers = sorted(
+                [(r.preference, str(r.exchange).rstrip('.')) for r in mx_records]
+            )
+            mx_list = [mx[1] for mx in mx_servers]
             self.mx_cache[domain] = (time.time(), mx_list)
             logger.info(f"MX: {mx_list[:2]}")
             return mx_list
         except Exception as e:
-            logger.error(f"MX failed: {e}")
+            logger.error(f"MX lookup failed: {e}")
             return []
     
     def create_message(self, email_data: dict) -> Tuple[bytes, str]:
         msg = MIMEMultipart('alternative')
+        
         sender = email_data.get('from', 'noreply@sendbaba.com')
         sender_domain = sender.split('@')[1] if '@' in sender else 'sendbaba.com'
         
@@ -102,15 +116,16 @@ class ProfessionalSMTPRelay:
         if html_body:
             msg.attach(MIMEText(html_body, 'html', 'utf-8'))
         elif not text_body:
-            msg.attach(MIMEText('SendBaba', 'plain', 'utf-8'))
+            msg.attach(MIMEText('SendBaba Email', 'plain', 'utf-8'))
         
         message_bytes = msg.as_bytes()
         
+        # DKIM signing
         dkim_handler = self.get_dkim_for_domain(sender_domain)
         if dkim_handler and dkim_handler.private_key:
             signed = dkim_handler.sign(message_bytes)
             if signed != message_bytes:
-                logger.info(f"✅ DKIM signed")
+                logger.info(f"✅ DKIM signed: {sender_domain}")
                 return signed, sender_domain
         
         return message_bytes, sender_domain
@@ -119,7 +134,6 @@ class ProfessionalSMTPRelay:
         recipient = email_data.get('to', '').strip()
         sender = email_data.get('from', 'noreply@sendbaba.com')
         
-        # FIXED: Correct validation logic
         if not recipient or '@' not in recipient:
             return {'success': False, 'message': 'Invalid recipient'}
         
@@ -130,67 +144,61 @@ class ProfessionalSMTPRelay:
         
         mx_servers = self.get_mx_servers(recipient_domain)
         if not mx_servers:
-            return {'success': False, 'message': 'No MX'}
+            return {'success': False, 'message': 'No MX servers'}
         
         signed_message, sender_domain = self.create_message(email_data)
+        last_error = None
         
         for mx_server in mx_servers[:3]:
+            # Try WITH TLS
             try:
-                logger.info(f"📤 {mx_server}")
-                
-                # Create connection with proper hostname
-                smtp = smtplib.SMTP(mx_server, 25, timeout=30)
+                logger.info(f"📤 {mx_server} (TLS)")
+                smtp = smtplib.SMTP(timeout=30)
+                smtp.connect(mx_server, 25)
                 smtp.ehlo(self.hostname)
-                
-                # Try STARTTLS if available
-                if smtp.has_extn('STARTTLS'):
-                    try:
-                        context = ssl.create_default_context()
-                        context.check_hostname = False
-                        context.verify_mode = ssl.CERT_NONE
-                        
-                        smtp.starttls(context=context)
-                        smtp.ehlo(self.hostname)
-                        logger.info("✅ TLS enabled")
-                        tls_used = True
-                    except Exception as tls_err:
-                        logger.warning(f"TLS failed: {tls_err}, using plaintext")
-                        tls_used = False
-                else:
-                    tls_used = False
-                
-                # Send email
+                smtp.starttls()
+                smtp.ehlo(self.hostname)
                 smtp.sendmail(sender, [recipient], signed_message)
                 smtp.quit()
                 
-                logger.info(f"✅ Sent successfully")
+                logger.info(f"✅ Sent with TLS")
                 return {
                     'success': True,
-                    'message': 'Email sent',
+                    'message': 'Sent with TLS',
                     'mx_server': mx_server,
-                    'tls': tls_used,
-                    'encrypted': tls_used
+                    'tls': True,
+                    'dkim': self.dkim_cache.get(sender_domain, DomainDKIM('')).private_key is not None
                 }
-                
-            except Exception as e:
-                logger.warning(f"Failed: {e}")
+            except:
+                # Try WITHOUT TLS
                 try:
+                    logger.info(f"🔄 {mx_server} (plaintext)")
+                    smtp = smtplib.SMTP(timeout=30)
+                    smtp.connect(mx_server, 25)
+                    smtp.ehlo(self.hostname)
+                    smtp.sendmail(sender, [recipient], signed_message)
                     smtp.quit()
-                except:
-                    pass
-                continue
+                    
+                    logger.info(f"✅ Sent plaintext")
+                    return {
+                        'success': True,
+                        'message': 'Sent plaintext',
+                        'mx_server': mx_server,
+                        'tls': False,
+                        'dkim': self.dkim_cache.get(sender_domain, DomainDKIM('')).private_key is not None
+                    }
+                except Exception as e:
+                    last_error = str(e)
+                    continue
         
         if retry_count < 2:
             time.sleep(2 ** retry_count)
             return self.send_email(email_data, retry_count + 1)
         
-        return {'success': False, 'message': 'All MX failed'}
+        return {'success': False, 'message': f'Failed: {last_error}'}
 
 
-relay = ProfessionalSMTPRelay()
+relay = SMTPRelay()
 
 def send_email_sync(email_data: dict) -> dict:
-    return relay.send_email(email_data)
-
-async def send_via_relay(email_data: dict) -> dict:
     return relay.send_email(email_data)

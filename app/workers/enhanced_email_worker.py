@@ -1,5 +1,5 @@
 """
-Enhanced Email Worker - Fixed version
+Enhanced Email Worker - Redis Queue Processing
 """
 import asyncio
 import json
@@ -10,26 +10,24 @@ from datetime import datetime
 import redis
 import logging
 
-# Add project to path
-sys.path.insert(0, '/opt/sendbaba-smtp')
+sys.path.insert(0, '/opt/sendbaba-staging')
 
-# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - Worker - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# Import after path is set
 from app.smtp.relay_server import send_via_relay
 
 
-class SimpleEmailWorker:
-    """Simple, reliable email worker"""
+class EnhancedEmailWorker:
+    """Enhanced email worker"""
     
     def __init__(self):
         self.running = True
         self.processed = 0
+        self.failed = 0
         
         # Redis
         self.redis_client = redis.Redis(
@@ -38,70 +36,82 @@ class SimpleEmailWorker:
             decode_responses=True
         )
         
-        # Signal handlers
+        self.redis_client.ping()
+        logger.info("✅ Redis connected")
+        
+        # Database config (from your app/__init__.py)
+        self.db_config = {
+            'host': 'localhost',
+            'database': 'emailer',  # Changed from emailer_staging
+            'user': 'emailer',      # Changed from emailer_staging
+            'password': 'SecurePassword123'
+        }
+        
+        # Test DB connection
+        try:
+            import psycopg2
+            conn = psycopg2.connect(**self.db_config)
+            conn.close()
+            logger.info("✅ Database connected")
+        except Exception as e:
+            logger.warning(f"⚠️  Database connection failed: {e}")
+            logger.warning("Emails will still send, but won't update DB")
+        
         signal.signal(signal.SIGINT, self.shutdown)
         signal.signal(signal.SIGTERM, self.shutdown)
-        
-        logger.info("✅ Simple Worker initialized")
     
     def shutdown(self, signum, frame):
-        logger.info("Worker shutting down...")
+        logger.info("Shutting down...")
         self.running = False
     
     async def process_email(self, email_data: dict):
         """Process single email"""
-        email_id = email_data.get('id')
+        email_id = email_data.get('id', 'unknown')
         recipient = email_data.get('to')
         
         try:
             logger.info(f"📤 Sending to {recipient}")
             
-            # Send email
             result = await send_via_relay(email_data)
             
             if result['success']:
                 self.processed += 1
                 logger.info(f"✅ Sent to {recipient}")
                 
-                # Try to update database, but don't fail if it doesn't work
+                # Update DB
                 try:
-                    self.update_status(email_id, 'sent')
-                except Exception as db_error:
-                    logger.warning(f"Could not update DB (email was sent): {db_error}")
+                    self.update_db(email_id, 'sent')
+                except Exception as db_err:
+                    logger.warning(f"DB update skipped: {db_err}")
                 
                 return True
             else:
-                # Retry logic
                 retry_count = email_data.get('retry_count', 0)
                 if retry_count < 3:
                     email_data['retry_count'] = retry_count + 1
-                    self.redis_client.lpush('outgoing_10', json.dumps(email_data))
+                    self.redis_client.lpush('email_queue', json.dumps(email_data))
                     logger.info(f"↻ Requeued (attempt {retry_count + 1}/3)")
                 else:
+                    self.failed += 1
                     logger.error(f"❌ Failed after 3 retries")
                     try:
-                        self.update_status(email_id, 'failed')
+                        self.update_db(email_id, 'failed')
                     except:
                         pass
                 
                 return False
         
         except Exception as e:
-            logger.error(f"Error processing email: {e}")
+            self.failed += 1
+            logger.error(f"Error: {e}")
             return False
     
-    def update_status(self, email_id: str, status: str):
+    def update_db(self, email_id: str, status: str):
         """Update email status in database"""
         try:
             import psycopg2
             
-            conn = psycopg2.connect(
-                host='localhost',
-                database='emailer',
-                user='emailer',
-                password='SecurePassword123'
-            )
-            
+            conn = psycopg2.connect(**self.db_config)
             cursor = conn.cursor()
             
             if status == 'sent':
@@ -118,45 +128,54 @@ class SimpleEmailWorker:
             conn.commit()
             cursor.close()
             conn.close()
+            logger.info(f"✅ DB updated: {email_id} -> {status}")
             
         except Exception as e:
-            logger.warning(f"DB update failed: {e}")
+            raise e
     
     async def start(self):
-        """Start the worker"""
-        logger.info("🚀 Worker started - waiting for emails...")
+        """Start worker"""
+        logger.info("🚀 Worker started")
+        logger.info("Listening: email_queue, high_priority, outgoing_*")
         
         while self.running:
             try:
-                # Check priority queues
                 email_data = None
+                
+                # Priority queues
                 for priority in range(10, 0, -1):
-                    queue_name = f'outgoing_{priority}'
-                    result = self.redis_client.brpop(queue_name, timeout=1)
-                    
+                    result = self.redis_client.brpop(f'outgoing_{priority}', timeout=0.1)
                     if result:
                         email_data = json.loads(result[1])
+                        logger.info(f"Got from outgoing_{priority}")
                         break
+                
+                # Standard queues
+                if not email_data:
+                    result = self.redis_client.brpop(['high_priority', 'email_queue'], timeout=1)
+                    if result:
+                        queue_name, data = result
+                        email_data = json.loads(data)
+                        logger.info(f"Got from {queue_name}")
                 
                 if email_data:
                     await self.process_email(email_data)
                 else:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.5)
                 
-                # Log stats every 10 emails
-                if self.processed % 10 == 0 and self.processed > 0:
-                    logger.info(f"📊 Processed: {self.processed}")
+                # Stats every 10 emails
+                if (self.processed + self.failed) % 10 == 0 and (self.processed + self.failed) > 0:
+                    logger.info(f"📊 Sent: {self.processed}, Failed: {self.failed}")
             
             except Exception as e:
-                logger.error(f"Worker loop error: {e}")
+                logger.error(f"Loop error: {e}")
                 await asyncio.sleep(1)
         
-        logger.info(f"Worker stopped. Processed: {self.processed}")
+        logger.info(f"Worker stopped. Sent: {self.processed}, Failed: {self.failed}")
 
 
 def main():
-    """Entry point"""
-    worker = SimpleEmailWorker()
+    worker = EnhancedEmailWorker()
     asyncio.run(worker.start())
 
 

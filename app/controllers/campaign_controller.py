@@ -237,7 +237,7 @@ def api_send_campaign():
 @campaign_bp.route('/campaigns/api/send-test', methods=['POST'])
 @login_required
 def api_send_test_email():
-    """API: Send test email"""
+    """API: Send test email - IMMEDIATE via SMTP"""
     try:
         data = request.get_json()
         
@@ -258,38 +258,38 @@ def api_send_test_email():
         )
         domain_row = domains_result.fetchone()
         sender_domain = domain_row[0] if domain_row else 'sendbaba.com'
+        sender = f'noreply@{sender_domain}'
         
-        # Send test email
-        email_id = str(uuid.uuid4())
+        # Send IMMEDIATELY via SMTP
+        from app.smtp.relay_server import send_email_sync
         
-        db.session.execute(
-            text("""
-                INSERT INTO emails (id, organization_id, sender, recipient, subject, html_body, status, created_at)
-                VALUES (:id, :org_id, :sender, :recipient, :subject, :html, 'queued', NOW())
-            """),
-            {
-                'id': email_id,
-                'org_id': current_user.organization_id,
-                'sender': f'noreply@{sender_domain}',
-                'recipient': test_email,
-                'subject': f'[TEST] {subject}',
-                'html': html_content
-            }
-        )
+        logger.info(f"Sending test email to {test_email}")
         
-        db.session.commit()
-        
-        logger.info(f"Test email queued: {email_id} to {test_email}")
-        
-        return jsonify({
-            'success': True, 
-            'message': f'Test email sent to {test_email}'
+        result = send_email_sync({
+            'from': sender,
+            'to': test_email,
+            'subject': f'[TEST] {subject}',
+            'html_body': html_content,
+            'text_body': 'Test email from SendBaba'
         })
+        
+        if result.get('success'):
+            logger.info(f"✅ Test email sent to {test_email}")
+            return jsonify({
+                'success': True, 
+                'message': f'Test email sent to {test_email}!'
+            })
+        else:
+            logger.error(f"❌ Test email failed: {result.get('message')}")
+            return jsonify({
+                'success': False,
+                'error': f"Send failed: {result.get('message')}"
+            }), 500
         
     except Exception as e:
         logger.error(f"Send test email error: {e}", exc_info=True)
-        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @campaign_bp.route('/campaigns/<campaign_id>')
 @login_required

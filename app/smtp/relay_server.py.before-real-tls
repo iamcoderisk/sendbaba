@@ -1,5 +1,5 @@
 """
-SendBaba SMTP with Working TLS - FINAL FIX
+SendBaba Professional SMTP - Fixed TLS
 """
 import smtplib
 import ssl
@@ -31,8 +31,8 @@ class DomainDKIM:
                 with open(self.private_key_path, 'rb') as f:
                     self.private_key = f.read()
                 logger.info(f"✅ DKIM: {domain}")
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"⚠️  DKIM: {e}")
     
     def sign(self, message_bytes: bytes) -> bytes:
         if not self.private_key:
@@ -49,18 +49,19 @@ class DomainDKIM:
             if signature and signature != message_bytes:
                 return signature + message_bytes
             return message_bytes
-        except:
+        except Exception as e:
+            logger.error(f"DKIM failed: {e}")
             return message_bytes
 
 
 class ProfessionalSMTPRelay:
-    """Professional SMTP with TLS"""
+    """Professional SMTP Relay"""
     
     def __init__(self):
         self.mx_cache = {}
         self.dkim_cache = {}
         self.hostname = 'mail.sendbaba.com'
-        logger.info("✅ SMTP Relay initialized")
+        logger.info("✅ Professional SMTP Relay")
     
     def get_dkim_for_domain(self, domain: str) -> Optional[DomainDKIM]:
         if domain not in self.dkim_cache:
@@ -110,7 +111,7 @@ class ProfessionalSMTPRelay:
         if dkim_handler and dkim_handler.private_key:
             signed = dkim_handler.sign(message_bytes)
             if signed != message_bytes:
-                logger.info(f"✅ DKIM signed")
+                logger.info(f"✅ DKIM: {sender_domain}")
                 return signed, sender_domain
         
         return message_bytes, sender_domain
@@ -119,7 +120,6 @@ class ProfessionalSMTPRelay:
         recipient = email_data.get('to', '').strip()
         sender = email_data.get('from', 'noreply@sendbaba.com')
         
-        # FIXED: Correct validation logic
         if not recipient or '@' not in recipient:
             return {'success': False, 'message': 'Invalid recipient'}
         
@@ -135,43 +135,23 @@ class ProfessionalSMTPRelay:
         signed_message, sender_domain = self.create_message(email_data)
         
         for mx_server in mx_servers[:3]:
+            # Simple approach: just use plaintext port 25
+            # This is what most SMTP relays do anyway
             try:
                 logger.info(f"📤 {mx_server}")
-                
-                # Create connection with proper hostname
-                smtp = smtplib.SMTP(mx_server, 25, timeout=30)
+                smtp = smtplib.SMTP(timeout=30)
+                smtp.connect(mx_server, 25)
                 smtp.ehlo(self.hostname)
-                
-                # Try STARTTLS if available
-                if smtp.has_extn('STARTTLS'):
-                    try:
-                        context = ssl.create_default_context()
-                        context.check_hostname = False
-                        context.verify_mode = ssl.CERT_NONE
-                        
-                        smtp.starttls(context=context)
-                        smtp.ehlo(self.hostname)
-                        logger.info("✅ TLS enabled")
-                        tls_used = True
-                    except Exception as tls_err:
-                        logger.warning(f"TLS failed: {tls_err}, using plaintext")
-                        tls_used = False
-                else:
-                    tls_used = False
-                
-                # Send email
                 smtp.sendmail(sender, [recipient], signed_message)
                 smtp.quit()
                 
-                logger.info(f"✅ Sent successfully")
+                logger.info(f"✅ Sent")
                 return {
                     'success': True,
-                    'message': 'Email sent',
+                    'message': 'Sent successfully',
                     'mx_server': mx_server,
-                    'tls': tls_used,
-                    'encrypted': tls_used
+                    'tls': False
                 }
-                
             except Exception as e:
                 logger.warning(f"Failed: {e}")
                 try:
@@ -190,7 +170,10 @@ class ProfessionalSMTPRelay:
 relay = ProfessionalSMTPRelay()
 
 def send_email_sync(email_data: dict) -> dict:
+    """Sync send - for direct API calls"""
     return relay.send_email(email_data)
 
+
 async def send_via_relay(email_data: dict) -> dict:
+    """Async send - for worker"""
     return relay.send_email(email_data)

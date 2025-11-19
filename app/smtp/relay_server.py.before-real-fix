@@ -1,0 +1,323 @@
+"""
+SendBaba Professional SMTP with WORKING TLS
+Using socket-level SSL wrapping
+"""
+import smtplib
+import ssl
+import socket
+import dns.resolver
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formatdate, make_msgid
+import logging
+from typing import Dict, Tuple, Optional
+import time
+import sys
+import os
+
+sys.path.insert(0, '/opt/sendbaba-staging')
+
+logger = logging.getLogger(__name__)
+
+
+class DomainDKIM:
+    """DKIM signing"""
+    def __init__(self, domain: str, selector: str = 'mail'):
+        self.domain = domain
+        self.selector = selector
+        self.private_key_path = f'/opt/sendbaba-staging/data/dkim/{domain}_private.key'
+        self.private_key = None
+        
+        if os.path.exists(self.private_key_path):
+            try:
+                with open(self.private_key_path, 'rb') as f:
+                    self.private_key = f.read()
+                logger.info(f"✅ DKIM: {domain}")
+            except Exception as e:
+                logger.warning(f"⚠️  DKIM: {e}")
+    
+    def sign(self, message_bytes: bytes) -> bytes:
+        if not self.private_key:
+            return message_bytes
+        try:
+            import dkim
+            signature = dkim.sign(
+                message=message_bytes,
+                selector=self.selector.encode('utf-8'),
+                domain=self.domain.encode('utf-8'),
+                privkey=self.private_key,
+                include_headers=[b'from', b'to', b'subject', b'date', b'message-id']
+            )
+            if signature and signature != message_bytes:
+                return signature + message_bytes
+            return message_bytes
+        except Exception as e:
+            logger.error(f"DKIM failed: {e}")
+            return message_bytes
+
+
+class TLSSMTPConnection:
+    """Custom SMTP with proper TLS"""
+    
+    def __init__(self, host: str, port: int, timeout: int = 30):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.sock = None
+        self.file = None
+        
+    def connect(self):
+        """Connect to SMTP server"""
+        self.sock = socket.create_connection((self.host, self.port), self.timeout)
+        self.file = self.sock.makefile('rb')
+        code, msg = self._get_reply()
+        return code, msg
+    
+    def _get_reply(self):
+        """Get server reply"""
+        line = self.file.readline().decode('utf-8')
+        code = int(line[:3])
+        msg = line[4:].strip()
+        return code, msg
+    
+    def _send(self, data: str):
+        """Send command"""
+        self.sock.sendall((data + '\r\n').encode('utf-8'))
+        return self._get_reply()
+    
+    def ehlo(self, hostname: str):
+        """EHLO command"""
+        return self._send(f'EHLO {hostname}')
+    
+    def starttls_manual(self):
+        """Manual STARTTLS with proper socket wrapping"""
+        # Send STARTTLS command
+        code, msg = self._send('STARTTLS')
+        
+        if code == 220:
+            # Wrap socket with SSL
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            
+            # Wrap the socket
+            self.sock = context.wrap_socket(
+                self.sock,
+                server_hostname=self.host
+            )
+            
+            # Recreate file handle
+            self.file = self.sock.makefile('rb')
+            
+            return True
+        return False
+    
+    def mail_from(self, sender: str):
+        """MAIL FROM command"""
+        return self._send(f'MAIL FROM:<{sender}>')
+    
+    def rcpt_to(self, recipient: str):
+        """RCPT TO command"""
+        return self._send(f'RCPT TO:<{recipient}>')
+    
+    def data(self, message: bytes):
+        """DATA command"""
+        code, msg = self._send('DATA')
+        if code == 354:
+            # Send message
+            self.sock.sendall(message)
+            if not message.endswith(b'\r\n'):
+                self.sock.sendall(b'\r\n')
+            self.sock.sendall(b'.\r\n')
+            return self._get_reply()
+        return code, msg
+    
+    def quit(self):
+        """QUIT command"""
+        try:
+            self._send('QUIT')
+            self.sock.close()
+        except:
+            pass
+
+
+class ProfessionalSMTPRelay:
+    """Professional SMTP with REAL TLS"""
+    
+    def __init__(self):
+        self.mx_cache = {}
+        self.dkim_cache = {}
+        self.hostname = 'mail.sendbaba.com'
+        logger.info("✅ Professional SMTP Relay with TLS")
+    
+    def get_dkim_for_domain(self, domain: str) -> Optional[DomainDKIM]:
+        if domain not in self.dkim_cache:
+            self.dkim_cache[domain] = DomainDKIM(domain)
+        return self.dkim_cache[domain]
+    
+    def get_mx_servers(self, domain: str) -> list:
+        if domain in self.mx_cache:
+            cache_time, mx_list = self.mx_cache[domain]
+            if time.time() - cache_time < 3600:
+                return mx_list
+        try:
+            mx_records = dns.resolver.resolve(domain, 'MX')
+            mx_list = [str(r.exchange).rstrip('.') for r in sorted(mx_records, key=lambda x: x.preference)]
+            self.mx_cache[domain] = (time.time(), mx_list)
+            logger.info(f"MX: {mx_list[:2]}")
+            return mx_list
+        except Exception as e:
+            logger.error(f"MX failed: {e}")
+            return []
+    
+    def create_message(self, email_data: dict) -> Tuple[bytes, str]:
+        msg = MIMEMultipart('alternative')
+        sender = email_data.get('from', 'noreply@sendbaba.com')
+        sender_domain = sender.split('@')[1] if '@' in sender else 'sendbaba.com'
+        
+        msg['From'] = sender
+        msg['To'] = email_data.get('to')
+        msg['Subject'] = email_data.get('subject', 'Message')
+        msg['Date'] = formatdate(localtime=True)
+        msg['Message-ID'] = make_msgid(domain=sender_domain)
+        msg['X-Mailer'] = 'SendBaba Professional/2.0'
+        
+        text_body = email_data.get('text_body', '')
+        html_body = email_data.get('html_body', '')
+        
+        if text_body:
+            msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+        if html_body:
+            msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+        elif not text_body:
+            msg.attach(MIMEText('SendBaba', 'plain', 'utf-8'))
+        
+        message_bytes = msg.as_bytes()
+        
+        dkim_handler = self.get_dkim_for_domain(sender_domain)
+        if dkim_handler and dkim_handler.private_key:
+            signed = dkim_handler.sign(message_bytes)
+            if signed != message_bytes:
+                logger.info(f"✅ DKIM: {sender_domain}")
+                return signed, sender_domain
+        
+        return message_bytes, sender_domain
+    
+    def send_with_custom_tls(self, mx_server: str, sender: str, recipient: str, message: bytes) -> Dict:
+        """Send with custom TLS implementation"""
+        conn = None
+        try:
+            logger.info(f"📤 {mx_server} (Custom TLS)")
+            
+            # Connect
+            conn = TLSSMTPConnection(mx_server, 25, timeout=30)
+            code, msg = conn.connect()
+            
+            if code != 220:
+                raise Exception(f"Connection failed: {code} {msg}")
+            
+            # EHLO
+            conn.ehlo(self.hostname)
+            
+            # Try STARTTLS
+            if conn.starttls_manual():
+                # EHLO again after TLS
+                conn.ehlo(self.hostname)
+                
+                # Send email
+                conn.mail_from(sender)
+                conn.rcpt_to(recipient)
+                conn.data(message)
+                conn.quit()
+                
+                logger.info(f"🔐 TLS SUCCESS!")
+                return {
+                    'success': True,
+                    'message': 'Sent with TLS encryption',
+                    'mx_server': mx_server,
+                    'tls': True,
+                    'encrypted': True
+                }
+            else:
+                # No STARTTLS, send plaintext
+                conn.mail_from(sender)
+                conn.rcpt_to(recipient)
+                conn.data(message)
+                conn.quit()
+                
+                logger.info(f"✅ Sent (TLS not available)")
+                return {
+                    'success': True,
+                    'message': 'Sent plaintext',
+                    'mx_server': mx_server,
+                    'tls': False
+                }
+                
+        except Exception as e:
+            logger.warning(f"Custom TLS failed: {e}")
+            if conn:
+                try:
+                    conn.quit()
+                except:
+                    pass
+            raise e
+    
+    def send_email(self, email_data: dict, retry_count: int = 0) -> Dict:
+        recipient = email_data.get('to', '').strip()
+        sender = email_data.get('from', 'noreply@sendbaba.com')
+        
+        if not recipient or '@' not in recipient:
+            return {'success': False, 'message': 'Invalid recipient'}
+        
+        try:
+            recipient_domain = recipient.split('@')[1]
+        except:
+            return {'success': False, 'message': 'Invalid format'}
+        
+        mx_servers = self.get_mx_servers(recipient_domain)
+        if not mx_servers:
+            return {'success': False, 'message': 'No MX'}
+        
+        signed_message, sender_domain = self.create_message(email_data)
+        
+        for mx_server in mx_servers[:3]:
+            # Try custom TLS first
+            try:
+                result = self.send_with_custom_tls(mx_server, sender, recipient, signed_message)
+                return result
+            except:
+                # Fallback to standard smtplib
+                try:
+                    logger.info(f"🔄 {mx_server} (fallback)")
+                    smtp = smtplib.SMTP(timeout=30)
+                    smtp.connect(mx_server, 25)
+                    smtp.ehlo(self.hostname)
+                    smtp.sendmail(sender, [recipient], signed_message)
+                    smtp.quit()
+                    
+                    logger.info(f"✅ Sent (fallback)")
+                    return {
+                        'success': True,
+                        'message': 'Sent via fallback',
+                        'mx_server': mx_server,
+                        'tls': False
+                    }
+                except Exception as e:
+                    logger.warning(f"Fallback failed: {e}")
+                    continue
+        
+        if retry_count < 2:
+            time.sleep(2 ** retry_count)
+            return self.send_email(email_data, retry_count + 1)
+        
+        return {'success': False, 'message': 'All MX failed'}
+
+
+relay = ProfessionalSMTPRelay()
+
+def send_email_sync(email_data: dict) -> dict:
+    return relay.send_email(email_data)
+
+async def send_via_relay(email_data: dict) -> dict:
+    return relay.send_email(email_data)
