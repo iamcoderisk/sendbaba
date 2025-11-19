@@ -1,5 +1,5 @@
 """
-Modern Campaign Controller - Full Draft Management
+Modern Campaign Controller - Integrated with Templates
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
@@ -26,7 +26,7 @@ def list_campaigns():
                     id, name, subject, status,
                     COALESCE(emails_sent, sent_count, 0) as total_sent,
                     COALESCE(total_recipients, 0) as recipients,
-                    created_at, html_body
+                    created_at
                 FROM campaigns 
                 WHERE organization_id = :org_id 
                 ORDER BY created_at DESC
@@ -44,8 +44,7 @@ def list_campaigns():
                 'status': row[3],
                 'total_sent': row[4],
                 'recipients': row[5],
-                'created_at': row[6],
-                'has_content': bool(row[7])
+                'created_at': row[6]
             }
             
             if row[3] in ['sent', 'completed']:
@@ -72,11 +71,12 @@ def create_campaign():
 @campaign_bp.route('/campaigns/templates')
 @login_required
 def select_template():
-    """Step 2: Template gallery"""
+    """Step 2: Template gallery - loads from email_templates folder"""
     try:
         templates_dir = os.path.join('app', 'templates', 'email_templates')
         templates = []
         
+        # Read all .html files in email_templates directory
         if os.path.exists(templates_dir):
             for filename in os.listdir(templates_dir):
                 if filename.endswith('.html'):
@@ -101,52 +101,11 @@ def select_template():
 @campaign_bp.route('/campaigns/design/<template_id>')
 @login_required
 def design_campaign(template_id='blank'):
-    """Step 3: Visual editor - Load existing or create new"""
+    """Step 3: Visual editor"""
     try:
+        # Get campaign name from query params
         campaign_name = request.args.get('name', 'Untitled Campaign')
-        campaign_id = request.args.get('campaign_id')
-        
-        # Check if campaign exists in database
-        existing_campaign = None
-        if campaign_id:
-            result = db.session.execute(
-                text("""
-                    SELECT id, name, subject, html_body, status 
-                    FROM campaigns 
-                    WHERE id = :id AND organization_id = :org_id
-                """),
-                {'id': campaign_id, 'org_id': current_user.organization_id}
-            )
-            row = result.fetchone()
-            if row:
-                existing_campaign = {
-                    'id': row[0],
-                    'name': row[1],
-                    'subject': row[2] or '',
-                    'html_body': row[3] or '',
-                    'status': row[4]
-                }
-                campaign_name = existing_campaign['name']
-        
-        # If no campaign_id or doesn't exist, create new draft
-        if not campaign_id or not existing_campaign:
-            campaign_id = f'camp_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:10]}'
-            
-            # Create draft in database immediately
-            db.session.execute(
-                text("""
-                    INSERT INTO campaigns (id, organization_id, name, status, created_at)
-                    VALUES (:id, :org_id, :name, 'draft', NOW())
-                    ON CONFLICT (id) DO NOTHING
-                """),
-                {
-                    'id': campaign_id,
-                    'org_id': current_user.organization_id,
-                    'name': campaign_name
-                }
-            )
-            db.session.commit()
-            logger.info(f"Created draft campaign: {campaign_id}")
+        campaign_id = request.args.get('campaign_id', str(uuid.uuid4()))
         
         # Get contacts count
         contacts_result = db.session.execute(
@@ -162,13 +121,9 @@ def design_campaign(template_id='blank'):
         )
         domains = [dict(row._mapping) for row in domains_result]
         
-        # Load template HTML
+        # Load template HTML if not blank
         template_html = ''
-        if existing_campaign and existing_campaign['html_body']:
-            # Use existing campaign content
-            template_html = existing_campaign['html_body']
-        elif template_id != 'blank':
-            # Load template file
+        if template_id != 'blank':
             template_path = os.path.join('app', 'templates', 'email_templates', f'{template_id}.html')
             if os.path.exists(template_path):
                 with open(template_path, 'r') as f:
@@ -178,7 +133,6 @@ def design_campaign(template_id='blank'):
                              template_id=template_id,
                              campaign_name=campaign_name,
                              campaign_id=campaign_id,
-                             campaign_subject=existing_campaign['subject'] if existing_campaign else '',
                              template_html=template_html,
                              contacts_count=contacts_count,
                              domains=domains)
@@ -192,80 +146,57 @@ def design_campaign(template_id='blank'):
 @campaign_bp.route('/campaigns/api/save-draft', methods=['POST'])
 @login_required
 def api_save_draft():
-    """API: Save campaign draft - Auto-save"""
+    """API: Save campaign draft"""
     try:
         data = request.get_json()
         
         campaign_id = data.get('campaign_id')
-        campaign_name = data.get('name', 'Untitled Campaign')
-        subject = data.get('subject', '')
-        html_body = data.get('html', '')
         
-        if not campaign_id:
-            return jsonify({'success': False, 'error': 'Campaign ID required'}), 400
+        # Check if campaign exists
+        existing = db.session.execute(
+            text("SELECT id FROM campaigns WHERE id = :id"),
+            {'id': campaign_id}
+        ).fetchone()
         
-        # Upsert campaign
-        db.session.execute(
-            text("""
-                INSERT INTO campaigns (id, organization_id, name, subject, html_body, status, created_at, updated_at)
-                VALUES (:id, :org_id, :name, :subject, :html, 'draft', NOW(), NOW())
-                ON CONFLICT (id) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    subject = EXCLUDED.subject,
-                    html_body = EXCLUDED.html_body,
-                    updated_at = NOW()
-            """),
-            {
-                'id': campaign_id,
-                'org_id': current_user.organization_id,
-                'name': campaign_name,
-                'subject': subject,
-                'html': html_body
-            }
-        )
+        if existing:
+            # Update existing draft
+            db.session.execute(
+                text("""
+                    UPDATE campaigns 
+                    SET name = :name, subject = :subject, html_body = :html, updated_at = NOW()
+                    WHERE id = :id
+                """),
+                {
+                    'id': campaign_id,
+                    'name': data.get('name'),
+                    'subject': data.get('subject'),
+                    'html': data.get('html')
+                }
+            )
+        else:
+            # Create new draft
+            db.session.execute(
+                text("""
+                    INSERT INTO campaigns (id, organization_id, name, subject, html_body, status, created_at)
+                    VALUES (:id, :org_id, :name, :subject, :html, 'draft', NOW())
+                """),
+                {
+                    'id': campaign_id,
+                    'org_id': current_user.organization_id,
+                    'name': data.get('name'),
+                    'subject': data.get('subject'),
+                    'html': data.get('html')
+                }
+            )
         
         db.session.commit()
         
-        logger.info(f"✅ Draft saved: {campaign_id} - {campaign_name}")
+        logger.info(f"Draft saved: {campaign_id}")
         
-        return jsonify({
-            'success': True, 
-            'campaign_id': campaign_id,
-            'message': 'Draft saved'
-        })
+        return jsonify({'success': True, 'campaign_id': campaign_id})
         
     except Exception as e:
         logger.error(f"Save draft error: {e}", exc_info=True)
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@campaign_bp.route('/campaigns/api/delete-draft/<campaign_id>', methods=['DELETE'])
-@login_required
-def api_delete_draft(campaign_id):
-    """API: Delete draft campaign"""
-    try:
-        # Only allow deleting drafts
-        result = db.session.execute(
-            text("""
-                DELETE FROM campaigns 
-                WHERE id = :id 
-                AND organization_id = :org_id 
-                AND status = 'draft'
-                RETURNING id
-            """),
-            {'id': campaign_id, 'org_id': current_user.organization_id}
-        )
-        
-        if result.fetchone():
-            db.session.commit()
-            logger.info(f"Deleted draft: {campaign_id}")
-            return jsonify({'success': True, 'message': 'Draft deleted'})
-        else:
-            return jsonify({'success': False, 'error': 'Draft not found or already sent'}), 404
-        
-    except Exception as e:
-        logger.error(f"Delete draft error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -284,9 +215,9 @@ def api_send_campaign():
             text("""
                 UPDATE campaigns 
                 SET status = 'sent', sent_at = NOW()
-                WHERE id = :id AND organization_id = :org_id
+                WHERE id = :id
             """),
-            {'id': campaign_id, 'org_id': current_user.organization_id}
+            {'id': campaign_id}
         )
         
         db.session.commit()
@@ -301,10 +232,12 @@ def api_send_campaign():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+
+
 @campaign_bp.route('/campaigns/api/send-test', methods=['POST'])
 @login_required
 def api_send_test_email():
-    """API: Send test email - IMMEDIATE via SMTP"""
+    """API: Send test email"""
     try:
         data = request.get_json()
         
@@ -325,38 +258,38 @@ def api_send_test_email():
         )
         domain_row = domains_result.fetchone()
         sender_domain = domain_row[0] if domain_row else 'sendbaba.com'
-        sender = f'noreply@{sender_domain}'
         
-        # Send IMMEDIATELY via SMTP
-        from app.smtp.relay_server import send_email_sync
+        # Send test email
+        email_id = str(uuid.uuid4())
         
-        logger.info(f"Sending test email to {test_email}")
+        db.session.execute(
+            text("""
+                INSERT INTO emails (id, organization_id, sender, recipient, subject, html_body, status, created_at)
+                VALUES (:id, :org_id, :sender, :recipient, :subject, :html, 'queued', NOW())
+            """),
+            {
+                'id': email_id,
+                'org_id': current_user.organization_id,
+                'sender': f'noreply@{sender_domain}',
+                'recipient': test_email,
+                'subject': f'[TEST] {subject}',
+                'html': html_content
+            }
+        )
         
-        result = send_email_sync({
-            'from': sender,
-            'to': test_email,
-            'subject': f'[TEST] {subject}',
-            'html_body': html_content,
-            'text_body': 'Test email from SendBaba'
+        db.session.commit()
+        
+        logger.info(f"Test email queued: {email_id} to {test_email}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Test email sent to {test_email}'
         })
-        
-        if result.get('success'):
-            logger.info(f"✅ Test email sent to {test_email}")
-            return jsonify({
-                'success': True, 
-                'message': f'Test email sent to {test_email}!'
-            })
-        else:
-            logger.error(f"❌ Test email failed: {result.get('message')}")
-            return jsonify({
-                'success': False,
-                'error': f"Send failed: {result.get('message')}"
-            }), 500
         
     except Exception as e:
         logger.error(f"Send test email error: {e}", exc_info=True)
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
-
 
 @campaign_bp.route('/campaigns/<campaign_id>')
 @login_required

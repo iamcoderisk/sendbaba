@@ -26,10 +26,10 @@
             color: #8b5cf6;
         }
         .sidebar-group {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
         .sidebar-group-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1.5px;
@@ -48,9 +48,70 @@
             background: #10b981;
             color: white;
         }
-        .badge-pro {
-            background: #f59e0b;
-            color: white;
+        
+        /* Upgrade Card Animations */
+        .upgrade-card {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Subtle pulse animation every 60 seconds */
+        @keyframes subtlePulse {
+            0%, 100% { 
+                box-shadow: 0 4px 6px rgba(139, 92, 246, 0.2);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 8px 16px rgba(139, 92, 246, 0.4);
+                transform: scale(1.02);
+            }
+        }
+        
+        .upgrade-card.pulse {
+            animation: subtlePulse 1.5s ease-in-out;
+        }
+        
+        /* Shimmer effect */
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        
+        .upgrade-shimmer {
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.3) 50%,
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+        
+        .upgrade-card.pulse .upgrade-shimmer {
+            animation: shimmer 1.5s ease-in-out;
+        }
+        
+        /* Premium badge glow */
+        .premium-badge {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        @keyframes badgeGlow {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; text-shadow: 0 0 8px rgba(255, 215, 0, 0.6); }
+        }
+        
+        .upgrade-card.pulse .premium-badge {
+            animation: badgeGlow 1.5s ease-in-out;
         }
     </style>
 </head>
@@ -78,11 +139,11 @@
             <!-- Navigation -->
             <nav class="p-4">
                 
-                <!-- Main Section -->
+                <!-- Core Features (Priority 1: Most Used) -->
                 <div class="sidebar-group">
-                    <div class="sidebar-group-title">Main</div>
+                    <div class="sidebar-group-title">Core</div>
                     
-                    <a href="/dashboard" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if request.path == '/dashboard' %}active{% endif %}">
+                    <a href="/dashboard" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if request.path == '/dashboard' or request.path == '/dashboard/' %}active{% endif %}">
                         <i class="fas fa-home w-5"></i>
                         <span class="font-medium">Dashboard</span>
                     </a>
@@ -92,45 +153,20 @@
                         <span class="font-medium">Campaigns</span>
                     </a>
                     
+                    <a href="/dashboard/contacts" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/contacts' in request.path %}active{% endif %}">
+                        <i class="fas fa-users w-5"></i>
+                        <span class="font-medium">Contacts</span>
+                    </a>
+                    
                     <a href="/dashboard/analytics" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/analytics' in request.path %}active{% endif %}">
                         <i class="fas fa-chart-line w-5"></i>
                         <span class="font-medium">Analytics</span>
                     </a>
                 </div>
                 
-                <!-- Contacts Section -->
+                <!-- Automation (Priority 2: Advanced Features) -->
                 <div class="sidebar-group">
-                    <div class="sidebar-group-title">Contacts</div>
-                    
-                    <a href="/dashboard/contacts" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/contacts' in request.path %}active{% endif %}">
-                        <i class="fas fa-users w-5"></i>
-                        <span class="font-medium">All Contacts</span>
-                    </a>
-                    
-                    <a href="/dashboard/segments" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/segments' in request.path %}active{% endif %}">
-                        <i class="fas fa-filter w-5"></i>
-                        <span class="font-medium">Segments</span>
-                    </a>
-                </div>
-                
-                <!-- Configuration Section -->
-                <div class="sidebar-group">
-                    <div class="sidebar-group-title">Configuration</div>
-                    
-                    <a href="/dashboard/domains" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/domains' in request.path %}active{% endif %}">
-                        <i class="fas fa-globe w-5"></i>
-                        <span class="font-medium">Domains</span>
-                    </a>
-                    
-                    <a href="/dashboard/settings" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/settings' in request.path %}active{% endif %}">
-                        <i class="fas fa-cog w-5"></i>
-                        <span class="font-medium">Settings</span>
-                    </a>
-                </div>
-                
-                <!-- Advanced Section (Collapsible) -->
-                <div class="sidebar-group">
-                    <div class="sidebar-group-title">Advanced</div>
+                    <div class="sidebar-group-title">Automation</div>
                     
                     <a href="/dashboard/workflows" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/workflows' in request.path %}active{% endif %}">
                         <i class="fas fa-project-diagram w-5"></i>
@@ -138,18 +174,33 @@
                         <span class="badge badge-new ml-auto">New</span>
                     </a>
                     
-                    <a href="/dashboard/api-keys" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/api-keys' in request.path %}active{% endif %}">
-                        <i class="fas fa-key w-5"></i>
-                        <span class="font-medium">API Keys</span>
-                    </a>
-                    
                     <a href="/dashboard/integrations" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/integrations' in request.path %}active{% endif %}">
-                        <i class="fas fa-puzzle-piece w-5"></i>
+                        <i class="fas fa-plug w-5"></i>
                         <span class="font-medium">Integrations</span>
                     </a>
                 </div>
                 
-                <!-- Resources Section -->
+                <!-- Settings (Priority 3: Configuration) -->
+                <div class="sidebar-group">
+                    <div class="sidebar-group-title">Settings</div>
+                    
+                    <a href="/dashboard/domains" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/domains' in request.path %}active{% endif %}">
+                        <i class="fas fa-globe w-5"></i>
+                        <span class="font-medium">Domains</span>
+                    </a>
+                    
+                    <a href="/dashboard/team" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/team' in request.path %}active{% endif %}">
+                        <i class="fas fa-user-friends w-5"></i>
+                        <span class="font-medium">Team</span>
+                    </a>
+                    
+                    <a href="/dashboard/settings" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/settings' in request.path %}active{% endif %}">
+                        <i class="fas fa-cog w-5"></i>
+                        <span class="font-medium">Account</span>
+                    </a>
+                </div>
+                
+                <!-- Resources (Priority 4: Help & Documentation) -->
                 <div class="sidebar-group">
                     <div class="sidebar-group-title">Resources</div>
                     
@@ -158,28 +209,29 @@
                         <span class="font-medium">API Docs</span>
                         <i class="fas fa-external-link-alt text-xs ml-auto opacity-50"></i>
                     </a>
-                    
-                    <a href="/dashboard/team" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 mb-1 {% if '/team' in request.path %}active{% endif %}">
-                        <i class="fas fa-user-friends w-5"></i>
-                        <span class="font-medium">Team</span>
-                    </a>
                 </div>
                 
             </nav>
             
             <!-- Bottom Section -->
             <div class="p-4 border-t border-gray-200 mt-auto">
-                <!-- Upgrade Card -->
-                <div class="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-4 mb-3">
-                    <div class="text-white">
-                        <div class="text-2xl mb-2">💎</div>
-                        <h3 class="font-bold text-sm mb-1">Upgrade to Pro</h3>
-                        <p class="text-xs opacity-90 mb-3">Unlock unlimited emails</p>
-                        <a href="/pricing" class="block text-center bg-white text-purple-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-100 transition">
-                            Upgrade Now
-                        </a>
+                <!-- Compact Upgrade Card -->
+                <a href="/pricing" id="upgradeCard" class="upgrade-card block bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-700 rounded-lg p-3 mb-3 hover:shadow-lg transition-all group">
+                    <div class="upgrade-shimmer"></div>
+                    <div class="relative">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="premium-badge text-yellow-300 text-base">
+                                <i class="fas fa-crown"></i>
+                            </span>
+                            <h3 class="font-bold text-sm text-white">Upgrade to Pro</h3>
+                        </div>
+                        <p class="text-xs text-purple-100 mb-2">Unlimited emails & features</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-white font-semibold opacity-90">View Plans</span>
+                            <i class="fas fa-arrow-right text-white text-xs opacity-90 group-hover:translate-x-1 transition-transform"></i>
+                        </div>
                     </div>
-                </div>
+                </a>
                 
                 <!-- User Profile -->
                 <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onclick="toggleUserMenu()">
@@ -271,6 +323,23 @@
                 menu.classList.add('hidden');
             }
         });
+        
+        // Subtle pulse animation every 60 seconds
+        function pulseUpgradeCard() {
+            const card = document.getElementById('upgradeCard');
+            if (card) {
+                card.classList.add('pulse');
+                setTimeout(() => {
+                    card.classList.remove('pulse');
+                }, 1500); // Animation duration
+            }
+        }
+        
+        // Trigger pulse every 60 seconds
+        setInterval(pulseUpgradeCard, 60000);
+        
+        // Initial pulse after 3 seconds (when user first loads page)
+        setTimeout(pulseUpgradeCard, 3000);
     </script>
     
     {% block extra_js %}{% endblock %}

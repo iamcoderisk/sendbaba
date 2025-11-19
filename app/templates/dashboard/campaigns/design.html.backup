@@ -19,30 +19,6 @@
     overflow: hidden;
 }
 
-/* Save Indicator */
-.save-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-}
-.save-indicator.saving {
-    background: #fef3c7;
-    color: #92400e;
-}
-.save-indicator.saved {
-    background: #d1fae5;
-    color: #065f46;
-}
-.save-indicator.error {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
 /* Blocks */
 .block-item {
     background: #334155;
@@ -65,7 +41,7 @@
     height: 40px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-center;
     border-radius: 6px;
     font-size: 20px;
 }
@@ -143,17 +119,11 @@
     </div>
     
     <div class="flex items-center gap-3">
-        <!-- Auto-save Indicator -->
-        <div id="saveIndicator" class="save-indicator saved">
-            <i class="fas fa-check-circle"></i>
-            <span id="saveIndicatorText">All changes saved</span>
-        </div>
-        
         <button onclick="previewEmail()" class="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition font-medium flex items-center gap-2">
             <i class="fas fa-eye"></i> Preview
         </button>
         <button onclick="saveDraft()" id="saveDraftBtn" class="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition font-medium flex items-center gap-2">
-            <i class="fas fa-save"></i> Save now
+            <i class="fas fa-save"></i> Save draft
         </button>
         <button onclick="showSendModal()" class="px-8 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition font-bold shadow-lg flex items-center gap-2">
             <i class="fas fa-paper-plane"></i> Send
@@ -224,30 +194,15 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-300 mb-2">Campaign Name</label>
-                        <input type="text" id="campaignName" value="{{ campaign_name }}" 
-                               class="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                               placeholder="Enter campaign name">
+                        <input type="text" id="campaignName" value="{{ campaign_name }}" class="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-300 mb-2">Subject Line</label>
-                        <input type="text" id="emailSubject" value="{{ campaign_subject }}" 
-                               placeholder="Your email subject" 
-                               class="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                        <p class="text-xs text-gray-400 mt-1">This appears in recipient's inbox</p>
+                        <input type="text" id="emailSubject" placeholder="Your email subject" class="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500">
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-300 mb-2">Preview Text</label>
-                        <textarea id="previewText" rows="3" placeholder="Inbox preview..." 
-                                  class="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"></textarea>
-                        <p class="text-xs text-gray-400 mt-1">Shows after subject in inbox</p>
-                    </div>
-                    
-                    <div class="pt-4 border-t border-slate-700">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-sm font-semibold text-gray-300">Auto-save</span>
-                            <span class="text-xs text-green-400">Every 10 seconds</span>
-                        </div>
-                        <p class="text-xs text-gray-400">Your changes are automatically saved as you work</p>
+                        <textarea id="previewText" rows="3" placeholder="Inbox preview..." class="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500"></textarea>
                     </div>
                 </div>
             </div>
@@ -258,57 +213,103 @@
     <div class="editor-canvas">
         <div class="email-canvas" id="emailCanvas">
             {% if template_html %}
-                {{ template_html|safe }}
+            {{ template_html|safe }}
             {% else %}
-            <div id="mainDropZone" class="drop-zone">
+            <div class="drop-zone" id="mainDropZone">
                 <div class="text-center">
-                    <i class="fas fa-mouse-pointer text-4xl mb-3"></i>
-                    <p class="font-semibold text-lg">Drag blocks here to start</p>
-                    <p class="text-sm mt-1">Or choose a template from the sidebar</p>
+                    <i class="fas fa-mouse-pointer text-5xl mb-4"></i>
+                    <p class="text-lg font-medium">Drag blocks here to start</p>
+                    <p class="text-sm mt-2">Or choose a template from the gallery</p>
                 </div>
             </div>
             {% endif %}
         </div>
     </div>
+
+    <!-- Right Sidebar -->
+    <div class="editor-properties">
+        <div class="p-6">
+            <h3 class="text-white font-bold text-lg mb-6">Campaign Info</h3>
+            <div class="space-y-4">
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <div class="text-gray-400 text-sm mb-1">Recipients</div>
+                    <div class="text-white font-bold text-3xl">{{ "{:,}".format(contacts_count) }}</div>
+                    <div class="text-gray-400 text-xs mt-1">Active contacts</div>
+                </div>
+
+                {% if domains %}
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <div class="text-gray-400 text-sm mb-2">From Domain</div>
+                    <select id="fromDomain" class="w-full bg-slate-600 text-white px-3 py-2 rounded border border-slate-500 focus:ring-2 focus:ring-green-500">
+                        {% for domain in domains %}
+                        <option value="{{ domain.domain_name }}">{{ domain.domain_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <div class="text-gray-400 text-sm mb-1">Status</div>
+                    <div class="inline-flex items-center gap-2 bg-yellow-500 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">
+                        <i class="fas fa-circle text-xs"></i> Draft
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div class="text-blue-400 font-semibold mb-2 flex items-center gap-2">
+                    <i class="fas fa-lightbulb"></i> Pro Tip
+                </div>
+                <p class="text-gray-300 text-sm">Click any text to edit it directly. Drag blocks to rearrange.</p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Send Modal -->
-<div id="sendModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
-        <h3 class="text-2xl font-bold text-gray-900 mb-4">Ready to send?</h3>
-        <p class="text-gray-600 mb-6">This campaign will be sent to <span class="font-bold">{{ contacts_count }}</span> contacts.</p>
+<div id="sendModal" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8">
+        <h3 class="text-2xl font-bold text-gray-900 mb-2">Ready to send?</h3>
+        <p class="text-gray-600 mb-6">Campaign will be sent to <strong class="text-gray-900">{{ "{:,}".format(contacts_count) }} contacts</strong></p>
         
-        <div class="space-y-4 mb-6">
-            <button onclick="showTestModal()" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-bold transition flex items-center justify-center gap-2">
-                <i class="fas fa-flask"></i>
-                Send Test Email First
-            </button>
-            <button onclick="sendCampaign()" class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-bold transition flex items-center justify-center gap-2">
-                <i class="fas fa-paper-plane"></i>
-                Send to All Contacts
-            </button>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-info-circle text-blue-500 text-xl mt-0.5"></i>
+                <div>
+                    <p class="text-blue-900 font-semibold text-sm mb-1">Want to test first?</p>
+                    <p class="text-blue-700 text-sm">Send a test email to yourself before sending to all contacts</p>
+                </div>
+            </div>
         </div>
         
-        <button onclick="closeSendModal()" class="w-full text-gray-600 hover:text-gray-900 font-medium">
-            Cancel
-        </button>
+        <div class="flex gap-3">
+            <button onclick="closeSendModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition">
+                Cancel
+            </button>
+            <button onclick="showTestModal()" class="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold transition">
+                <i class="fas fa-flask mr-2"></i>Send Test
+            </button>
+            <button onclick="sendCampaign()" class="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 font-bold transition">
+                Send Now
+            </button>
+        </div>
     </div>
 </div>
 
 <!-- Test Email Modal -->
-<div id="testModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+<div id="testModal" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
         <h3 class="text-2xl font-bold text-gray-900 mb-2">Send Test Email</h3>
-        <p class="text-gray-600 mb-6">Preview your campaign before sending</p>
+        <p class="text-gray-600 mb-6">Preview how your email will look in the inbox</p>
         
         <div class="mb-6">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">Test Email Address</label>
-            <input type="email" id="testEmail" placeholder="your@email.com" 
-                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Send test to:</label>
+            <input type="email" id="testEmail" placeholder="your.email@example.com" value="{{ current_user.email }}" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <p class="text-xs text-gray-500 mt-2">The test email will have [TEST] prefix in the subject</p>
         </div>
         
         <div class="flex gap-3">
-            <button onclick="closeTestModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition">
+            <button onclick="closeTestModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition">
                 Cancel
             </button>
             <button onclick="sendTestEmail()" id="sendTestBtn" class="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-bold transition">
@@ -321,169 +322,6 @@
 <script>
 const CAMPAIGN_ID = '{{ campaign_id }}';
 let draggedBlock = null;
-let autoSaveInterval = null;
-let hasUnsavedChanges = false;
-let lastSaveTime = Date.now();
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    // Start auto-save
-    startAutoSave();
-    
-    // Track changes
-    trackChanges();
-    
-    // Load existing subject if available
-    const savedSubject = '{{ campaign_subject }}';
-    if (savedSubject) {
-        document.getElementById('emailSubject').value = savedSubject;
-    }
-});
-
-// Auto-save every 10 seconds
-function startAutoSave() {
-    autoSaveInterval = setInterval(() => {
-        if (hasUnsavedChanges) {
-            autoSaveDraft();
-        }
-    }, 10000); // 10 seconds
-    
-    console.log('✅ Auto-save started (every 10 seconds)');
-}
-
-// Track all changes
-function trackChanges() {
-    // Track campaign name changes
-    document.getElementById('campaignName')?.addEventListener('input', (e) => {
-        document.getElementById('campaignNameDisplay').textContent = e.target.value;
-        hasUnsavedChanges = true;
-        showSaveIndicator('unsaved');
-    });
-    
-    // Track subject changes
-    document.getElementById('emailSubject')?.addEventListener('input', () => {
-        hasUnsavedChanges = true;
-        showSaveIndicator('unsaved');
-    });
-    
-    // Track canvas changes
-    document.getElementById('emailCanvas')?.addEventListener('input', () => {
-        hasUnsavedChanges = true;
-        showSaveIndicator('unsaved');
-    });
-    
-    // Track preview text changes
-    document.getElementById('previewText')?.addEventListener('input', () => {
-        hasUnsavedChanges = true;
-        showSaveIndicator('unsaved');
-    });
-}
-
-// Show save indicator
-function showSaveIndicator(status) {
-    const indicator = document.getElementById('saveIndicator');
-    const text = document.getElementById('saveIndicatorText');
-    
-    indicator.className = 'save-indicator';
-    
-    switch(status) {
-        case 'saving':
-            indicator.classList.add('saving');
-            text.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            break;
-        case 'saved':
-            indicator.classList.add('saved');
-            text.innerHTML = '<i class="fas fa-check-circle"></i> All changes saved';
-            break;
-        case 'error':
-            indicator.classList.add('error');
-            text.innerHTML = '<i class="fas fa-exclamation-circle"></i> Save failed';
-            break;
-        case 'unsaved':
-            indicator.classList.add('saving');
-            text.innerHTML = '<i class="fas fa-circle"></i> Unsaved changes';
-            break;
-    }
-}
-
-// Auto-save (silent)
-async function autoSaveDraft() {
-    showSaveIndicator('saving');
-    
-    try {
-        const response = await fetch('/dashboard/campaigns/api/save-draft', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                campaign_id: CAMPAIGN_ID,
-                name: document.getElementById('campaignName').value,
-                subject: document.getElementById('emailSubject').value,
-                html: document.getElementById('emailCanvas').innerHTML
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            hasUnsavedChanges = false;
-            lastSaveTime = Date.now();
-            showSaveIndicator('saved');
-            console.log('✅ Auto-saved at', new Date().toLocaleTimeString());
-        } else {
-            showSaveIndicator('error');
-            console.error('❌ Auto-save failed:', data.error);
-        }
-    } catch (error) {
-        showSaveIndicator('error');
-        console.error('❌ Auto-save error:', error);
-    }
-}
-
-// Manual save
-async function saveDraft() {
-    const btn = document.getElementById('saveDraftBtn');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    
-    showSaveIndicator('saving');
-    
-    try {
-        const response = await fetch('/dashboard/campaigns/api/save-draft', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                campaign_id: CAMPAIGN_ID,
-                name: document.getElementById('campaignName').value,
-                subject: document.getElementById('emailSubject').value,
-                html: document.getElementById('emailCanvas').innerHTML
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            hasUnsavedChanges = false;
-            lastSaveTime = Date.now();
-            btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
-            showSaveIndicator('saved');
-            setTimeout(() => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }, 2000);
-        } else {
-            alert('Error: ' + data.error);
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            showSaveIndicator('error');
-        }
-    } catch (error) {
-        alert('Network error');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        showSaveIndicator('error');
-    }
-}
 
 // Tab switching
 function switchTab(tab) {
@@ -526,8 +364,6 @@ function handleDrop(e) {
     
     if (mainDropZone) mainDropZone.remove();
     addBlock(draggedBlock);
-    hasUnsavedChanges = true;
-    showSaveIndicator('unsaved');
 }
 
 function addBlock(type) {
@@ -547,10 +383,44 @@ function addBlock(type) {
 
 function changeImage(img) {
     const url = prompt('Enter image URL:', img.src);
-    if (url) {
-        img.src = url;
-        hasUnsavedChanges = true;
-        showSaveIndicator('unsaved');
+    if (url) img.src = url;
+}
+
+async function saveDraft() {
+    const btn = document.getElementById('saveDraftBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    try {
+        const response = await fetch('/dashboard/campaigns/api/save-draft', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                campaign_id: CAMPAIGN_ID,
+                name: document.getElementById('campaignName').value,
+                subject: document.getElementById('emailSubject').value,
+                html: canvas.innerHTML
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 2000);
+        } else {
+            alert('Error: ' + data.error);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        alert('Network error');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
     }
 }
 
@@ -561,14 +431,7 @@ function previewEmail() {
 }
 
 function showSendModal() {
-    // Save before showing send modal
-    if (hasUnsavedChanges) {
-        saveDraft().then(() => {
-            document.getElementById('sendModal').classList.remove('hidden');
-        });
-    } else {
-        document.getElementById('sendModal').classList.remove('hidden');
-    }
+    document.getElementById('sendModal').classList.remove('hidden');
 }
 
 function closeSendModal() {
@@ -655,20 +518,9 @@ async function sendCampaign() {
     }
 }
 
-// Warn before leaving with unsaved changes
-window.addEventListener('beforeunload', (e) => {
-    if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return e.returnValue;
-    }
-});
-
-// Cleanup on page unload
-window.addEventListener('unload', () => {
-    if (autoSaveInterval) {
-        clearInterval(autoSaveInterval);
-    }
+// Update display name
+document.getElementById('campaignName')?.addEventListener('input', (e) => {
+    document.getElementById('campaignNameDisplay').textContent = e.target.value;
 });
 </script>
 {% endblock %}
