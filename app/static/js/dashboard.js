@@ -1,170 +1,146 @@
-/**
- * SendBaba Dashboard JavaScript
- * Professional Implementation
- */
-
-const Dashboard = {
-    chart: null,
-    currentMonth: new Date(),
-
-    /**
-     * Initialize dashboard
-     */
-    init() {
-        console.log('📊 SendBaba Dashboard v2.0');
-        this.setupMobileMenu();
-        this.setupEventListeners();
-    },
-
-    /**
-     * Setup mobile menu toggle
-     */
-    setupMobileMenu() {
-        const toggleBtn = document.querySelector('.mobile-menu-toggle');
-        const sidebar = document.querySelector('.sidebar-container');
-        
-        if (toggleBtn && sidebar) {
-            toggleBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('active');
-            });
-
-            // Close sidebar when clicking outside
-            document.addEventListener('click', (e) => {
-                if (window.innerWidth <= 1024) {
-                    if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
-                        sidebar.classList.remove('active');
-                    }
-                }
-            });
-        }
-    },
-
-    /**
-     * Setup event listeners
-     */
-    setupEventListeners() {
-        // Calendar navigation
-        const prevBtn = document.querySelector('.calendar-prev');
-        const nextBtn = document.querySelector('.calendar-next');
-        
-        if (prevBtn) prevBtn.addEventListener('click', () => this.prevMonth());
-        if (nextBtn) nextBtn.addEventListener('click', () => this.nextMonth());
-    },
-
-    /**
-     * Initialize performance chart
-     */
-    initChart() {
-        const canvas = document.getElementById('performanceChart');
-        if (!canvas) return;
-
-        const ctx = canvas.getContext('2d');
-        
-        this.chart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                datasets: [{
-                    label: 'Performance',
-                    data: [78, 34, 87, 28, 39, 62],
-                    backgroundColor: '#FF6B4A',
-                    borderRadius: 8,
-                    barThickness: 32
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        backgroundColor: '#1F2937',
-                        padding: 12,
-                        cornerRadius: 8,
-                        displayColors: false,
-                        callbacks: {
-                            label: (context) => context.parsed.y + '%'
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        ticks: {
-                            callback: (value) => value + '%',
-                            font: { size: 11 },
-                            color: '#9CA3AF'
-                        },
-                        grid: {
-                            color: '#F3F4F6',
-                            drawBorder: false
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            font: { size: 11 },
-                            color: '#9CA3AF'
-                        },
-                        grid: {
-                            display: false,
-                            drawBorder: false
-                        }
-                    }
-                }
-            }
-        });
-    },
-
-    /**
-     * Navigate to previous month
-     */
-    prevMonth() {
-        this.currentMonth.setMonth(this.currentMonth.getMonth() - 1);
-        this.updateCalendar();
-    },
-
-    /**
-     * Navigate to next month
-     */
-    nextMonth() {
-        this.currentMonth.setMonth(this.currentMonth.getMonth() + 1);
-        this.updateCalendar();
-    },
-
-    /**
-     * Update calendar display
-     */
-    updateCalendar() {
-        const monthEl = document.querySelector('.calendar-month');
-        if (monthEl) {
-            const months = [
-                'January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'
-            ];
-            monthEl.textContent = `${months[this.currentMonth.getMonth()]} ${this.currentMonth.getFullYear()}`;
-        }
-    },
-
-    /**
-     * Format number with commas
-     */
-    formatNumber(num) {
-        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-};
-
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    Dashboard.init();
-    
-    // Initialize chart if Chart.js is loaded
-    if (typeof Chart !== 'undefined') {
-        Dashboard.initChart();
-    }
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 SendBaba Dashboard initializing...');
+    initMobileMenu();
+    initUserMenu();
+    initUpgradeCardPulse();
+    console.log('✅ SendBaba Dashboard initialized');
 });
 
-// Export for global access
-window.Dashboard = Dashboard;
+/* ==================== MOBILE MENU ==================== */
+function initMobileMenu() {
+    var menuBtn = document.getElementById('mobile-menu-btn');
+    var sidebar = document.getElementById('sidebar') || document.querySelector('.sidebar');
+    var overlay = document.getElementById('mobile-overlay');
+    
+    console.log('Mobile menu init:', { menuBtn: !!menuBtn, sidebar: !!sidebar, overlay: !!overlay });
+    
+    if (!menuBtn) {
+        console.warn('Mobile menu button not found - creating it dynamically');
+        createMobileElements();
+        menuBtn = document.getElementById('mobile-menu-btn');
+        overlay = document.getElementById('mobile-overlay');
+    }
+    
+    if (!menuBtn || !sidebar) {
+        console.error('Required elements not found');
+        return;
+    }
+    
+    menuBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Mobile menu clicked');
+        
+        sidebar.classList.toggle('mobile-open');
+        if (overlay) overlay.classList.toggle('show');
+        
+        var icon = menuBtn.querySelector('i');
+        if (icon) {
+            if (sidebar.classList.contains('mobile-open')) {
+                icon.className = 'fas fa-times';
+            } else {
+                icon.className = 'fas fa-bars';
+            }
+        }
+    });
+    
+    if (overlay) {
+        overlay.addEventListener('click', function() {
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('show');
+            var icon = menuBtn.querySelector('i');
+            if (icon) icon.className = 'fas fa-bars';
+        });
+    }
+    
+    // Close sidebar when clicking a link on mobile
+    var links = sidebar.querySelectorAll('.sidebar-link');
+    links.forEach(function(link) {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('mobile-open');
+                if (overlay) overlay.classList.remove('show');
+                var icon = menuBtn.querySelector('i');
+                if (icon) icon.className = 'fas fa-bars';
+            }
+        });
+    });
+    
+    console.log('✅ Mobile menu initialized');
+}
+
+function createMobileElements() {
+    // Create overlay
+    if (!document.getElementById('mobile-overlay')) {
+        var overlay = document.createElement('div');
+        overlay.id = 'mobile-overlay';
+        overlay.className = 'mobile-overlay';
+        document.body.appendChild(overlay);
+    }
+    
+    // Create mobile menu button
+    if (!document.getElementById('mobile-menu-btn')) {
+        var btn = document.createElement('button');
+        btn.id = 'mobile-menu-btn';
+        btn.className = 'mobile-menu-btn';
+        btn.setAttribute('aria-label', 'Toggle menu');
+        btn.innerHTML = '<i class="fas fa-bars"></i>';
+        document.body.appendChild(btn);
+    }
+}
+
+/* ==================== USER MENU ==================== */
+function initUserMenu() {
+    var profile = document.querySelector('.user-profile');
+    var menu = document.getElementById('userMenu') || document.querySelector('.user-menu');
+    
+    if (!profile || !menu) {
+        console.warn('User menu elements not found');
+        return;
+    }
+    
+    profile.addEventListener('click', function(e) {
+        e.stopPropagation();
+        menu.classList.toggle('show');
+    });
+    
+    document.addEventListener('click', function(e) {
+        if (!menu.contains(e.target) && !profile.contains(e.target)) {
+            menu.classList.remove('show');
+        }
+    });
+    
+    console.log('✅ User menu initialized');
+}
+
+function toggleUserMenu() {
+    var menu = document.getElementById('userMenu') || document.querySelector('.user-menu');
+    if (menu) menu.classList.toggle('show');
+}
+
+/* ==================== UPGRADE CARD PULSE ==================== */
+function initUpgradeCardPulse() {
+    var card = document.getElementById('upgradeCard');
+    if (!card) return;
+    
+    setInterval(function() {
+        card.style.transform = 'translateY(-2px) scale(1.02)';
+        card.style.boxShadow = '0 8px 20px rgba(247, 96, 31, 0.4)';
+        setTimeout(function() {
+            card.style.transform = '';
+            card.style.boxShadow = '';
+        }, 1500);
+    }, 60000);
+    
+    // Initial pulse after 3 seconds
+    setTimeout(function() {
+        card.style.transform = 'translateY(-2px) scale(1.02)';
+        card.style.boxShadow = '0 8px 20px rgba(247, 96, 31, 0.4)';
+        setTimeout(function() {
+            card.style.transform = '';
+            card.style.boxShadow = '';
+        }, 1500);
+    }, 3000);
+    
+    console.log('✅ Upgrade card pulse initialized');
+}

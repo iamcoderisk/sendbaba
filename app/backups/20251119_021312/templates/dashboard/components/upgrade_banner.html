@@ -1,0 +1,33 @@
+{# Upgrade Banner Component #}
+{% if current_user.is_authenticated %}
+{% set org = current_user.organization %}
+{% set org_limit = org.team_daily_limit if org and org.team_daily_limit else 5000 %}
+{% set org_plan = org.team_plan if org and org.team_plan else 'individual' %}
+
+{% if org_plan == 'individual' %}
+<div class="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl p-6 mb-6 shadow-lg">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <div class="bg-white bg-opacity-20 rounded-full p-3">
+                <i class="fas fa-rocket text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold mb-1">Upgrade to Team Plan</h3>
+                <p class="text-purple-100">
+                    Currently limited to {{ "{:,}".format(org_limit) }} emails/day. 
+                    <span class="font-semibold">Upgrade to send up to 1,000,000 emails/day!</span>
+                </p>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <a href="/pricing/teams" class="bg-white text-purple-600 px-6 py-3 rounded-lg hover:bg-purple-50 transition font-semibold shadow-lg">
+                <i class="fas fa-arrow-up mr-2"></i>View Plans
+            </a>
+            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-white hover:text-purple-200 px-3">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}

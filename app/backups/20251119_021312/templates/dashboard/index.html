@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - SendBaba{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Overview of your email operations{% endblock %}
+
+{% block content %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+.stat-card {
+    transition: all 0.3s ease;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+.growth-positive {
+    color: #10b981;
+}
+.growth-negative {
+    color: #ef4444;
+}
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+.metric-change {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+.metric-up {
+    background: #d1fae5;
+    color: #065f46;
+}
+.metric-down {
+    background: #fee2e2;
+    color: #991b1b;
+}
+</style>
+
+<!-- Top Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    
+    <!-- Emails Sent -->
+    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Emails Sent</div>
+            <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                <i class="fas fa-paper-plane text-white text-xl"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-2">{{ "{:,}".format(stats.emails_sent or 0) }}</div>
+        <div class="flex items-center gap-2">
+            <span class="metric-change {{ 'metric-up' if stats.email_growth >= 0 else 'metric-down' }}">
+                <i class="fas fa-arrow-{{ 'up' if stats.email_growth >= 0 else 'down' }}"></i>
+                {{ stats.email_growth or 0 }}%
+            </span>
+            <span class="text-xs text-gray-500">vs last month</span>
+        </div>
+    </div>
+    
+    <!-- Total Contacts -->
+    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Active Contacts</div>
+            <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+                <i class="fas fa-users text-white text-xl"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-2">{{ "{:,}".format(stats.contacts_active or 0) }}</div>
+        <div class="text-xs text-gray-500">
+            {{ "{:,}".format(stats.contacts_total or 0) }} total subscribers
+        </div>
+    </div>
+    
+    <!-- Delivery Rate -->
+    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Delivery Rate</div>
+            <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <i class="fas fa-chart-line text-white text-xl"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-2">{{ stats.delivery_rate or 0 }}%</div>
+        <div class="text-xs text-gray-500">
+            {{ "{:,}".format(stats.emails_failed or 0) }} failed deliveries
+        </div>
+    </div>
+    
+    <!-- Queued -->
+    <div class="stat-card bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-4">
+            <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">In Queue</div>
+            <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                <i class="fas fa-clock text-white text-xl"></i>
+            </div>
+        </div>
+        <div class="text-3xl font-bold text-gray-900 mb-2">{{ "{:,}".format(stats.emails_queued or 0) }}</div>
+        <div class="text-xs text-gray-500">
+            Pending delivery
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    
+    <!-- Email Trends Chart -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold text-gray-900">Email Activity (7 Days)</h3>
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 bg-blue-500 rounded-full"></span>
+                <span class="text-xs text-gray-600">Sent</span>
+                <span class="w-3 h-3 bg-red-500 rounded-full ml-2"></span>
+                <span class="text-xs text-gray-600">Failed</span>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="emailTrendsChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Campaign Performance Chart -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold text-gray-900">Campaign Performance</h3>
+            <a href="/dashboard/campaigns" class="text-sm text-purple-600 hover:text-purple-700 font-semibold">
+                View All →
+            </a>
+        </div>
+        <div class="chart-container">
+            <canvas id="campaignChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Growth & Quick Stats -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    
+    <!-- Contact Growth -->
+    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 class="text-lg font-bold text-gray-900 mb-6">Contact Growth (30 Days)</h3>
+        <div class="chart-container">
+            <canvas id="contactGrowthChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h3 class="text-lg font-bold text-gray-900 mb-6">Quick Stats</h3>
+        
+        <div class="space-y-4">
+            <div class="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg">
+                <div>
+                    <div class="text-xs font-semibold text-blue-600 uppercase">Campaigns</div>
+                    <div class="text-2xl font-bold text-blue-900">{{ stats.campaigns_total or 0 }}</div>
+                </div>
+                <i class="fas fa-bullhorn text-3xl text-blue-500"></i>
+            </div>
+            
+            <div class="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg">
+                <div>
+                    <div class="text-xs font-semibold text-green-600 uppercase">Verified Domains</div>
+                    <div class="text-2xl font-bold text-green-900">{{ stats.domains_verified or 0 }}</div>
+                </div>
+                <i class="fas fa-check-circle text-3xl text-green-500"></i>
+            </div>
+            
+            <div class="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg">
+                <div>
+                    <div class="text-xs font-semibold text-purple-600 uppercase">Draft Campaigns</div>
+                    <div class="text-2xl font-bold text-purple-900">{{ stats.campaigns_drafts or 0 }}</div>
+                </div>
+                <i class="fas fa-file-alt text-3xl text-purple-500"></i>
+            </div>
+        </div>
+        
+        <a href="/dashboard/campaigns/create" class="mt-6 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-purple-800 transition font-semibold shadow-lg">
+            <i class="fas fa-plus"></i>
+            <span>New Campaign</span>
+        </a>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg font-bold text-gray-900">Recent Campaigns</h3>
+        <a href="/dashboard/campaigns" class="text-sm text-purple-600 hover:text-purple-700 font-semibold">
+            View All →
+        </a>
+    </div>
+    
+    {% if campaign_performance and campaign_performance|length > 0 %}
+    <div class="space-y-3">
+        {% for campaign in campaign_performance %}
+        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-envelope text-purple-600"></i>
+                </div>
+                <div>
+                    <div class="font-semibold text-gray-900">{{ campaign.name }}</div>
+                    <div class="text-sm text-gray-500">
+                        {{ "{:,}".format(campaign.sent or 0) }} sent · {{ "{:,}".format(campaign.recipients or 0) }} recipients
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1 bg-{{ 'green' if campaign.status == 'sent' else 'yellow' }}-100 text-{{ 'green' if campaign.status == 'sent' else 'yellow' }}-800 text-xs font-semibold rounded-full">
+                    {{ campaign.status }}
+                </span>
+                <a href="/dashboard/campaigns/{{ campaign.id }}" class="text-purple-600 hover:text-purple-700">
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <div class="text-6xl mb-4">📧</div>
+        <h4 class="text-lg font-semibold text-gray-900 mb-2">No campaigns yet</h4>
+        <p class="text-gray-600 mb-6">Create your first campaign to start sending emails</p>
+        <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
+            <i class="fas fa-plus"></i>
+            <span>Create Campaign</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Chart.js Configuration
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+Chart.defaults.plugins.legend.display = false;
+
+// Email Trends Chart
+const emailTrendsData = {{ email_trends|tojson if email_trends else '[]' }};
+const emailCtx = document.getElementById('emailTrendsChart').getContext('2d');
+
+new Chart(emailCtx, {
+    type: 'line',
+    data: {
+        labels: emailTrendsData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+        datasets: [
+            {
+                label: 'Sent',
+                data: emailTrendsData.map(d => d.sent),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true,
+                borderWidth: 3
+            },
+            {
+                label: 'Failed',
+                data: emailTrendsData.map(d => d.failed),
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4,
+                fill: true,
+                borderWidth: 2
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f3f4f6' }
+            },
+            x: {
+                grid: { display: false }
+            }
+        },
+        plugins: {
+            tooltip: {
+                mode: 'index',
+                intersect: false
+            }
+        }
+    }
+});
+
+// Campaign Performance Chart
+const campaignData = {{ campaign_performance|tojson if campaign_performance else '[]' }};
+const campaignCtx = document.getElementById('campaignChart').getContext('2d');
+
+new Chart(campaignCtx, {
+    type: 'bar',
+    data: {
+        labels: campaignData.map(c => c.name.length > 15 ? c.name.substring(0, 15) + '...' : c.name),
+        datasets: [{
+            label: 'Emails Sent',
+            data: campaignData.map(c => c.sent),
+            backgroundColor: [
+                '#8b5cf6',
+                '#6366f1',
+                '#3b82f6',
+                '#06b6d4',
+                '#10b981'
+            ],
+            borderRadius: 8,
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f3f4f6' }
+            },
+            x: {
+                grid: { display: false }
+            }
+        }
+    }
+});
+
+// Contact Growth Chart
+const contactGrowthData = {{ contact_growth|tojson if contact_growth else '[]' }};
+const contactCtx = document.getElementById('contactGrowthChart').getContext('2d');
+
+new Chart(contactCtx, {
+    type: 'line',
+    data: {
+        labels: contactGrowthData.map(d => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+        datasets: [{
+            label: 'New Contacts',
+            data: contactGrowthData.map(d => d.new_contacts),
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            fill: true,
+            borderWidth: 3
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f3f4f6' }
+            },
+            x: {
+                grid: { display: false }
+            }
+        }
+    }
+});
+
+// Auto-refresh stats every 30 seconds
+setInterval(async () => {
+    try {
+        const response = await fetch('/dashboard/api/stats');
+        const data = await response.json();
+        if (data.success) {
+            // Update stats without page reload
+            console.log('Stats refreshed', data);
+        }
+    } catch (error) {
+        console.error('Stats refresh failed', error);
+    }
+}, 30000);
+</script>
+{% endblock %}

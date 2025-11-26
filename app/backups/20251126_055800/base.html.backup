@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>{% block title %}SendBaba{% endblock %}</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="main-wrapper">
+        <aside class="sidebar">
+            <div class="p-6 border-b">
+                <h1 class="text-2xl font-bold" style="color: #F9804D;">SendBaba</h1>
+            </div>
+            
+            <nav class="p-4">
+                <a href="/dashboard" class="sidebar-link">
+                    <i class="fas fa-home"></i><span>Dashboard</span>
+                </a>
+                <a href="/dashboard/campaigns" class="sidebar-link">
+                    <i class="fas fa-paper-plane"></i><span>Campaigns</span>
+                </a>
+                <a href="/dashboard/contacts" class="sidebar-link">
+                    <i class="fas fa-users"></i><span>Contacts</span>
+                </a>
+                <a href="/dashboard/analytics" class="sidebar-link">
+                    <i class="fas fa-chart-line"></i><span>Analytics</span>
+                </a>
+                <a href="/dashboard/settings" class="sidebar-link">
+                    <i class="fas fa-cog"></i><span>Settings</span>
+                </a>
+            </nav>
+        </aside>
+        
+        <div class="content-area">
+            <main class="page-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    <button id="mobile-menu-toggle" class="mobile-menu-toggle">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+    
+    <div id="mobile-overlay" class="mobile-overlay"></div>
+    
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
