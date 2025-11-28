@@ -224,8 +224,8 @@ function handleFileUpload(event) {
             uploadedContacts = data.contacts;
             document.getElementById('uploadPreview').classList.remove('hidden');
             document.getElementById('previewContent').innerHTML = 
-                `<p class="font-medium">${data.contacts.length} contacts found</p>
-                 <p class="text-xs mt-1">${data.contacts.slice(0, 3).map(c => c.email).join(', ')}...</p>`;
+                `<p class="font-medium">${data.contact.length} contacts found</p>
+                 <p class="text-xs mt-1">${data.contact.slice(0, 3).map(c => c.email).join(', ')}...</p>`;
             updateRecipientCount();
         }
     });

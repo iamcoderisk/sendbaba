@@ -40,7 +40,7 @@
                     <div class="text-center py-8">
                         <i class="fas fa-users text-4xl text-gray-300 mb-3"></i>
                         <p class="text-gray-600 mb-4">No contact lists yet</p>
-                        <a href="{{ url_for('contact.import_contacts') }}" 
+                        <a href="{{ url_for('contact.import_page') }}" 
                            class="text-red-500 hover:text-red-700 font-semibold">
                             Import Contacts
                         </a>
@@ -196,7 +196,7 @@ function previewRecipients() {
                 <h4 class="font-semibold">Sample Recipients:</h4>
         `;
         
-        data.sample_contacts.forEach(contact => {
+        data.sample_contact.forEach(contact => {
             html += `
                 <div class="p-3 bg-gray-50 rounded">
                     <div class="font-medium">${contact.name}</div>

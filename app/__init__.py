@@ -194,14 +194,6 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Team Invitations: {e}")
         
-        try:
-            from app.controllers.contact_controller import contacts_bp
-            app.register_blueprint(contacts_bp)
-            logger.info("✅ Contacts")
-        except Exception as e:
-            logger.error(f"❌ Contacts: {e}")
-        
-        try:
             from app.controllers.pricing_controller import pricing_bp
             app.register_blueprint(pricing_bp)
             logger.info("✅ Pricing")

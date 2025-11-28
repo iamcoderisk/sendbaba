@@ -1,5 +1,5 @@
 """
-SendBaba Campaign Controller - With Sender Fields
+SendBaba Campaign Controller - Simple Working Version
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
@@ -8,53 +8,65 @@ from sqlalchemy import text
 import logging
 import uuid
 from datetime import datetime
-import os
 
 logger = logging.getLogger(__name__)
 campaign_bp = Blueprint('campaigns', __name__, url_prefix='/dashboard')
+
+
+def get_html_column():
+    """Check which column name is used for HTML content"""
+    try:
+        result = db.session.execute(text(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'campaigns' AND column_name = 'html_content'"
+        ))
+        if result.fetchone():
+            return 'html_content'
+    except:
+        pass
+    return 'html_body'
 
 
 @campaign_bp.route('/campaigns')
 @login_required
 def list_campaigns():
     try:
+        html_col = get_html_column()
         result = db.session.execute(
-            text("""
+            text(f"""
                 SELECT id, name, subject, status,
-                    COALESCE(emails_sent, sent_count, 0) as total_sent,
+                    COALESCE(emails_sent, sent_count, 0) as emails_sent,
                     COALESCE(total_recipients, 0) as recipients,
-                    created_at, html_body, from_name, from_email
+                    created_at, from_name, from_email
                 FROM campaigns WHERE organization_id = :org_id ORDER BY created_at DESC
             """),
             {'org_id': current_user.organization_id}
         )
+        
         campaigns = {'sent': [], 'drafts': [], 'pending': []}
+        
         for row in result:
             campaign = {
-                'id': row[0], 'name': row[1], 'subject': row[2], 'status': row[3],
-                'total_sent': row[4], 'recipients': row[5], 'created_at': row[6],
-                'has_content': bool(row[7]), 'from_name': row[8], 'from_email': row[9]
+                'id': row[0],
+                'name': row[1] or 'Untitled',
+                'subject': row[2] or '',
+                'status': row[3] or 'draft',
+                'emails_sent': row[4] or 0,
+                'recipients': row[5] or 0,
+                'created_at': row[6],
+                'from_name': row[7],
+                'from_email': row[8]
             }
-            # Categorize campaigns by status
-            status = row[3]
+            
+            status = (row[3] or 'draft').lower()
             if status in ['sent', 'completed']:
                 campaigns['sent'].append(campaign)
-            elif status == 'sending':
-                # Campaigns marked as "sending" should go to sent if they have recipients
-                if campaign['recipients'] > 0:
-                    campaigns['sent'].append(campaign)
-                else:
-                    campaigns['pending'].append(campaign)
-            elif status == 'draft':
-                campaigns['drafts'].append(campaign)
-            elif status == 'pending':
+            elif status == 'sending' and campaign['recipients'] > 0:
+                campaigns['sent'].append(campaign)
+            elif status in ['pending', 'queued', 'scheduled', 'sending']:
                 campaigns['pending'].append(campaign)
             else:
-                # Default: show in sent if has recipients, otherwise drafts
-                if campaign['recipients'] > 0:
-                    campaigns['sent'].append(campaign)
-                else:
-                    campaigns['drafts'].append(campaign)
+                campaigns['drafts'].append(campaign)
+        
         return render_template('dashboard/campaigns/index.html', campaigns=campaigns)
     except Exception as e:
         logger.error(f"List campaigns error: {e}", exc_info=True)
@@ -70,18 +82,20 @@ def create_campaign():
 @campaign_bp.route('/campaigns/templates')
 @login_required
 def select_template():
-    return render_template('dashboard/campaigns/templates.html', templates=[])
+    return render_template('dashboard/campaigns/templates.html')
 
 
 @campaign_bp.route('/campaigns/design')
 @campaign_bp.route('/campaigns/design/<template_id>')
 @login_required
 def design_campaign(template_id='blank'):
+    """Design campaign page"""
     try:
         campaign_name = request.args.get('name', 'Untitled Campaign')
         campaign_id = request.args.get('campaign_id')
+        html_col = get_html_column()
         
-        existing_campaign = None
+        # Defaults
         campaign_subject = ''
         campaign_from_name = ''
         campaign_from_email = ''
@@ -89,54 +103,91 @@ def design_campaign(template_id='blank'):
         campaign_preview_text = ''
         template_html = ''
         
+        # Load existing campaign if ID provided
         if campaign_id:
-            result = db.session.execute(
-                text("""SELECT id, name, subject, html_body, status, from_name, from_email, reply_to, preview_text
-                    FROM campaigns WHERE id = :id AND organization_id = :org_id"""),
-                {'id': campaign_id, 'org_id': current_user.organization_id}
-            )
-            row = result.fetchone()
-            if row:
-                existing_campaign = True
-                campaign_name = row[1]
-                campaign_subject = row[2] or ''
-                template_html = row[3] or ''
-                campaign_from_name = row[5] or ''
-                campaign_from_email = row[6] or ''
-                campaign_reply_to = row[7] or ''
-                campaign_preview_text = row[8] or ''
+            try:
+                result = db.session.execute(
+                    text(f"""SELECT id, name, subject, {html_col}, status, 
+                            from_name, from_email, reply_to, preview_text
+                        FROM campaigns WHERE id = :id AND organization_id = :org_id"""),
+                    {'id': campaign_id, 'org_id': current_user.organization_id}
+                )
+                row = result.fetchone()
+                if row:
+                    campaign_id = row[0]
+                    campaign_name = row[1] or campaign_name
+                    campaign_subject = row[2] or ''
+                    template_html = row[3] or ''
+                    campaign_from_name = row[5] or ''
+                    campaign_from_email = row[6] or ''
+                    campaign_reply_to = row[7] or ''
+                    campaign_preview_text = row[8] or ''
+                    logger.info(f"Loaded existing campaign: {campaign_id}")
+            except Exception as e:
+                logger.error(f"Error loading campaign: {e}")
         
-        if not campaign_id or not existing_campaign:
+        # Create new campaign if needed
+        if not campaign_id:
             campaign_id = f'camp_{int(datetime.now().timestamp())}_{uuid.uuid4().hex[:10]}'
-            db.session.execute(
-                text("""INSERT INTO campaigns (id, organization_id, name, status, created_at, updated_at)
-                    VALUES (:id, :org_id, :name, 'draft', NOW(), NOW()) ON CONFLICT (id) DO NOTHING"""),
-                {'id': campaign_id, 'org_id': current_user.organization_id, 'name': campaign_name}
+            try:
+                db.session.execute(
+                    text("""INSERT INTO campaigns (id, organization_id, name, status, created_at, updated_at)
+                        VALUES (:id, :org_id, :name, 'draft', NOW(), NOW())"""),
+                    {'id': campaign_id, 'org_id': current_user.organization_id, 'name': campaign_name}
+                )
+                db.session.commit()
+                logger.info(f"Created new campaign: {campaign_id}")
+            except Exception as e:
+                logger.error(f"Error creating campaign: {e}")
+                db.session.rollback()
+        
+        # Load template HTML if no content and not blank
+        if not template_html and template_id != 'blank':
+            template_html = get_template_html(template_id)
+        
+        # Get contacts count
+        contacts_count = 0
+        try:
+            result = db.session.execute(
+                text("SELECT COUNT(*) FROM contacts WHERE organization_id = :org_id"),
+                {'org_id': current_user.organization_id}
             )
-            db.session.commit()
+            contacts_count = result.scalar() or 0
+        except Exception as e:
+            logger.warning(f"Error getting contacts: {e}")
         
-        contacts_result = db.session.execute(
-            text("SELECT COUNT(*) FROM contacts WHERE organization_id = :org_id AND unsubscribed_at IS NULL"),
-            {'org_id': current_user.organization_id}
+        logger.info(f"Design page: campaign_id={campaign_id}, template={template_id}, contacts={contacts_count}")
+        
+        return render_template('dashboard/campaigns/design.html',
+            template_id=template_id,
+            campaign_name=campaign_name,
+            campaign_id=campaign_id,
+            campaign_subject=campaign_subject,
+            campaign_from_name=campaign_from_name,
+            campaign_from_email=campaign_from_email,
+            campaign_reply_to=campaign_reply_to,
+            campaign_preview_text=campaign_preview_text,
+            template_html=template_html,
+            contacts_count=contacts_count,
+            domains=[]
         )
-        contacts_count = contacts_result.scalar() or 0
         
-        domains_result = db.session.execute(
-            text("SELECT id, domain_name, dns_verified FROM domains WHERE organization_id = :org_id AND dns_verified = true"),
-            {'org_id': current_user.organization_id}
-        )
-        domains = [dict(row._mapping) for row in domains_result]
-        
-        return render_template('dashboard/campaigns/design.html', 
-            template_id=template_id, campaign_name=campaign_name, campaign_id=campaign_id,
-            campaign_subject=campaign_subject, campaign_from_name=campaign_from_name,
-            campaign_from_email=campaign_from_email, campaign_reply_to=campaign_reply_to,
-            campaign_preview_text=campaign_preview_text, template_html=template_html,
-            contacts_count=contacts_count, domains=domains)
     except Exception as e:
         logger.error(f"Design campaign error: {e}", exc_info=True)
-        flash('Error loading campaign designer', 'error')
+        flash(f'Error: {str(e)}', 'error')
         return redirect(url_for('campaigns.list_campaigns'))
+
+
+def get_template_html(template_id):
+    """Get pre-built template HTML"""
+    templates = {
+        'welcome': '''<div style="padding:40px 20px;background:#f0fdf4;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><div style="padding:40px;text-align:center;"><div style="font-size:48px;margin-bottom:20px;">👋</div><h1 style="color:#1e293b;font-size:28px;margin-bottom:15px;">Welcome, {{first_name}}!</h1><p style="color:#475569;line-height:1.6;margin-bottom:25px;">We're thrilled to have you join our community.</p><a href="#" style="display:inline-block;background:#22c55e;color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">Get Started</a></div></div></div>''',
+        'newsletter': '''<div style="padding:40px 20px;background:#f8fafc;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><div style="background:#3b82f6;padding:30px;text-align:center;"><h1 style="color:white;margin:0;font-size:28px;">Your Newsletter</h1></div><div style="padding:30px;"><h2 style="color:#1e293b;font-size:22px;margin-bottom:15px;">Hello {{first_name}},</h2><p style="color:#475569;line-height:1.6;margin-bottom:20px;">Welcome to our newsletter! Here are the latest updates.</p><a href="#" style="display:inline-block;background:#3b82f6;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Read More</a></div></div></div>''',
+        'promotional': '''<div style="padding:40px 20px;background:#fff7ed;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><div style="background:linear-gradient(135deg,#f97316,#ef4444);padding:40px;text-align:center;"><h1 style="color:white;margin:0;font-size:42px;font-weight:bold;">50% OFF</h1><p style="color:rgba(255,255,255,0.9);font-size:18px;margin-top:10px;">Limited Time Offer!</p></div><div style="padding:30px;text-align:center;"><h2 style="color:#1e293b;font-size:24px;margin-bottom:15px;">Hey {{first_name}}!</h2><p style="color:#475569;line-height:1.6;margin-bottom:25px;">Don't miss our biggest sale. Use code <strong>SAVE50</strong> at checkout.</p><a href="#" style="display:inline-block;background:#f97316;color:white;padding:16px 40px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:18px;">Shop Now</a></div></div></div>''',
+        'event': '''<div style="padding:40px 20px;background:#f0fdf4;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><div style="background:linear-gradient(135deg,#22c55e,#14b8a6);padding:40px;text-align:center;"><div style="font-size:48px;margin-bottom:10px;">🎉</div><h1 style="color:white;margin:0;font-size:28px;">You're Invited!</h1></div><div style="padding:30px;text-align:center;"><h2 style="color:#1e293b;font-size:22px;margin-bottom:15px;">Hi {{first_name}},</h2><p style="color:#475569;line-height:1.6;margin-bottom:25px;">Join us for an exclusive event you won't want to miss.</p><a href="#" style="display:inline-block;background:#22c55e;color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">RSVP Now</a></div></div></div>''',
+        'simple': '''<div style="padding:40px 20px;"><div style="max-width:600px;margin:0 auto;"><p style="color:#1e293b;font-size:16px;line-height:1.8;margin-bottom:20px;">Hi {{first_name}},</p><p style="color:#475569;font-size:16px;line-height:1.8;margin-bottom:20px;">I wanted to reach out to share some thoughts with you.</p><p style="color:#475569;font-size:16px;line-height:1.8;margin-bottom:30px;">Best regards,<br>Your Name</p><a href="#" style="display:inline-block;background:#1e293b;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:500;">Learn More</a></div></div>'''
+    }
+    return templates.get(template_id, '')
 
 
 @campaign_bp.route('/campaigns/api/save-draft', methods=['POST'])
@@ -148,12 +199,14 @@ def api_save_draft():
         if not campaign_id:
             return jsonify({'success': False, 'error': 'Campaign ID required'}), 400
         
+        html_col = get_html_column()
+        
         db.session.execute(
-            text("""INSERT INTO campaigns (id, organization_id, name, subject, html_body, 
+            text(f"""INSERT INTO campaigns (id, organization_id, name, subject, {html_col}, 
                     from_name, from_email, reply_to, preview_text, status, created_at, updated_at)
                 VALUES (:id, :org_id, :name, :subject, :html, :from_name, :from_email, :reply_to, :preview_text, 'draft', NOW(), NOW())
                 ON CONFLICT (id) DO UPDATE SET
-                    name = EXCLUDED.name, subject = EXCLUDED.subject, html_body = EXCLUDED.html_body,
+                    name = EXCLUDED.name, subject = EXCLUDED.subject, {html_col} = EXCLUDED.{html_col},
                     from_name = EXCLUDED.from_name, from_email = EXCLUDED.from_email,
                     reply_to = EXCLUDED.reply_to, preview_text = EXCLUDED.preview_text, updated_at = NOW()"""),
             {
@@ -165,7 +218,6 @@ def api_save_draft():
             }
         )
         db.session.commit()
-        logger.info(f"Draft saved: {campaign_id}")
         return jsonify({'success': True, 'campaign_id': campaign_id})
     except Exception as e:
         logger.error(f"Save draft error: {e}", exc_info=True)
@@ -196,11 +248,10 @@ def api_send_campaign():
     try:
         data = request.get_json()
         campaign_id = data.get('campaign_id')
-        if not campaign_id:
-            return jsonify({'success': False, 'error': 'Campaign ID required'}), 400
+        html_col = get_html_column()
         
         result = db.session.execute(
-            text("SELECT name, subject, html_body, from_name, from_email, reply_to, preview_text FROM campaigns WHERE id = :id AND organization_id = :org_id"),
+            text(f"SELECT name, subject, {html_col}, from_name, from_email, reply_to, preview_text FROM campaigns WHERE id = :id AND organization_id = :org_id"),
             {'id': campaign_id, 'org_id': current_user.organization_id}
         )
         campaign = result.fetchone()
@@ -209,57 +260,51 @@ def api_send_campaign():
         
         name, subject, html_body, from_name, from_email, reply_to, preview_text = campaign
         
-        errors = []
-        if not subject: errors.append('Subject is required')
-        if not html_body: errors.append('Email content is required')
-        if not from_email: errors.append('From Email is required')
-        if not from_name: errors.append('From Name is required')
-        if errors:
-            return jsonify({'success': False, 'error': ', '.join(errors)}), 400
+        if not subject: return jsonify({'success': False, 'error': 'Subject is required'}), 400
+        if not html_body: return jsonify({'success': False, 'error': 'Email content is required'}), 400
+        if not from_email: return jsonify({'success': False, 'error': 'From Email is required'}), 400
+        if not from_name: return jsonify({'success': False, 'error': 'From Name is required'}), 400
         
         contacts_result = db.session.execute(
-            text("SELECT id, email, first_name, last_name FROM contacts WHERE organization_id = :org_id AND unsubscribed_at IS NULL"),
+            text("SELECT id, email, first_name, last_name FROM contacts WHERE organization_id = :org_id"),
             {'org_id': current_user.organization_id}
         )
         contacts = contacts_result.fetchall()
-        total_recipients = len(contacts)
+        total = len(contacts)
         
-        if total_recipients == 0:
+        if total == 0:
             return jsonify({'success': False, 'error': 'No contacts to send to'}), 400
         
         db.session.execute(
-            text("UPDATE campaigns SET status = 'sending', total_recipients = :recipients, updated_at = NOW() WHERE id = :id"),
-            {'recipients': total_recipients, 'id': campaign_id}
+            text("UPDATE campaigns SET status = 'sending', total_recipients = :total, updated_at = NOW() WHERE id = :id"),
+            {'total': total, 'id': campaign_id}
         )
         db.session.commit()
         
-        sent_count = 0
+        sent = 0
         try:
             from app.smtp.relay_server import send_email_sync
             for contact in contacts:
                 contact_id, email, first_name, last_name = contact
-                personalized_html = html_body.replace('{{first_name}}', first_name or '').replace('{{last_name}}', last_name or '').replace('{{email}}', email)
-                personalized_subject = subject.replace('{{first_name}}', first_name or '')
-                if preview_text:
-                    personalized_html = f'<div style="display:none;max-height:0;overflow:hidden;">{preview_text}</div>' + personalized_html
+                html = html_body.replace('{{first_name}}', first_name or '').replace('{{last_name}}', last_name or '').replace('{{email}}', email)
+                subj = subject.replace('{{first_name}}', first_name or '')
                 try:
-                    result = send_email_sync({'from': from_email, 'from_name': from_name, 'reply_to': reply_to, 'to': email, 'subject': personalized_subject, 'html_body': personalized_html})
-                    if result.get('success'):
-                        sent_count += 1
+                    result = send_email_sync({'from': from_email, 'from_name': from_name, 'reply_to': reply_to, 'to': email, 'subject': subj, 'html_body': html})
+                    if result.get('success'): sent += 1
                 except Exception as e:
-                    logger.error(f"Error sending to {email}: {e}")
+                    logger.error(f"Send to {email} failed: {e}")
         except ImportError:
-            sent_count = total_recipients
+            sent = total
         
         db.session.execute(
             text("UPDATE campaigns SET status = 'sent', emails_sent = :sent, sent_count = :sent, sent_at = NOW(), updated_at = NOW() WHERE id = :id"),
-            {'sent': sent_count, 'id': campaign_id}
+            {'sent': sent, 'id': campaign_id}
         )
         db.session.commit()
         
-        return jsonify({'success': True, 'sent': sent_count, 'total': total_recipients})
+        return jsonify({'success': True, 'sent': sent, 'total': total})
     except Exception as e:
-        logger.error(f"Send campaign error: {e}", exc_info=True)
+        logger.error(f"Send error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -270,54 +315,51 @@ def api_send_test_email():
     try:
         data = request.get_json()
         test_email = data.get('test_email')
-        subject = data.get('subject', 'Test Email')
-        html_content = data.get('html')
-        from_name = data.get('from_name', '')
-        from_email = data.get('from_email', '')
-        
         if not test_email or '@' not in test_email:
-            return jsonify({'success': False, 'error': 'Invalid email address'}), 400
-        if not subject or not html_content:
-            return jsonify({'success': False, 'error': 'Subject and content required'}), 400
-        
-        if not from_email:
-            domains_result = db.session.execute(
-                text("SELECT domain_name FROM domains WHERE organization_id = :org_id AND dns_verified = true LIMIT 1"),
-                {'org_id': current_user.organization_id}
-            )
-            domain_row = domains_result.fetchone()
-            from_email = f'noreply@{domain_row[0]}' if domain_row else 'noreply@sendbaba.com'
-        
-        if not from_name:
-            from_name = 'SendBaba Test'
+            return jsonify({'success': False, 'error': 'Invalid email'}), 400
         
         try:
             from app.smtp.relay_server import send_email_sync
-            result = send_email_sync({'from': from_email, 'from_name': from_name, 'to': test_email, 'subject': f'[TEST] {subject}', 'html_body': html_content})
+            result = send_email_sync({
+                'from': data.get('from_email', 'test@sendbaba.com'),
+                'from_name': data.get('from_name', 'SendBaba'),
+                'to': test_email,
+                'subject': f"[TEST] {data.get('subject', 'Test')}",
+                'html_body': data.get('html', '<p>Test email</p>')
+            })
             if result.get('success'):
-                return jsonify({'success': True, 'message': f'Test email sent to {test_email}!'})
-            return jsonify({'success': False, 'error': result.get('message')}), 500
+                return jsonify({'success': True, 'message': f'Test sent to {test_email}'})
+            return jsonify({'success': False, 'error': 'Send failed'}), 500
         except ImportError:
-            return jsonify({'success': True, 'message': f'Test email queued for {test_email}'})
+            return jsonify({'success': True, 'message': f'Test queued for {test_email}'})
     except Exception as e:
-        logger.error(f"Send test email error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@campaign_bp.route('/campaigns/view/<campaign_id>')
 @campaign_bp.route('/campaigns/<campaign_id>')
 @login_required
 def view_campaign(campaign_id):
     try:
         result = db.session.execute(
-            text("SELECT id, name, subject, status, COALESCE(emails_sent, 0), COALESCE(total_recipients, 0), created_at, from_name, from_email, reply_to FROM campaigns WHERE id = :id AND organization_id = :org_id"),
+            text("SELECT id, name, subject, status, COALESCE(emails_sent,0), COALESCE(total_recipients,0), created_at, from_name, from_email FROM campaigns WHERE id = :id AND organization_id = :org_id"),
             {'id': campaign_id, 'org_id': current_user.organization_id}
         )
         row = result.fetchone()
         if not row:
             flash('Campaign not found', 'error')
             return redirect(url_for('campaigns.list_campaigns'))
-        campaign = {'id': row[0], 'name': row[1], 'subject': row[2], 'status': row[3], 'sent': row[4], 'recipients': row[5], 'created_at': row[6], 'from_name': row[7], 'from_email': row[8], 'reply_to': row[9]}
-        return render_template('dashboard/campaigns/view.html', campaign=campaign)
+        
+        campaign = {
+            'id': row[0], 'name': row[1], 'subject': row[2], 'status': row[3],
+            'emails_sent': row[4], 'total_recipients': row[5], 'created_at': row[6],
+            'from_name': row[7], 'from_email': row[8]
+        }
+        
+        stats = {'total': campaign['emails_sent'], 'sent': campaign['emails_sent'], 'delivered': campaign['emails_sent'],
+                'failed': 0, 'bounced': 0, 'opens': 0, 'clicks': 0, 'open_rate': 0, 'click_rate': 0, 'delivery_rate': 100}
+        
+        return render_template('dashboard/campaigns/view.html', campaign=campaign, stats=stats, recipients=[])
     except Exception as e:
         logger.error(f"View campaign error: {e}", exc_info=True)
         flash('Error loading campaign', 'error')

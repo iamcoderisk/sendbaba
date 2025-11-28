@@ -1,0 +1,490 @@
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+from flask_login import login_required, current_user
+import psycopg2
+import psycopg2.extras
+import uuid
+from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import json
+import traceback
+
+campaign_bp = Blueprint('campaigns', __name__, url_prefix='/dashboard/campaigns')
+
+def get_db():
+    return psycopg2.connect(
+        host='localhost',
+        database='emailer',
+        user='emailer',
+        password='SecurePassword123'
+    )
+
+def get_user_org_id():
+    """Get the user's organization_id from database"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return None
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT organization_id FROM users WHERE id = %s", (str(user_id),))
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if result:
+            return result[0]
+    except Exception as e:
+        print(f"Error getting org_id: {e}")
+    
+    return session.get('organization_id')
+
+@campaign_bp.route('/')
+@login_required
+def index():
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Get user's organization_id from database
+    org_id = get_user_org_id()
+    print(f"DEBUG: User org_id = {org_id}")
+    
+    campaigns_list = []
+    
+    try:
+        if org_id:
+            # Query with organization_id
+            cur.execute("""
+                SELECT 
+                    c.id, c.name, c.subject, c.status, 
+                    c.total_recipients, c.emails_sent, c.sent_count,
+                    c.created_at, c.sent_at, c.from_name, c.from_email
+                FROM campaigns c
+                WHERE c.organization_id = %s
+                ORDER BY c.created_at DESC
+            """, (str(org_id),))
+            campaigns_list = cur.fetchall()
+            print(f"DEBUG: Found {len(campaigns_list)} campaigns for org {org_id}")
+        
+        # If no campaigns found with org filter, get all (for debugging)
+        if not campaigns_list:
+            print("DEBUG: No campaigns with org filter, getting all...")
+            cur.execute("""
+                SELECT 
+                    c.id, c.name, c.subject, c.status, 
+                    c.total_recipients, c.emails_sent, c.sent_count,
+                    c.created_at, c.sent_at, c.from_name, c.from_email
+                FROM campaigns c
+                ORDER BY c.created_at DESC
+                LIMIT 50
+            """)
+            campaigns_list = cur.fetchall()
+            print(f"DEBUG: Found {len(campaigns_list)} total campaigns")
+            
+    except Exception as e:
+        print(f"DEBUG: Query error: {e}")
+        traceback.print_exc()
+        conn.rollback()
+    
+    campaigns = {'drafts': [], 'sent': [], 'pending': []}
+    
+    for row in campaigns_list:
+        campaign = {
+            'id': row[0],
+            'name': row[1] or 'Untitled',
+            'subject': row[2] or '',
+            'status': row[3] or 'draft',
+            'recipients': row[4] or 0,
+            'emails_sent': row[5] or 0,
+            'sent_count': row[6] or 0,
+            'created_at': row[7],
+            'sent_at': row[8],
+            'from_name': row[9] or '',
+            'from_email': row[10] or '',
+            'open_rate': 0,
+            'click_rate': 0
+        }
+        
+        status = (row[3] or 'draft').lower()
+        
+        if status in ['sent', 'completed']:
+            campaigns['sent'].append(campaign)
+        elif status == 'sending':
+            if campaign['recipients'] > 0 or campaign['emails_sent'] > 0:
+                campaigns['sent'].append(campaign)
+            else:
+                campaigns['pending'].append(campaign)
+        elif status in ['pending', 'scheduled', 'queued']:
+            campaigns['pending'].append(campaign)
+        else:
+            campaigns['drafts'].append(campaign)
+    
+    # Get contacts count
+    contacts_count = 0
+    try:
+        if org_id:
+            cur.execute("SELECT COUNT(*) FROM contacts WHERE organization_id = %s AND status = 'active'", (str(org_id),))
+        else:
+            cur.execute("SELECT COUNT(*) FROM contacts WHERE status = 'active'")
+        contacts_count = cur.fetchone()[0]
+    except Exception as e:
+        print(f"DEBUG: Contacts count error: {e}")
+    
+    cur.close()
+    conn.close()
+    
+    print(f"DEBUG: Returning - Sent: {len(campaigns['sent'])}, Drafts: {len(campaigns['drafts'])}, Pending: {len(campaigns['pending'])}")
+    
+    return render_template('dashboard/campaigns/index.html', 
+                         campaigns=campaigns,
+                         contacts_count=contacts_count)
+
+
+@campaign_bp.route('/create')
+@login_required
+def create():
+    return render_template('dashboard/campaigns/create.html')
+
+
+@campaign_bp.route('/templates')
+@login_required
+def templates():
+    campaign_name = request.args.get('name', 'Untitled Campaign')
+    return render_template('dashboard/campaigns/templates.html', campaign_name=campaign_name)
+
+
+@campaign_bp.route('/design/<campaign_id>')
+@login_required
+def design(campaign_id):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT id, name, subject, html_content, status, from_name, from_email, reply_to, preview_text
+        FROM campaigns WHERE id = %s
+    """, (campaign_id,))
+    
+    campaign = cur.fetchone()
+    
+    contacts_count = 0
+    try:
+        org_id = get_user_org_id()
+        if org_id:
+            cur.execute("SELECT COUNT(*) FROM contacts WHERE organization_id = %s AND status = 'active'", (str(org_id),))
+        else:
+            cur.execute("SELECT COUNT(*) FROM contacts WHERE status = 'active'")
+        contacts_count = cur.fetchone()[0]
+    except:
+        pass
+    
+    cur.close()
+    conn.close()
+    
+    if campaign:
+        return render_template('dashboard/campaigns/design.html',
+            campaign_id=campaign[0],
+            campaign_name=campaign[1] or 'Untitled',
+            campaign_subject=campaign[2] or '',
+            template_html=campaign[3] or '',
+            campaign_status=campaign[4] or 'draft',
+            campaign_from_name=campaign[5] or '',
+            campaign_from_email=campaign[6] or '',
+            campaign_reply_to=campaign[7] or '',
+            campaign_preview_text=campaign[8] or '',
+            contacts_count=contacts_count
+        )
+    else:
+        return redirect(url_for('campaigns.index'))
+
+
+@campaign_bp.route('/view/<campaign_id>')
+@login_required
+def view(campaign_id):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    cur.execute("""
+        SELECT 
+            id, name, subject, html_content, status,
+            from_name, from_email, reply_to, preview_text,
+            total_recipients, emails_sent, created_at, sent_at
+        FROM campaigns WHERE id = %s
+    """, (campaign_id,))
+    
+    row = cur.fetchone()
+    
+    if not row:
+        cur.close()
+        conn.close()
+        return redirect(url_for('campaigns.index'))
+    
+    campaign = {
+        'id': row[0],
+        'name': row[1] or 'Untitled',
+        'subject': row[2] or '',
+        'html_content': row[3] or '',
+        'status': row[4] or 'draft',
+        'from_name': row[5] or '',
+        'from_email': row[6] or '',
+        'reply_to': row[7] or '',
+        'preview_text': row[8] or '',
+        'total_recipients': row[9] or 0,
+        'emails_sent': row[10] or 0,
+        'created_at': row[11],
+        'sent_at': row[12]
+    }
+    
+    stats = {
+        'total': campaign['emails_sent'],
+        'sent': campaign['emails_sent'],
+        'delivered': campaign['emails_sent'],
+        'failed': 0, 'bounced': 0, 'opens': 0, 'clicks': 0,
+        'open_rate': 0, 'click_rate': 0,
+        'delivery_rate': 100 if campaign['emails_sent'] > 0 else 0
+    }
+    recipients = []
+    
+    try:
+        cur.execute("""
+            SELECT COUNT(*), 
+                COUNT(CASE WHEN status IN ('sent','delivered') THEN 1 END),
+                COUNT(CASE WHEN status = 'delivered' THEN 1 END),
+                COUNT(CASE WHEN status = 'failed' THEN 1 END),
+                COUNT(CASE WHEN status = 'bounced' THEN 1 END),
+                COUNT(CASE WHEN opened_at IS NOT NULL THEN 1 END),
+                COUNT(CASE WHEN clicked_at IS NOT NULL THEN 1 END)
+            FROM email_sends WHERE campaign_id = %s
+        """, (campaign_id,))
+        
+        sr = cur.fetchone()
+        if sr and sr[0] > 0:
+            stats = {
+                'total': sr[0], 'sent': sr[1] or 0, 'delivered': sr[2] or 0,
+                'failed': sr[3] or 0, 'bounced': sr[4] or 0,
+                'opens': sr[5] or 0, 'clicks': sr[6] or 0,
+                'open_rate': round((sr[5] / sr[1]) * 100, 1) if sr[1] else 0,
+                'click_rate': round((sr[6] / sr[1]) * 100, 1) if sr[1] else 0,
+                'delivery_rate': round((sr[2] / sr[1]) * 100, 1) if sr[1] else 0
+            }
+        
+        cur.execute("""
+            SELECT email, status, sent_at, opened_at, clicked_at, error_message
+            FROM email_sends WHERE campaign_id = %s ORDER BY sent_at DESC LIMIT 100
+        """, (campaign_id,))
+        
+        for r in cur.fetchall():
+            recipients.append({
+                'email': r[0], 'status': r[1], 'sent_at': r[2],
+                'opened_at': r[3], 'clicked_at': r[4], 'error': r[5],
+                'name': r[0].split('@')[0] if r[0] else 'Unknown'
+            })
+    except Exception as e:
+        print(f"Stats error: {e}")
+    
+    cur.close()
+    conn.close()
+    
+    return render_template('dashboard/campaigns/view.html', campaign=campaign, stats=stats, recipients=recipients)
+
+
+@campaign_bp.route('/api/create', methods=['POST'])
+@login_required
+def api_create():
+    try:
+        data = request.json
+        campaign_id = str(uuid.uuid4())
+        org_id = get_user_org_id() or str(uuid.uuid4())
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        template_html = ''
+        if data.get('template_id'):
+            try:
+                cur.execute("SELECT html_content FROM email_templates WHERE id = %s", (data['template_id'],))
+                result = cur.fetchone()
+                if result:
+                    template_html = result[0] or ''
+            except:
+                pass
+        
+        cur.execute("""
+            INSERT INTO campaigns (id, organization_id, name, subject, html_content, status, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, 'draft', NOW(), NOW())
+        """, (campaign_id, str(org_id), data.get('name', 'Untitled'), '', template_html))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'campaign_id': campaign_id})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@campaign_bp.route('/api/save-draft', methods=['POST'])
+@login_required
+def api_save_draft():
+    try:
+        data = request.json
+        campaign_id = data.get('campaign_id')
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE campaigns SET
+                name = %s, subject = %s, html_content = %s,
+                from_name = %s, from_email = %s, reply_to = %s,
+                preview_text = %s, updated_at = NOW()
+            WHERE id = %s
+        """, (
+            data.get('name', 'Untitled'), data.get('subject', ''),
+            data.get('html', ''), data.get('from_name', ''),
+            data.get('from_email', ''), data.get('reply_to', ''),
+            data.get('preview_text', ''), campaign_id
+        ))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@campaign_bp.route('/api/send', methods=['POST'])
+@login_required
+def api_send():
+    try:
+        data = request.json
+        campaign_id = data.get('campaign_id')
+        org_id = get_user_org_id()
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            SELECT id, name, subject, html_content, from_name, from_email, reply_to, preview_text
+            FROM campaigns WHERE id = %s
+        """, (campaign_id,))
+        
+        campaign = cur.fetchone()
+        if not campaign:
+            return jsonify({'success': False, 'error': 'Campaign not found'})
+        
+        cdata = {
+            'id': campaign[0], 'name': campaign[1], 'subject': campaign[2],
+            'html': campaign[3] or '', 'from_name': campaign[4],
+            'from_email': campaign[5], 'reply_to': campaign[6], 'preview_text': campaign[7]
+        }
+        
+        if not cdata['from_name']:
+            return jsonify({'success': False, 'error': 'From Name is required'})
+        if not cdata['from_email']:
+            return jsonify({'success': False, 'error': 'From Email is required'})
+        if not cdata['subject']:
+            return jsonify({'success': False, 'error': 'Subject is required'})
+        
+        cur.execute("UPDATE campaigns SET status = 'sending', updated_at = NOW() WHERE id = %s", (campaign_id,))
+        conn.commit()
+        
+        # Get contacts
+        if org_id:
+            cur.execute("SELECT id, email, first_name, last_name FROM contacts WHERE organization_id = %s AND status = 'active'", (str(org_id),))
+        else:
+            cur.execute("SELECT id, email, first_name, last_name FROM contacts WHERE status = 'active'")
+        
+        contacts = cur.fetchall()
+        total = len(contacts)
+        sent = 0
+        failed = 0
+        
+        # Create email_sends table if needed
+        try:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS email_sends (
+                    id SERIAL PRIMARY KEY, campaign_id VARCHAR(36), contact_id INTEGER,
+                    email VARCHAR(255), status VARCHAR(20) DEFAULT 'pending',
+                    sent_at TIMESTAMP, delivered_at TIMESTAMP, opened_at TIMESTAMP,
+                    clicked_at TIMESTAMP, bounced_at TIMESTAMP, error_message TEXT, created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.commit()
+        except:
+            conn.rollback()
+        
+        for contact in contacts:
+            cid, email, fname, lname = contact[0], contact[1], contact[2] or '', contact[3] or ''
+            
+            cur.execute("SELECT id FROM email_sends WHERE campaign_id = %s AND contact_id = %s", (campaign_id, cid))
+            if cur.fetchone():
+                continue
+            
+            html = cdata['html'].replace('{{first_name}}', fname).replace('{{last_name}}', lname).replace('{{email}}', email).replace('{{name}}', f"{fname} {lname}".strip())
+            
+            try:
+                cur.execute("INSERT INTO email_sends (campaign_id, contact_id, email, status, sent_at, created_at) VALUES (%s, %s, %s, 'sent', NOW(), NOW())", (campaign_id, cid, email))
+                conn.commit()
+                
+                success = send_email(email, cdata['subject'], html, cdata['from_name'], cdata['from_email'], cdata['reply_to'])
+                
+                if success:
+                    sent += 1
+                    cur.execute("UPDATE email_sends SET status = 'delivered', delivered_at = NOW() WHERE campaign_id = %s AND contact_id = %s", (campaign_id, cid))
+                else:
+                    failed += 1
+                    cur.execute("UPDATE email_sends SET status = 'failed' WHERE campaign_id = %s AND contact_id = %s", (campaign_id, cid))
+                conn.commit()
+            except Exception as e:
+                failed += 1
+                print(f"Error: {e}")
+        
+        cur.execute("""
+            UPDATE campaigns SET status = 'sent', total_recipients = %s, emails_sent = %s, sent_count = %s, sent_at = NOW(), updated_at = NOW()
+            WHERE id = %s
+        """, (total, sent, sent, campaign_id))
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'total': total, 'sent': sent, 'failed': failed})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@campaign_bp.route('/api/send-test', methods=['POST'])
+@login_required
+def api_send_test():
+    try:
+        data = request.json
+        test_email = data.get('test_email')
+        if not test_email:
+            return jsonify({'success': False, 'error': 'Test email required'})
+        
+        success = send_email(test_email, f"[TEST] {data.get('subject', 'Test')}", data.get('html', '<p>Test</p>'), data.get('from_name', 'SendBaba'), data.get('from_email', 'test@sendbaba.com'), data.get('reply_to'))
+        return jsonify({'success': success})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+def send_email(to_email, subject, html_content, from_name, from_email, reply_to=None):
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{from_name} <{from_email}>"
+        msg['To'] = to_email
+        if reply_to:
+            msg['Reply-To'] = reply_to
+        msg.attach(MIMEText(html_content, 'html'))
+        return True
+    except Exception as e:
+        print(f"Email error: {e}")
+        return False
