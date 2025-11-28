@@ -1,229 +1,223 @@
-from flask import Flask
+"""
+SendBaba Staging App - with Context Processor for Features
+"""
+from flask import Flask, redirect, session, render_template_string, g
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
-from flask_migrate import Migrate
+from flask_login import LoginManager, current_user, login_user
 import os
 import logging
 
-# Initialize extensions
 db = SQLAlchemy()
 login_manager = LoginManager()
-migrate = Migrate()
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Redis client
-try:
-    import redis
-    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-    redis_client.ping()
-    logger.info("✅ Redis connected")
-except Exception as e:
-    redis_client = None
-    logger.warning(f"⚠️  Redis not available: {e}")
 
 def create_app():
     app = Flask(__name__)
     
-    # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '60b55ca25a3391f98774c37d68c65b88')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://emailer:SecurePassword123@localhost:5432/emailer')
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"connect_args": {"options": "-c search_path=public"}}
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
-    migrate.init_app(app, db)
-    login_manager.login_view = 'auth.login'
+    login_manager.login_view = 'login'
     
     with app.app_context():
-        # Import and register blueprints
-        try:
-            from app.controllers.main_controller import main_bp
-            app.register_blueprint(main_bp)
-            logger.info("✅ Main")
-        except Exception as e:
-            logger.error(f"❌ Main: {e}")
+        # Register blueprints
+        blueprints = [
+            ('billing_controller', 'billing_bp', 'Billing'),
+            ('pricing_controller', 'pricing_bp', 'Pricing'),
+            ('dashboard_controller', 'dashboard_bp', 'Dashboard'),
+            ('campaign_controller', 'campaign_bp', 'Campaigns'),
+            ('contact_controller', 'contact_bp', 'Contacts'),
+            ('analytics_controller', 'analytics_bp', 'Analytics'),
+            ('form_controller', 'form_bp', 'Forms'),
+            ('workflow_controller', 'workflow_bp', 'Workflows'),
+            ('segment_controller', 'segment_bp', 'Segments'),
+            ('integration_controller', 'integration_bp', 'Integrations'),
+            ('reply_controller', 'reply_bp', 'Reply AI'),
+            ('email_builder_controller', 'email_builder_bp', 'Email Builder'),
+            ('domain_controller', 'domain_bp', 'Domains'),
+            ('team_controller', 'team_bp', 'Team'),
+            ('settings_controller', 'settings_bp', 'Settings'),
+        ]
+        
+        for module, bp_name, label in blueprints:
+            try:
+                mod = __import__(f'app.controllers.{module}', fromlist=[bp_name])
+                bp = getattr(mod, bp_name)
+                app.register_blueprint(bp)
+                logger.info(f"✅ {label}")
+            except Exception as e:
+                logger.error(f"❌ {label}: {e}")
+    
+    # Context processor to inject features and subscription into all templates
+    @app.context_processor
+    def inject_features():
+        """Inject features and subscription into all templates"""
+        from sqlalchemy import text
+        
+        # Default features
+        features = {
+            'workflows': True,
+            'segments': True,
+            'team': True,
+            'ai_reply': True
+        }
+        subscription = None
         
         try:
-            from app.controllers.auth_controller import auth_bp
-            app.register_blueprint(auth_bp)
-            logger.info("✅ Auth")
+            if current_user.is_authenticated:
+                org_id = getattr(current_user, 'organization_id', None)
+                if org_id:
+                    # Get features from organization
+                    result = db.session.execute(text("""
+                        SELECT feature_workflows, feature_segments, feature_team, feature_ai_reply
+                        FROM organizations WHERE id = :org_id
+                    """), {'org_id': org_id})
+                    row = result.fetchone()
+                    
+                    if row:
+                        features = {
+                            'workflows': row[0] if row[0] is not None else True,
+                            'segments': row[1] if row[1] is not None else True,
+                            'team': row[2] if row[2] is not None else True,
+                            'ai_reply': row[3] if row[3] is not None else True
+                        }
+                    
+                    # Get subscription info
+                    sub_result = db.session.execute(text("""
+                        SELECT plan_name, status FROM subscriptions 
+                        WHERE organization_id = :org_id ORDER BY created_at DESC LIMIT 1
+                    """), {'org_id': org_id})
+                    sub_row = sub_result.fetchone()
+                    
+                    if sub_row:
+                        subscription = {
+                            'plan_name': sub_row[0] or 'Free Plan',
+                            'status': sub_row[1] or 'trial'
+                        }
         except Exception as e:
-            logger.error(f"❌ Auth: {e}")
+            logger.error(f"Context processor error: {e}")
         
-        try:
-            from app.controllers.dashboard_controller import dashboard_bp
-            app.register_blueprint(dashboard_bp)
-            logger.info("✅ Dashboard")
-        except Exception as e:
-            logger.error(f"❌ Dashboard: {e}")
-        
-        try:
-            from app.controllers.api_controller import api_bp
-            app.register_blueprint(api_bp)
-            logger.info("✅ API")
-        except Exception as e:
-            logger.error(f"❌ API: {e}")
-        
-        try:
-            from app.controllers.campaign_controller import campaign_bp
-            app.register_blueprint(campaign_bp)
-            logger.info("✅ Campaigns")
-        except Exception as e:
-            logger.error(f"❌ Campaigns: {e}")
-        
-        try:
-            from app.controllers.contact_controller import contact_bp
-            app.register_blueprint(contact_bp)
-            logger.info("✅ Contacts")
-        except Exception as e:
-            logger.error(f"❌ Contacts: {e}")
-        
-        try:
-            from app.controllers.domain_controller import domain_bp
-            app.register_blueprint(domain_bp)
-            logger.info("✅ Domains")
-        except Exception as e:
-            logger.error(f"❌ Domains: {e}")
-        
-        try:
-            from app.controllers.settings_controller import settings_bp
-            app.register_blueprint(settings_bp)
-            logger.info("✅ Settings")
-        except Exception as e:
-            logger.error(f"❌ Settings: {e}")
-        
-        try:
-            from app.controllers.analytics_controller import analytics_bp
-            app.register_blueprint(analytics_bp)
-            logger.info("✅ Analytics")
-        except Exception as e:
-            logger.error(f"❌ Analytics: {e}")
-        
-        try:
-            from app.controllers.segment_controller import segment_bp
-            app.register_blueprint(segment_bp)
-            logger.info("✅ Segments")
-        except Exception as e:
-            logger.error(f"❌ Segments: {e}")
-        
-        try:
-            from app.controllers.workflow_controller import workflow_bp
-            app.register_blueprint(workflow_bp)
-            logger.info("✅ Workflows")
-        except Exception as e:
-            logger.error(f"❌ Workflows: {e}")
-        
-        try:
-            from app.controllers.form_controller import form_bp
-            app.register_blueprint(form_bp)
-            logger.info("✅ Forms")
-        except Exception as e:
-            logger.error(f"❌ Forms: {e}")
-        
-        try:
-            from app.controllers.template_controller import template_bp
-            app.register_blueprint(template_bp)
-            logger.info("✅ Templates")
-        except Exception as e:
-            logger.error(f"❌ Templates: {e}")
-        
-        try:
-            from app.controllers.validation_controller import validation_bp
-            app.register_blueprint(validation_bp)
-            logger.info("✅ Validation")
-        except Exception as e:
-            logger.error(f"❌ Validation: {e}")
-        
-        try:
-            from app.controllers.warmup_controller import warmup_bp
-            app.register_blueprint(warmup_bp)
-            logger.info("✅ Warmup")
-        except Exception as e:
-            logger.error(f"❌ Warmup: {e}")
-        
-        try:
-            from app.controllers.integration_controller import integration_bp
-            app.register_blueprint(integration_bp)
-            logger.info("✅ Integrations")
-        except Exception as e:
-            logger.error(f"❌ Integrations: {e}")
-        
-        try:
-            from app.controllers.reply_controller import reply_bp
-            app.register_blueprint(reply_bp)
-            logger.info("✅ Reply AI")
-        except Exception as e:
-            logger.error(f"❌ Reply AI: {e}")
-        
-        try:
-            from app.controllers.email_builder_controller import email_builder_bp
-            app.register_blueprint(email_builder_bp)
-            logger.info("✅ Email Builder")
-        except Exception as e:
-            logger.error(f"❌ Email Builder: {e}")
-        
-        try:
-            from app.controllers.api_keys_controller import api_keys_bp
-            app.register_blueprint(api_keys_bp)
-            logger.info("✅ API Keys Management")
-        except Exception as e:
-            logger.error(f"❌ API Keys Management: {e}")
-        
-        try:
-            from app.controllers.api_docs_controller import api_docs_bp
-            app.register_blueprint(api_docs_bp)
-            logger.info("✅ API Documentation")
-        except Exception as e:
-            logger.error(f"❌ API Documentation: {e}")
-        
-        try:
-            from app.controllers.team_controller import team_bp
-            app.register_blueprint(team_bp)
-            logger.info("✅ Team Management")
-        except Exception as e:
-            logger.error(f"❌ Team Management: {e}")
-        
-        try:
-            from app.controllers.team_invite_controller import team_invite_bp
-            app.register_blueprint(team_invite_bp)
-            logger.info("✅ Team Invitations")
-        except Exception as e:
-            logger.error(f"❌ Team Invitations: {e}")
-        
-            from app.controllers.pricing_controller import pricing_bp
-            app.register_blueprint(pricing_bp)
-            logger.info("✅ Pricing")
-        except Exception as e:
-            logger.error(f"❌ Pricing: {e}")
+        return dict(features=features, subscription=subscription)
     
     @login_manager.user_loader
     def load_user(user_id):
-        from app.models.user import User
-        try:
-            return User.query.get(user_id)
-        except:
-            try:
-                return User.query.get(int(user_id))
-            except:
-                return None
+        from sqlalchemy import text
+        result = db.session.execute(
+            text("SELECT id, email, organization_id FROM users WHERE id = :id"),
+            {"id": user_id}
+        ).fetchone()
+        if result:
+            class User:
+                is_authenticated = True
+                is_active = True
+                is_anonymous = False
+                def __init__(self, id, email, organization_id):
+                    self.id = id
+                    self.email = email
+                    self.organization_id = organization_id
+                def get_id(self):
+                    return str(self.id)
+            return User(result[0], result[1], result[2])
+        return None
     
-    # Template API route
-    @app.route('/api/templates/<template_name>')
-    def serve_template(template_name):
-        """Serve email templates"""
-        import os
-        try:
-            template_path = os.path.join('app', 'templates', 'email_templates', f'{template_name}.html')
-            if os.path.exists(template_path):
-                with open(template_path, 'r') as f:
-                    return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
-            return 'Template not found', 404
-        except Exception as e:
-            return str(e), 500
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        from flask import request
+        from werkzeug.security import check_password_hash
+        from sqlalchemy import text
+        
+        if current_user.is_authenticated:
+            return redirect('/dashboard')
+        
+        error = None
+        if request.method == 'POST':
+            email = request.form.get('email')
+            password = request.form.get('password')
+            
+            result = db.session.execute(
+                text("SELECT id, email, password_hash, organization_id FROM users WHERE email = :email"),
+                {"email": email}
+            ).fetchone()
+            
+            if result and check_password_hash(result[2], password):
+                class User:
+                    is_authenticated = True
+                    is_active = True
+                    is_anonymous = False
+                    def __init__(self, id, email, organization_id):
+                        self.id = id
+                        self.email = email
+                        self.organization_id = organization_id
+                    def get_id(self):
+                        return str(self.id)
+                
+                user = User(result[0], result[1], result[3])
+                login_user(user)
+                session['user_id'] = result[0]
+                session['organization_id'] = result[3]
+                next_page = request.args.get('next', '/dashboard')
+                return redirect(next_page)
+            else:
+                error = "Invalid email or password"
+        
+        return render_template_string('''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - SendBaba</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-paper-plane text-white text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">Welcome Back</h1>
+            <p class="text-gray-500">Sign in to your SendBaba account</p>
+        </div>
+        {% if error %}
+        <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-xl text-sm">
+            <i class="fas fa-exclamation-circle mr-2"></i>{{ error }}
+        </div>
+        {% endif %}
+        <form method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <input type="email" name="email" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <input type="password" name="password" required class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+            </div>
+            <button type="submit" class="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:shadow-lg transition">
+                Sign In
+            </button>
+        </form>
+    </div>
+</body>
+</html>
+        ''', error=error)
     
-
+    @app.route('/logout')
+    @app.route('/auth/logout')
+    def logout():
+        from flask_login import logout_user
+        logout_user()
+        session.clear()
+        return redirect('/login')
+    
+    @app.route('/')
+    def index():
+        if current_user.is_authenticated:
+            return redirect('/dashboard')
+        return redirect('/login')
+    
     return app

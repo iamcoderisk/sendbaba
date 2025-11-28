@@ -1,0 +1,53 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Invoices - SendBaba{% endblock %}
+{% block page_title %}Invoices{% endblock %}
+{% block page_subtitle %}View your billing history{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6">
+        <a href="/dashboard/billing" class="text-orange-600 hover:text-orange-700 font-medium">← Back to Billing</a>
+    </div>
+    
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        {% if invoices %}
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Invoice</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Date</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Amount</th>
+                    <th class="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                    <th class="px-6 py-4 text-right text-sm font-semibold">Download</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y">
+                {% for inv in invoices %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 font-medium">{{ inv.invoice_number }}</td>
+                    <td class="px-6 py-4 text-gray-600">{{ inv.invoice_date.strftime('%b %d, %Y') if inv.invoice_date else 'N/A' }}</td>
+                    <td class="px-6 py-4 font-semibold">${{ "%.2f"|format(inv.total) }}</td>
+                    <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-sm {% if inv.status == 'paid' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-700{% endif %}">{{ inv.status|capitalize }}</span></td>
+                    <td class="px-6 py-4 text-right">
+                        {% if inv.pdf_url %}
+                        <a href="{{ inv.pdf_url }}" class="text-orange-600 hover:text-orange-700"><i class="fas fa-download"></i> Download</a>
+                        {% else %}
+                        <span class="text-gray-400">No PDF</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="py-16 text-center">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-file-invoice text-gray-400 text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2">No invoices yet</h3>
+            <p class="text-gray-500">Your invoices will appear here after your first payment.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

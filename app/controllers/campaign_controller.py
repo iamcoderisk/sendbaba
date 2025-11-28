@@ -67,10 +67,10 @@ def list_campaigns():
             else:
                 campaigns['drafts'].append(campaign)
         
-        return render_template('dashboard/campaigns/index.html', campaigns=campaigns)
+        return render_template('campaigns/index.html', campaigns=campaigns)
     except Exception as e:
         logger.error(f"List campaigns error: {e}", exc_info=True)
-        return render_template('dashboard/campaigns/index.html', campaigns={'sent': [], 'drafts': [], 'pending': []})
+        return render_template('campaigns/index.html', campaigns={'sent': [], 'drafts': [], 'pending': []})
 
 
 @campaign_bp.route('/campaigns/create')
