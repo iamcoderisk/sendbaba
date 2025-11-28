@@ -1,82 +1,56 @@
 """
-SendBaba Workflows Module - Database Models
-Handles email automation workflows
+Workflow Models for SendBaba
 """
 from datetime import datetime
-import uuid
 import json
+import uuid
 
-try:
-    from app import db
-except ImportError:
-    from flask_sqlalchemy import SQLAlchemy
-    db = SQLAlchemy()
-
-
-class Workflow(db.Model):
-    """Email automation workflow"""
-    __tablename__ = 'workflows'
+class Workflow:
+    """Workflow model - uses raw SQL"""
     
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = db.Column(db.String(36), db.ForeignKey('organizations.id'), nullable=False)
-    
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    
-    # Trigger configuration
-    trigger_type = db.Column(db.String(50), nullable=False)  # contact_added, tag_added, form_submitted, date_based, api_trigger
-    trigger_config = db.Column(db.Text, default='{}')  # JSON config for trigger
-    
-    # Workflow steps (JSON array)
-    steps = db.Column(db.Text, default='[]')
-    
-    # Settings
-    entry_limit = db.Column(db.Integer, default=0)  # 0 = unlimited
-    entry_limit_period = db.Column(db.String(20))  # per_day, per_week, per_month
-    allow_reentry = db.Column(db.Boolean, default=False)
-    reentry_delay_days = db.Column(db.Integer, default=0)
-    
-    # Goal settings
-    goal_type = db.Column(db.String(50))  # email_opened, link_clicked, tag_added, etc
-    goal_config = db.Column(db.Text, default='{}')
-    remove_on_goal = db.Column(db.Boolean, default=True)
-    
-    # Status
-    status = db.Column(db.String(20), default='draft')  # draft, active, paused, archived
-    
-    # Stats
-    total_enrolled = db.Column(db.Integer, default=0)
-    active_contacts = db.Column(db.Integer, default=0)
-    completed = db.Column(db.Integer, default=0)
-    goal_reached = db.Column(db.Integer, default=0)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    activated_at = db.Column(db.DateTime)
-    
-    # Relationships
-    enrollments = db.relationship('WorkflowEnrollment', backref='workflow', lazy='dynamic', cascade='all, delete-orphan')
-    logs = db.relationship('WorkflowLog', backref='workflow', lazy='dynamic', cascade='all, delete-orphan')
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', str(uuid.uuid4()))
+        self.organization_id = kwargs.get('organization_id')
+        self.name = kwargs.get('name', 'Untitled Workflow')
+        self.description = kwargs.get('description')
+        self.trigger_type = kwargs.get('trigger_type', 'contact_added')
+        self.trigger_config = kwargs.get('trigger_config', '{}')
+        self.steps = kwargs.get('steps', '[]')
+        self.status = kwargs.get('status', 'draft')
+        self.allow_reentry = kwargs.get('allow_reentry', False)
+        self.goal_type = kwargs.get('goal_type')
+        self.goal_config = kwargs.get('goal_config')
+        self.total_enrolled = kwargs.get('total_enrolled', 0)
+        self.active_contacts = kwargs.get('active_contacts', 0)
+        self.completed = kwargs.get('completed', 0)
+        self.goal_reached = kwargs.get('goal_reached', 0)
+        self.created_at = kwargs.get('created_at', datetime.utcnow())
+        self.updated_at = kwargs.get('updated_at', datetime.utcnow())
+        self.activated_at = kwargs.get('activated_at')
     
     @property
     def steps_list(self):
-        try:
-            return json.loads(self.steps) if self.steps else []
-        except:
-            return []
+        if isinstance(self.steps, str):
+            try:
+                return json.loads(self.steps)
+            except:
+                return []
+        return self.steps or []
     
     @property
     def trigger_configuration(self):
-        try:
-            return json.loads(self.trigger_config) if self.trigger_config else {}
-        except:
-            return {}
+        if isinstance(self.trigger_config, str):
+            try:
+                return json.loads(self.trigger_config)
+            except:
+                return {}
+        return self.trigger_config or {}
     
     @property
     def conversion_rate(self):
-        if self.total_enrolled == 0:
-            return 0
-        return round((self.goal_reached / self.total_enrolled) * 100, 2)
+        if self.total_enrolled > 0:
+            return round((self.goal_reached / self.total_enrolled) * 100, 1)
+        return 0
     
     def to_dict(self):
         return {
@@ -87,41 +61,30 @@ class Workflow(db.Model):
             'trigger_config': self.trigger_configuration,
             'steps': self.steps_list,
             'status': self.status,
+            'allow_reentry': self.allow_reentry,
             'total_enrolled': self.total_enrolled,
             'active_contacts': self.active_contacts,
             'completed': self.completed,
             'goal_reached': self.goal_reached,
             'conversion_rate': self.conversion_rate,
-            'allow_reentry': self.allow_reentry,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'activated_at': self.activated_at.isoformat() if self.activated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
 
-class WorkflowEnrollment(db.Model):
+class WorkflowEnrollment:
     """Tracks contacts enrolled in workflows"""
-    __tablename__ = 'workflow_enrollments'
     
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = db.Column(db.String(36), db.ForeignKey('workflows.id'), nullable=False)
-    contact_id = db.Column(db.String(36), db.ForeignKey('contacts.id'), nullable=False)
-    
-    # Current position in workflow
-    current_step = db.Column(db.Integer, default=0)
-    
-    # Status
-    status = db.Column(db.String(20), default='active')  # active, paused, completed, exited, goal_reached
-    
-    # Timing
-    next_action_at = db.Column(db.DateTime)
-    
-    # Entry tracking
-    entry_count = db.Column(db.Integer, default=1)
-    
-    enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime)
-    exited_at = db.Column(db.DateTime)
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', str(uuid.uuid4()))
+        self.workflow_id = kwargs.get('workflow_id')
+        self.contact_id = kwargs.get('contact_id')
+        self.current_step = kwargs.get('current_step', 0)
+        self.status = kwargs.get('status', 'active')
+        self.entry_count = kwargs.get('entry_count', 1)
+        self.enrolled_at = kwargs.get('enrolled_at', datetime.utcnow())
+        self.completed_at = kwargs.get('completed_at')
+        self.next_action_at = kwargs.get('next_action_at')
     
     def to_dict(self):
         return {
@@ -130,81 +93,35 @@ class WorkflowEnrollment(db.Model):
             'contact_id': self.contact_id,
             'current_step': self.current_step,
             'status': self.status,
-            'next_action_at': self.next_action_at.isoformat() if self.next_action_at else None,
-            'enrolled_at': self.enrolled_at.isoformat() if self.enrolled_at else None
+            'entry_count': self.entry_count,
+            'enrolled_at': self.enrolled_at.isoformat() if self.enrolled_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None
         }
 
 
-class WorkflowLog(db.Model):
-    """Workflow execution logs"""
-    __tablename__ = 'workflow_logs'
+class WorkflowLog:
+    """Logs workflow execution events"""
     
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    workflow_id = db.Column(db.String(36), db.ForeignKey('workflows.id'), nullable=False)
-    enrollment_id = db.Column(db.String(36), db.ForeignKey('workflow_enrollments.id'))
-    contact_id = db.Column(db.String(36))
-    
-    # Action details
-    action_type = db.Column(db.String(50), nullable=False)  # enrolled, email_sent, wait_started, condition_checked, completed, etc
-    step_index = db.Column(db.Integer)
-    
-    # Result
-    success = db.Column(db.Boolean, default=True)
-    message = db.Column(db.Text)
-    details = db.Column(db.Text)  # JSON for additional data
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    def __init__(self, **kwargs):
+        self.id = kwargs.get('id', str(uuid.uuid4()))
+        self.workflow_id = kwargs.get('workflow_id')
+        self.enrollment_id = kwargs.get('enrollment_id')
+        self.contact_id = kwargs.get('contact_id')
+        self.action_type = kwargs.get('action_type')
+        self.step_index = kwargs.get('step_index')
+        self.success = kwargs.get('success', True)
+        self.message = kwargs.get('message')
+        self.created_at = kwargs.get('created_at', datetime.utcnow())
     
     def to_dict(self):
         return {
             'id': self.id,
             'workflow_id': self.workflow_id,
+            'enrollment_id': self.enrollment_id,
             'contact_id': self.contact_id,
             'action_type': self.action_type,
             'step_index': self.step_index,
             'success': self.success,
             'message': self.message,
             'created_at': self.created_at.isoformat() if self.created_at else None
-        }
-
-
-class WorkflowTemplate(db.Model):
-    """Pre-built workflow templates"""
-    __tablename__ = 'workflow_templates'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    category = db.Column(db.String(50))  # welcome, nurture, abandoned_cart, birthday, reengagement
-    
-    # Template data
-    trigger_type = db.Column(db.String(50), nullable=False)
-    trigger_config = db.Column(db.Text, default='{}')
-    steps = db.Column(db.Text, default='[]')
-    
-    # Display
-    icon = db.Column(db.String(50), default='fa-cogs')
-    color = db.Column(db.String(20), default='purple')
-    
-    is_active = db.Column(db.Boolean, default=True)
-    sort_order = db.Column(db.Integer, default=0)
-    
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    def to_dict(self):
-        try:
-            steps_data = json.loads(self.steps) if self.steps else []
-        except:
-            steps_data = []
-        
-        return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description,
-            'category': self.category,
-            'trigger_type': self.trigger_type,
-            'steps': steps_data,
-            'icon': self.icon,
-            'color': self.color
         }

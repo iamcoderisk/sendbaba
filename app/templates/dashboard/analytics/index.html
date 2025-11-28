@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+{% block title %}Analytics - SendBaba{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
+<style>
+    .analytics-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    .stat-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 20px;
+        transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .chart-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 24px;
+    }
+    .period-btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .period-btn.active {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+        color: white;
+    }
+    .period-btn:not(.active) {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+    .period-btn:not(.active):hover {
+        background: #e5e7eb;
+    }
+    .pulse-dot {
+        width: 8px;
+        height: 8px;
+        background: #22c55e;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.9); }
+    }
+    .funnel-bar {
+        height: 32px;
+        border-radius: 8px;
+        transition: width 1s ease-out;
+    }
+    .progress-bar {
+        height: 6px;
+        background: #e5e7eb;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+    .quick-stat {
+        padding: 12px 16px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    @media (max-width: 768px) {
+        .stat-value {
+            font-size: 1.5rem;
+        }
+        .stat-card {
+            padding: 16px;
+        }
+        .chart-card {
+            padding: 16px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-container p-4 md:p-6 lg:p-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+                    <span class="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </span>
+                    Analytics Dashboard
+                </h1>
+                <p class="text-gray-500 mt-1 text-sm md:text-base">Real-time insights into your email performance</p>
+            </div>
+            
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-2 text-sm text-gray-500">
+                    <span class="pulse-dot"></span>
+                    <span>Live</span>
+                </div>
+                
+                <div class="flex bg-gray-100 rounded-lg p-1">
+                    <button onclick="changePeriod('24h')" class="period-btn {{ 'active' if period == '24h' else '' }}">24h</button>
+                    <button onclick="changePeriod('7d')" class="period-btn {{ 'active' if period == '7d' else '' }}">7d</button>
+                    <button onclick="changePeriod('30d')" class="period-btn {{ 'active' if period == '30d' else '' }}">30d</button>
+                    <button onclick="changePeriod('90d')" class="period-btn {{ 'active' if period == '90d' else '' }}">90d</button>
+                </div>
+                
+                <button onclick="exportData()" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Export
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Stats Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Delivery Rate -->
+        <div class="stat-card">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-purple-100">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                {% if overview.delivery_growth != 0 %}
+                <span class="text-xs font-medium px-2 py-1 rounded-full {% if overview.delivery_growth >= 0 %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {% if overview.delivery_growth >= 0 %}↑{% else %}↓{% endif %} {{ overview.delivery_growth|abs }}%
+                </span>
+                {% endif %}
+            </div>
+            <div class="stat-value text-purple-600">{{ overview.delivery_rate }}%</div>
+            <div class="text-sm text-gray-500 mt-1">Delivery Rate</div>
+            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.delivered) }} delivered</div>
+        </div>
+
+        <!-- Open Rate -->
+        <div class="stat-card">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-green-100">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                    </svg>
+                </div>
+                {% if overview.open_growth != 0 %}
+                <span class="text-xs font-medium px-2 py-1 rounded-full {% if overview.open_growth >= 0 %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                    {% if overview.open_growth >= 0 %}↑{% else %}↓{% endif %} {{ overview.open_growth|abs }}%
+                </span>
+                {% endif %}
+            </div>
+            <div class="stat-value text-green-600">{{ overview.open_rate }}%</div>
+            <div class="text-sm text-gray-500 mt-1">Open Rate</div>
+            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.opened) }} opened</div>
+        </div>
+
+        <!-- Click Rate -->
+        <div class="stat-card">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-blue-100">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-value text-blue-600">{{ overview.click_rate }}%</div>
+            <div class="text-sm text-gray-500 mt-1">Click Rate</div>
+            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.clicked) }} clicks</div>
+        </div>
+
+        <!-- Bounce Rate -->
+        <div class="stat-card">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-orange-100">
+                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="stat-value text-orange-600">{{ overview.bounce_rate }}%</div>
+            <div class="text-sm text-gray-500 mt-1">Bounce Rate</div>
+            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.bounced) }} bounced</div>
+        </div>
+    </div>
+
+    <!-- Secondary Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ "{:,}".format(overview.total_sent) }}</div>
+            <div class="text-xs md:text-sm text-gray-500">Total Sent</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ "{:,}".format(overview.avg_daily|int) }}</div>
+            <div class="text-xs md:text-sm text-gray-500">Daily Avg</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ "{:,}".format(overview.total_contacts) }}</div>
+            <div class="text-xs md:text-sm text-gray-500">Contacts</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200">
+            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ campaign_stats.sent }}</div>
+            <div class="text-xs md:text-sm text-gray-500">Campaigns</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 border border-gray-200 col-span-2 sm:col-span-1">
+            <div class="text-xl md:text-2xl font-bold {% if overview.spam_rate < 0.1 %}text-green-600{% else %}text-red-600{% endif %}">{{ overview.spam_rate }}%</div>
+            <div class="text-xs md:text-sm text-gray-500">Spam Rate</div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid lg:grid-cols-3 gap-6 mb-6">
+        <!-- Email Performance Chart -->
+        <div class="lg:col-span-2 chart-card">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Email Performance</h3>
+                    <p class="text-sm text-gray-500">Daily metrics over time</p>
+                </div>
+                <div class="flex gap-4 text-xs">
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded-full"></span> Sent</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Opened</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded-full"></span> Clicked</span>
+                </div>
+            </div>
+            <div id="emailTrendChart" style="height: 300px; min-height: 300px;"></div>
+        </div>
+
+        <!-- Engagement Funnel -->
+        <div class="chart-card">
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">Engagement Funnel</h3>
+                <p class="text-sm text-gray-500">Conversion through stages</p>
+            </div>
+            
+            {% set max_val = [engagement_funnel.sent, 1]|max %}
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600 font-medium">Sent</span>
+                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.sent) }}</span>
+                    </div>
+                    <div class="funnel-bar bg-gradient-to-r from-purple-500 to-purple-600" style="width: 100%;"></div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600 font-medium">Delivered</span>
+                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.delivered) }}</span>
+                    </div>
+                    <div class="funnel-bar bg-gradient-to-r from-indigo-500 to-indigo-600" style="width: {{ [(engagement_funnel.delivered / max_val * 100)|int, 5]|max }}%;"></div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600 font-medium">Opened</span>
+                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.opened) }}</span>
+                    </div>
+                    <div class="funnel-bar bg-gradient-to-r from-green-500 to-green-600" style="width: {{ [(engagement_funnel.opened / max_val * 100)|int, 5]|max }}%;"></div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600 font-medium">Clicked</span>
+                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.clicked) }}</span>
+                    </div>
+                    <div class="funnel-bar bg-gradient-to-r from-blue-500 to-blue-600" style="width: {{ [(engagement_funnel.clicked / max_val * 100)|int, 5]|max }}%;"></div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
+                <div>
+                    <div class="text-lg font-bold text-purple-600">{{ overview.delivery_rate }}%</div>
+                    <div class="text-xs text-gray-500">Delivery</div>
+                </div>
+                <div>
+                    <div class="text-lg font-bold text-green-600">{{ overview.open_rate }}%</div>
+                    <div class="text-xs text-gray-500">Open</div>
+                </div>
+                <div>
+                    <div class="text-lg font-bold text-blue-600">{{ overview.click_rate }}%</div>
+                    <div class="text-xs text-gray-500">Click</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row Charts -->
+    <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <!-- Contact Growth -->
+        <div class="chart-card">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Contact Growth</h3>
+                    <p class="text-sm text-gray-500">Subscriber growth over time</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.total_contacts) }}</div>
+                    <div class="text-xs text-gray-500">Total</div>
+                </div>
+            </div>
+            <div id="contactGrowthChart" style="height: 250px; min-height: 250px;"></div>
+        </div>
+
+        <!-- Hourly Distribution -->
+        <div class="chart-card">
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold text-gray-900">Send Time Distribution</h3>
+                <p class="text-sm text-gray-500">Emails sent by hour</p>
+            </div>
+            <div id="hourlyChart" style="height: 250px; min-height: 250px;"></div>
+        </div>
+    </div>
+
+    <!-- Bottom Section -->
+    <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Top Campaigns -->
+        <div class="lg:col-span-2 chart-card">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Top Campaigns</h3>
+                    <p class="text-sm text-gray-500">Best performing this period</p>
+                </div>
+                <a href="/dashboard/campaigns" class="text-sm text-purple-600 hover:text-purple-700 font-medium">View All →</a>
+            </div>
+            
+            {% if top_campaigns %}
+            <div class="overflow-x-auto -mx-4 md:mx-0">
+                <table class="w-full min-w-[500px]">
+                    <thead>
+                        <tr class="text-left text-xs font-medium text-gray-500 uppercase">
+                            <th class="pb-3 px-4 md:px-0">Campaign</th>
+                            <th class="pb-3 text-right">Sent</th>
+                            <th class="pb-3 text-right">Opens</th>
+                            <th class="pb-3 text-right">Clicks</th>
+                            <th class="pb-3 text-right pr-4 md:pr-0">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for campaign in top_campaigns %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="py-3 px-4 md:px-0">
+                                <div class="font-medium text-gray-900 truncate max-w-[200px]">{{ campaign.name }}</div>
+                                <div class="text-xs text-gray-500">{{ campaign.created_at }}</div>
+                            </td>
+                            <td class="py-3 text-right font-medium text-gray-900">{{ "{:,}".format(campaign.sent) }}</td>
+                            <td class="py-3 text-right text-green-600 font-medium">{{ campaign.open_rate or 0 }}%</td>
+                            <td class="py-3 text-right text-blue-600 font-medium">{{ campaign.click_rate or 0 }}%</td>
+                            <td class="py-3 text-right pr-4 md:pr-0">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                    {% if campaign.status in ['sent', 'completed'] %}bg-green-100 text-green-700
+                                    {% elif campaign.status == 'sending' %}bg-blue-100 text-blue-700
+                                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                    {{ campaign.status|capitalize }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-12">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <p class="text-gray-500 mb-4">No campaigns sent yet</p>
+                <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
+                    Create Campaign
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar Stats -->
+        <div class="space-y-6">
+            <!-- Domain Health -->
+            <div class="chart-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-900">Domain Health</h3>
+                    <a href="/dashboard/domains" class="text-xs text-purple-600 hover:text-purple-700">Manage →</a>
+                </div>
+                
+                {% if domain_stats %}
+                <div class="space-y-3">
+                    {% for domain in domain_stats[:3] %}
+                    <div class="p-3 bg-gray-50 rounded-xl">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-medium text-gray-900 text-sm truncate max-w-[150px]">{{ domain.domain }}</span>
+                            <span class="text-sm font-bold {% if domain.health_score == 100 %}text-green-600{% elif domain.health_score >= 67 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                {{ domain.health_score }}%
+                            </span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill {% if domain.health_score == 100 %}bg-green-500{% elif domain.health_score >= 67 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ domain.health_score }}%;"></div>
+                        </div>
+                        <div class="flex gap-1 mt-2">
+                            <span class="text-xs px-1.5 py-0.5 rounded {% if domain.dns_verified %}bg-green-100 text-green-700{% else %}bg-gray-200 text-gray-500{% endif %}">DNS</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded {% if domain.dkim_verified %}bg-green-100 text-green-700{% else %}bg-gray-200 text-gray-500{% endif %}">DKIM</span>
+                            <span class="text-xs px-1.5 py-0.5 rounded {% if domain.spf_verified %}bg-green-100 text-green-700{% else %}bg-gray-200 text-gray-500{% endif %}">SPF</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-6">
+                    <p class="text-gray-500 text-sm mb-2">No domains configured</p>
+                    <a href="/dashboard/domains" class="text-purple-600 text-sm hover:text-purple-700 font-medium">Add domain →</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="chart-card">
+                <h3 class="font-semibold text-gray-900 mb-4">Quick Stats</h3>
+                <div class="space-y-2">
+                    <div class="quick-stat bg-purple-50">
+                        <span class="text-sm text-purple-700">Active Contacts</span>
+                        <span class="font-bold text-purple-700">{{ "{:,}".format(overview.active_contacts) }}</span>
+                    </div>
+                    <div class="quick-stat bg-orange-50">
+                        <span class="text-sm text-orange-700">Unsubscribed</span>
+                        <span class="font-bold text-orange-700">{{ "{:,}".format(overview.unsubscribed) }}</span>
+                    </div>
+                    <div class="quick-stat bg-blue-50">
+                        <span class="text-sm text-blue-700">Drafts</span>
+                        <span class="font-bold text-blue-700">{{ campaign_stats.drafts }}</span>
+                    </div>
+                    <div class="quick-stat bg-green-50">
+                        <span class="text-sm text-green-700">Scheduled</span>
+                        <span class="font-bold text-green-700">{{ campaign_stats.scheduled }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailTrends = {{ email_trends|safe }};
+    const contactGrowth = {{ contact_growth|safe }};
+    const hourlyDist = {{ hourly_dist|safe }};
+
+    // Common chart options
+    const commonOptions = {
+        chart: {
+            toolbar: { show: false },
+            fontFamily: 'Inter, system-ui, sans-serif',
+            animations: { enabled: true, easing: 'easeinout', speed: 500 }
+        },
+        grid: { borderColor: '#e5e7eb', strokeDashArray: 4 },
+        dataLabels: { enabled: false }
+    };
+
+    // Email Performance Chart
+    if (emailTrends && emailTrends.length > 0) {
+        new ApexCharts(document.querySelector("#emailTrendChart"), {
+            ...commonOptions,
+            series: [
+                { name: 'Sent', data: emailTrends.map(d => d.total || 0) },
+                { name: 'Opened', data: emailTrends.map(d => d.opened || 0) },
+                { name: 'Clicked', data: emailTrends.map(d => d.clicked || 0) }
+            ],
+            chart: { ...commonOptions.chart, type: 'area', height: 300 },
+            colors: ['#8b5cf6', '#22c55e', '#3b82f6'],
+            fill: {
+                type: 'gradient',
+                gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] }
+            },
+            stroke: { curve: 'smooth', width: 2 },
+            xaxis: {
+                categories: emailTrends.map(d => d.label || ''),
+                labels: { style: { colors: '#9ca3af', fontSize: '11px' }, rotate: -45, rotateAlways: false },
+                axisBorder: { show: false },
+                axisTicks: { show: false }
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: '#9ca3af', fontSize: '11px' },
+                    formatter: val => val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val)
+                }
+            },
+            legend: { show: false },
+            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() : '0' } }
+        }).render();
+    } else {
+        document.querySelector("#emailTrendChart").innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">No data for selected period</div>';
+    }
+
+    // Contact Growth Chart
+    if (contactGrowth && contactGrowth.length > 0) {
+        new ApexCharts(document.querySelector("#contactGrowthChart"), {
+            ...commonOptions,
+            series: [{ name: 'Total Contacts', data: contactGrowth.map(d => d.total || 0) }],
+            chart: { ...commonOptions.chart, type: 'area', height: 250 },
+            colors: ['#8b5cf6'],
+            fill: {
+                type: 'gradient',
+                gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] }
+            },
+            stroke: { curve: 'smooth', width: 3 },
+            xaxis: {
+                categories: contactGrowth.map(d => d.label || ''),
+                labels: { style: { colors: '#9ca3af', fontSize: '10px' }, rotate: -45 },
+                axisBorder: { show: false },
+                axisTicks: { show: false }
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: '#9ca3af', fontSize: '11px' },
+                    formatter: val => val >= 1000 ? (val/1000).toFixed(0) + 'k' : Math.round(val)
+                }
+            },
+            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() + ' contacts' : '0' } }
+        }).render();
+    } else {
+        document.querySelector("#contactGrowthChart").innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">No data for selected period</div>';
+    }
+
+    // Hourly Distribution Chart
+    if (hourlyDist && hourlyDist.length > 0) {
+        new ApexCharts(document.querySelector("#hourlyChart"), {
+            ...commonOptions,
+            series: [{ name: 'Emails', data: hourlyDist.map(d => d.count || 0) }],
+            chart: { ...commonOptions.chart, type: 'bar', height: 250 },
+            colors: ['#8b5cf6'],
+            plotOptions: { bar: { borderRadius: 4, columnWidth: '70%' } },
+            xaxis: {
+                categories: hourlyDist.map(d => d.hour),
+                labels: { style: { colors: '#9ca3af', fontSize: '10px' } },
+                axisBorder: { show: false },
+                axisTicks: { show: false }
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: '#9ca3af', fontSize: '11px' },
+                    formatter: val => val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val)
+                }
+            },
+            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() + ' emails' : '0' } }
+        }).render();
+    } else {
+        document.querySelector("#hourlyChart").innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">No data for selected period</div>';
+    }
+});
+
+function changePeriod(period) {
+    window.location.href = '/dashboard/analytics?period=' + period;
+}
+
+function exportData() {
+    window.location.href = '/dashboard/analytics/api/export?period={{ period }}';
+}
+
+// Real-time updates
+setInterval(async () => {
+    try {
+        const response = await fetch('/dashboard/analytics/api/realtime');
+        const data = await response.json();
+        if (data.success) console.log('Real-time:', data.data);
+    } catch (e) {}
+}, 30000);
+</script>
+{% endblock %}
