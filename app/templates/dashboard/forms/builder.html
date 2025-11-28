@@ -1,0 +1,221 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{% if form %}Edit Form{% else %}Create Form{% endif %} - SendBaba{% endblock %}
+
+{% block content %}
+<div class="flex h-screen" x-data="formBuilder()" x-init="init()">
+    <!-- Sidebar -->
+    <div class="w-80 bg-white border-r overflow-y-auto">
+        <div class="p-4 border-b">
+            <input type="text" x-model="formData.name" placeholder="Form Name" class="w-full px-3 py-2 border rounded-lg font-medium">
+        </div>
+        
+        <!-- Tabs -->
+        <div class="flex border-b">
+            <button @click="activeTab = 'fields'" :class="activeTab === 'fields' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'" class="flex-1 py-3 text-sm font-medium">Fields</button>
+            <button @click="activeTab = 'design'" :class="activeTab === 'design' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'" class="flex-1 py-3 text-sm font-medium">Design</button>
+            <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'" class="flex-1 py-3 text-sm font-medium">Settings</button>
+        </div>
+        
+        <!-- Fields Tab -->
+        <div x-show="activeTab === 'fields'" class="p-4">
+            <h4 class="font-medium mb-3">Form Fields</h4>
+            <div class="space-y-2 mb-4">
+                <template x-for="(field, index) in formData.fields" :key="field.id">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-medium" x-text="field.label"></span>
+                            <button @click="removeField(index)" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <input type="text" x-model="field.label" placeholder="Label" class="w-full px-2 py-1 text-sm border rounded mb-1">
+                        <input type="text" x-model="field.placeholder" placeholder="Placeholder" class="w-full px-2 py-1 text-sm border rounded mb-1">
+                        <label class="flex items-center text-sm">
+                            <input type="checkbox" x-model="field.required" class="mr-2">
+                            Required
+                        </label>
+                    </div>
+                </template>
+            </div>
+            
+            <h4 class="font-medium mb-2">Add Field</h4>
+            <div class="grid grid-cols-2 gap-2">
+                <button @click="addField('text')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-font mr-1"></i> Text</button>
+                <button @click="addField('email')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-envelope mr-1"></i> Email</button>
+                <button @click="addField('phone')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-phone mr-1"></i> Phone</button>
+                <button @click="addField('select')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-list mr-1"></i> Dropdown</button>
+            </div>
+        </div>
+        
+        <!-- Design Tab -->
+        <div x-show="activeTab === 'design'" class="p-4">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Primary Color</label>
+                    <input type="color" x-model="formData.design.primary_color" class="w-full h-10 rounded cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Background Color</label>
+                    <input type="color" x-model="formData.design.background_color" class="w-full h-10 rounded cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Text Color</label>
+                    <input type="color" x-model="formData.design.text_color" class="w-full h-10 rounded cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Button Text</label>
+                    <input type="text" x-model="formData.design.button_text" class="w-full px-3 py-2 border rounded">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings Tab -->
+        <div x-show="activeTab === 'settings'" class="p-4">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Form Type</label>
+                    <select x-model="formData.form_type" class="w-full px-3 py-2 border rounded">
+                        <option value="inline">Inline</option>
+                        <option value="popup">Pop-up</option>
+                        <option value="slide_in">Slide-in</option>
+                        <option value="sticky_bar">Sticky Bar</option>
+                    </select>
+                </div>
+                <div x-show="formData.form_type !== 'inline'">
+                    <label class="block text-sm font-medium mb-1">Trigger</label>
+                    <select x-model="formData.trigger_type" class="w-full px-3 py-2 border rounded">
+                        <option value="immediate">Immediately</option>
+                        <option value="time_delay">After X seconds</option>
+                        <option value="scroll">After scroll %</option>
+                        <option value="exit_intent">Exit Intent</option>
+                    </select>
+                </div>
+                <div x-show="formData.trigger_type === 'time_delay' || formData.trigger_type === 'scroll'">
+                    <label class="block text-sm font-medium mb-1">Value</label>
+                    <input type="number" x-model="formData.trigger_value" class="w-full px-3 py-2 border rounded" placeholder="Seconds or %">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Success Action</label>
+                    <select x-model="formData.success_action" class="w-full px-3 py-2 border rounded">
+                        <option value="message">Show Message</option>
+                        <option value="redirect">Redirect to URL</option>
+                        <option value="close">Close Form</option>
+                    </select>
+                </div>
+                <div x-show="formData.success_action === 'message'">
+                    <label class="block text-sm font-medium mb-1">Success Message</label>
+                    <textarea x-model="formData.success_message" class="w-full px-3 py-2 border rounded" rows="2"></textarea>
+                </div>
+                <div x-show="formData.success_action === 'redirect'">
+                    <label class="block text-sm font-medium mb-1">Redirect URL</label>
+                    <input type="url" x-model="formData.success_redirect_url" class="w-full px-3 py-2 border rounded" placeholder="https://...">
+                </div>
+                <div>
+                    <label class="flex items-center">
+                        <input type="checkbox" x-model="formData.double_optin" class="mr-2">
+                        <span class="text-sm">Require double opt-in</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Preview Area -->
+    <div class="flex-1 bg-gray-100 p-8 overflow-auto">
+        <div class="mb-4 flex justify-between items-center">
+            <div class="flex gap-2">
+                <button @click="previewDevice = 'desktop'" :class="previewDevice === 'desktop' ? 'bg-purple-100 text-purple-600' : 'bg-white'" class="px-3 py-1 rounded"><i class="fas fa-desktop"></i></button>
+                <button @click="previewDevice = 'tablet'" :class="previewDevice === 'tablet' ? 'bg-purple-100 text-purple-600' : 'bg-white'" class="px-3 py-1 rounded"><i class="fas fa-tablet-alt"></i></button>
+                <button @click="previewDevice = 'mobile'" :class="previewDevice === 'mobile' ? 'bg-purple-100 text-purple-600' : 'bg-white'" class="px-3 py-1 rounded"><i class="fas fa-mobile-alt"></i></button>
+            </div>
+            <div class="flex gap-2">
+                <button @click="saveForm('draft')" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Save Draft</button>
+                <button @click="saveForm('active')" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Publish</button>
+            </div>
+        </div>
+        
+        <div class="flex justify-center">
+            <div :class="{'w-full max-w-4xl': previewDevice === 'desktop', 'w-96': previewDevice === 'tablet', 'w-80': previewDevice === 'mobile'}" class="bg-white rounded-lg shadow-lg">
+                <div class="p-6" :style="`background: ${formData.design.background_color}`">
+                    <template x-for="field in formData.fields" :key="field.id">
+                        <div class="mb-4">
+                            <label class="block mb-1 text-sm font-medium" :style="`color: ${formData.design.text_color}`" x-text="field.label + (field.required ? ' *' : '')"></label>
+                            <input :type="field.type" :placeholder="field.placeholder" class="w-full px-3 py-2 border rounded-lg" :style="`border-color: ${formData.design.primary_color}40`">
+                        </div>
+                    </template>
+                    <button class="w-full py-3 rounded-lg text-white font-medium" :style="`background: ${formData.design.primary_color}`" x-text="formData.design.button_text"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function formBuilder() {
+    return {
+        formId: '{{ form.id if form else "" }}',
+        activeTab: 'fields',
+        previewDevice: 'desktop',
+        formData: {
+            name: '{{ form.name if form else "Untitled Form" }}',
+            form_type: '{{ form.form_type if form else form_type }}',
+            fields: {{ form.fields_list | tojson if form else '[{"id": "email", "type": "email", "label": "Email", "placeholder": "Enter your email", "required": true}]' | safe }},
+            design: {{ form.design | tojson if form else '{"primary_color": "#8B5CF6", "background_color": "#FFFFFF", "text_color": "#1F2937", "button_text": "Subscribe"}' | safe }},
+            trigger_type: '{{ form.trigger_type if form else "immediate" }}',
+            trigger_value: '{{ form.trigger_value if form else "" }}',
+            success_action: '{{ form.success_action if form else "message" }}',
+            success_message: '{{ form.success_message if form else "Thanks for subscribing!" }}',
+            success_redirect_url: '{{ form.success_redirect_url if form else "" }}',
+            double_optin: {{ 'true' if form and form.double_optin else 'false' }}
+        },
+        
+        init() {
+            console.log('Form builder initialized');
+        },
+        
+        addField(type) {
+            const field = {
+                id: 'field_' + Date.now(),
+                type: type,
+                label: type.charAt(0).toUpperCase() + type.slice(1),
+                placeholder: '',
+                required: false
+            };
+            this.formData.fields.push(field);
+        },
+        
+        removeField(index) {
+            this.formData.fields.splice(index, 1);
+        },
+        
+        async saveForm(status) {
+            const data = {
+                ...this.formData,
+                status: status
+            };
+            
+            const url = this.formId 
+                ? `/dashboard/forms/api/${this.formId}` 
+                : '/dashboard/forms/api/create';
+            
+            const method = this.formId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                if (!this.formId) {
+                    window.location.href = `/dashboard/forms/${result.form.id}/edit`;
+                } else {
+                    alert(status === 'active' ? 'Form published!' : 'Draft saved!');
+                }
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

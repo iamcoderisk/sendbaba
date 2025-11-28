@@ -1,0 +1,98 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Email Templates - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Email Templates</h1>
+            <p class="text-gray-600">Design beautiful emails with our drag-and-drop builder</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/dashboard/email-builder/gallery" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                <i class="fas fa-th-large mr-2"></i>Gallery
+            </a>
+            <a href="/dashboard/email-builder/assets" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                <i class="fas fa-images mr-2"></i>Assets
+            </a>
+            <a href="/dashboard/email-builder/create" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <i class="fas fa-plus mr-2"></i>Create Template
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow mb-6 p-4">
+        <div class="flex gap-4">
+            <input type="text" id="searchInput" placeholder="Search templates..." class="flex-1 px-4 py-2 border rounded-lg">
+            <select id="categoryFilter" class="px-4 py-2 border rounded-lg">
+                <option value="">All Categories</option>
+                <option value="welcome">Welcome</option>
+                <option value="newsletter">Newsletter</option>
+                <option value="promotional">Promotional</option>
+                <option value="transactional">Transactional</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="templatesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+    
+    <div id="emptyState" class="hidden text-center py-12 bg-white rounded-lg">
+        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-palette text-2xl text-purple-600"></i>
+        </div>
+        <h3 class="text-lg font-medium mb-2">No templates yet</h3>
+        <p class="text-gray-600 mb-4">Create your first email template</p>
+        <a href="/dashboard/email-builder/create" class="px-4 py-2 bg-purple-600 text-white rounded-lg">Create Template</a>
+    </div>
+</div>
+
+<script>
+async function loadTemplates() {
+    const params = new URLSearchParams({
+        category: document.getElementById('categoryFilter').value,
+        search: document.getElementById('searchInput').value
+    });
+    
+    const response = await fetch(`/dashboard/email-builder/api/templates?${params}`);
+    const data = await response.json();
+    
+    const container = document.getElementById('templatesList');
+    const empty = document.getElementById('emptyState');
+    
+    if (data.templates.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    
+    empty.classList.add('hidden');
+    container.innerHTML = data.templates.map(t => `
+        <div class="bg-white rounded-lg shadow overflow-hidden group">
+            <div class="aspect-[4/3] bg-gray-100 relative">
+                <div class="w-full h-full flex items-center justify-center text-gray-400"><i class="fas fa-envelope text-4xl"></i></div>
+                <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                    <a href="/dashboard/email-builder/${t.id}/edit" class="px-4 py-2 bg-white rounded-lg text-sm font-medium">Edit</a>
+                </div>
+            </div>
+            <div class="p-4">
+                <h3 class="font-medium truncate mb-1">${t.name}</h3>
+                <div class="text-sm text-gray-500">${t.category || 'Custom'}</div>
+                <div class="flex justify-between mt-2">
+                    <span class="text-xs text-gray-400">Used ${t.usage_count || 0}x</span>
+                    <button onclick="deleteTemplate('${t.id}')" class="text-gray-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function deleteTemplate(id) {
+    if (!confirm('Delete?')) return;
+    await fetch(`/dashboard/email-builder/api/templates/${id}`, { method: 'DELETE' });
+    loadTemplates();
+}
+
+document.getElementById('searchInput').addEventListener('input', () => setTimeout(loadTemplates, 300));
+document.getElementById('categoryFilter').addEventListener('change', loadTemplates);
+loadTemplates();
+</script>
+{% endblock %}

@@ -1,131 +1,117 @@
-{% extends "base.html" %}
-
+{% extends "dashboard/base.html" %}
 {% block title %}Reply Insights - SendBaba{% endblock %}
-
 {% block content %}
-<div class="p-6 md:p-8">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold mb-2">🧠 AI Insights</h1>
-        <p class="text-gray-600">Smart recommendations based on your reply data</p>
+<div class="p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold">Reply Insights</h1>
+        <p class="text-gray-600">AI-powered analytics of your email replies</p>
     </div>
-    
-    <!-- Insights Cards -->
-    <div class="grid md:grid-cols-2 gap-6 mb-8">
-        {% for insight in insights %}
-        <div class="bg-white rounded-lg p-6 shadow-sm border-l-4 
-                    {% if insight.type == 'critical' %}border-red-500
-                    {% elif insight.type == 'warning' %}border-yellow-500
-                    {% elif insight.type == 'opportunity' %}border-green-500
-                    {% else %}border-blue-500{% endif %}">
-            <div class="flex items-start">
-                <div class="mr-4 text-3xl">
-                    {% if insight.type == 'critical' %}🚨
-                    {% elif insight.type == 'warning' %}⚠️
-                    {% elif insight.type == 'opportunity' %}💡
-                    {% else %}ℹ️{% endif %}
-                </div>
-                <div class="flex-1">
-                    <h3 class="font-semibold text-lg mb-2">{{ insight.title }}</h3>
-                    <p class="text-gray-700 mb-3">{{ insight.message }}</p>
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="text-sm font-semibold text-purple-600 mb-1">Recommended Action:</div>
-                        <div class="text-sm text-gray-700">{{ insight.action }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-        
-        {% if not insights %}
-        <div class="col-span-2 bg-white rounded-lg p-12 text-center">
-            <div class="text-6xl mb-4">🎉</div>
-            <h3 class="text-xl font-semibold mb-2">All Good!</h3>
-            <p class="text-gray-600">No critical insights at the moment. Keep up the great work!</p>
-        </div>
-        {% endif %}
-    </div>
-    
-    <!-- Reply Patterns -->
-    {% if patterns %}
-    <div class="bg-white rounded-lg p-6 shadow-sm mb-8">
-        <h2 class="text-xl font-bold mb-6">📈 Reply Patterns</h2>
-        
-        <div class="grid md:grid-cols-4 gap-6 mb-6">
-            <div>
-                <div class="text-3xl font-bold text-purple-600 mb-2">{{ patterns.total_replies }}</div>
-                <div class="text-sm text-gray-600">Total Replies</div>
-            </div>
-            <div>
-                <div class="text-3xl font-bold text-green-600 mb-2">{{ patterns.response_rate }}%</div>
-                <div class="text-sm text-gray-600">Response Rate</div>
-            </div>
-            <div>
-                <div class="text-3xl font-bold text-blue-600 mb-2">{{ patterns.avg_response_time_hours|round(1) }}h</div>
-                <div class="text-sm text-gray-600">Avg Response Time</div>
-            </div>
-            <div>
-                <div class="flex text-2xl justify-around">
-                    <span>😊 {{ patterns.sentiment_breakdown.get('positive', 0) }}</span>
-                    <span>😐 {{ patterns.sentiment_breakdown.get('neutral', 0) }}</span>
-                    <span>😞 {{ patterns.sentiment_breakdown.get('negative', 0) }}</span>
-                </div>
-                <div class="text-sm text-gray-600 text-center">Sentiment</div>
-            </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Sentiment Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Sentiment Breakdown</h3>
+            <canvas id="sentimentChart"></canvas>
         </div>
         
-        <!-- Category Breakdown -->
-        <div class="mb-6">
-            <h3 class="font-semibold mb-3">Reply Categories</h3>
-            <div class="space-y-2">
-                {% for category, count in patterns.category_breakdown.items() %}
-                <div class="flex items-center">
-                    <div class="w-32 text-sm text-gray-700">{{ category|title|replace('_', ' ') }}</div>
-                    <div class="flex-1 bg-gray-200 rounded-full h-4">
-                        {% set percentage = (count / patterns.total_replies * 100)|round %}
-                        <div class="bg-purple-600 h-4 rounded-full" style="width: {{ percentage }}%"></div>
-                    </div>
-                    <div class="w-16 text-right text-sm font-semibold">{{ count }}</div>
-                </div>
-                {% endfor %}
-            </div>
+        <!-- Intent Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Intent Distribution</h3>
+            <canvas id="intentChart"></canvas>
         </div>
         
-        <!-- Common Questions -->
-        {% if patterns.common_questions %}
-        <div>
-            <h3 class="font-semibold mb-3">Most Asked Questions</h3>
-            <div class="space-y-2">
-                {% for question in patterns.common_questions %}
-                <div class="bg-gray-50 rounded-lg p-3 text-sm">
-                    ❓ {{ question }}
-                </div>
-                {% endfor %}
-            </div>
+        <!-- Daily Trend -->
+        <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+            <h3 class="font-medium mb-4">Reply Trend (Last 30 Days)</h3>
+            <canvas id="trendChart"></canvas>
         </div>
-        {% endif %}
-    </div>
-    {% endif %}
-    
-    <!-- AI Recommendations -->
-    <div class="bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg p-6 text-white">
-        <h2 class="text-xl font-bold mb-4">🤖 AI-Powered Recommendations</h2>
-        <div class="grid md:grid-cols-3 gap-4">
-            <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                <div class="text-2xl mb-2">📝</div>
-                <div class="font-semibold mb-1">Create FAQ</div>
-                <div class="text-sm opacity-90">Turn common questions into FAQ articles</div>
-            </div>
-            <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                <div class="text-2xl mb-2">⚡</div>
-                <div class="font-semibold mb-1">Enable Auto-Responses</div>
-                <div class="text-sm opacity-90">Respond to 80% of replies automatically</div>
-            </div>
-            <div class="bg-white bg-opacity-20 rounded-lg p-4">
-                <div class="text-2xl mb-2">📊</div>
-                <div class="font-semibold mb-1">Sentiment Alert</div>
-                <div class="text-sm opacity-90">Get notified of negative replies instantly</div>
+        
+        <!-- Top Topics -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Top Topics</h3>
+            <div id="topTopics" class="space-y-2"></div>
+        </div>
+        
+        <!-- Response Metrics -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Response Metrics</h3>
+            <div class="space-y-4">
+                <div>
+                    <div class="text-sm text-gray-500">Average Response Time</div>
+                    <div class="text-2xl font-bold text-purple-600" id="avgResponseTime">--</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Response Rate</div>
+                    <div class="text-2xl font-bold text-green-600" id="responseRate">--</div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+async function loadInsights() {
+    const response = await fetch('/dashboard/replies/api/insights?days=30');
+    const data = await response.json();
+    const insights = data.insights;
+    
+    // Sentiment chart
+    new Chart(document.getElementById('sentimentChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+                data: [
+                    insights.sentiment_breakdown.positive || 0,
+                    insights.sentiment_breakdown.neutral || 0,
+                    insights.sentiment_breakdown.negative || 0
+                ],
+                backgroundColor: ['#10B981', '#6B7280', '#EF4444']
+            }]
+        }
+    });
+    
+    // Intent chart
+    new Chart(document.getElementById('intentChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(insights.intent_breakdown),
+            datasets: [{
+                data: Object.values(insights.intent_breakdown),
+                backgroundColor: '#8B5CF6'
+            }]
+        },
+        options: { plugins: { legend: { display: false } } }
+    });
+    
+    // Trend chart
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: insights.daily_trend.map(d => d.date),
+            datasets: [{
+                label: 'Replies',
+                data: insights.daily_trend.map(d => d.count),
+                borderColor: '#8B5CF6',
+                tension: 0.4
+            }]
+        }
+    });
+    
+    // Top topics
+    document.getElementById('topTopics').innerHTML = insights.top_topics.map(t => `
+        <div class="flex justify-between items-center">
+            <span>${t.topic}</span>
+            <span class="text-purple-600 font-medium">${t.count}</span>
+        </div>
+    `).join('');
+    
+    // Metrics
+    document.getElementById('avgResponseTime').textContent = insights.avg_response_time_formatted;
+    document.getElementById('responseRate').textContent = insights.response_rate + '%';
+}
+
+loadInsights();
+</script>
 {% endblock %}

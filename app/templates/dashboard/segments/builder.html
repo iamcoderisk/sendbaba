@@ -1,0 +1,148 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{% if segment %}Edit Segment{% else %}Create Segment{% endif %} - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6" x-data="segmentBuilder()">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold">{% if segment %}Edit Segment{% else %}Create Segment{% endif %}</h1>
+            </div>
+            <div class="flex gap-2">
+                <a href="/dashboard/segments" class="px-4 py-2 border rounded-lg">Cancel</a>
+                <button @click="saveSegment()" class="px-4 py-2 bg-purple-600 text-white rounded-lg">Save Segment</button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Segment Name</label>
+                    <input type="text" x-model="segment.name" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <input type="text" x-model="segment.description" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Match contacts that meet</label>
+                <select x-model="segment.rules_match" class="px-3 py-2 border rounded-lg">
+                    <option value="all">All conditions (AND)</option>
+                    <option value="any">Any condition (OR)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h3 class="font-medium mb-4">Conditions</h3>
+            
+            <template x-for="(condition, index) in segment.rules.conditions" :key="index">
+                <div class="flex gap-2 mb-3 items-center">
+                    <select x-model="condition.field" @change="updateOperators(index)" class="px-3 py-2 border rounded-lg">
+                        <option value="">Select field...</option>
+                        <template x-for="field in fields" :key="field.field">
+                            <option :value="field.field" x-text="field.label"></option>
+                        </template>
+                    </select>
+                    <select x-model="condition.operator" class="px-3 py-2 border rounded-lg">
+                        <option value="">Select operator...</option>
+                        <template x-for="op in getOperators(condition.field)" :key="op.value">
+                            <option :value="op.value" x-text="op.label"></option>
+                        </template>
+                    </select>
+                    <input type="text" x-model="condition.value" placeholder="Value" class="flex-1 px-3 py-2 border rounded-lg">
+                    <button @click="removeCondition(index)" class="p-2 text-red-500"><i class="fas fa-trash"></i></button>
+                </div>
+            </template>
+            
+            <button @click="addCondition()" class="text-purple-600 hover:text-purple-700">
+                <i class="fas fa-plus mr-1"></i>Add Condition
+            </button>
+        </div>
+
+        <!-- Preview -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-medium">Preview</h3>
+                <button @click="previewSegment()" class="text-purple-600 hover:text-purple-700">
+                    <i class="fas fa-sync mr-1"></i>Refresh
+                </button>
+            </div>
+            <div class="text-3xl font-bold text-purple-600" x-text="previewCount.toLocaleString() + ' contacts'"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function segmentBuilder() {
+    return {
+        segmentId: '{{ segment.id if segment else "" }}',
+        segment: {
+            name: '{{ segment.name if segment else "" }}',
+            description: '{{ segment.description if segment else "" }}',
+            rules_match: '{{ segment.rules_match if segment else "all" }}',
+            rules: {{ segment.rules_list | tojson if segment else '{"conditions": []}' | safe }}
+        },
+        fields: [],
+        operators: {},
+        previewCount: 0,
+        
+        async init() {
+            const response = await fetch('/dashboard/segments/api/fields');
+            const data = await response.json();
+            this.fields = data.fields;
+            this.operators = data.operators;
+            
+            if (this.segment.rules.conditions.length === 0) {
+                this.addCondition();
+            }
+            this.previewSegment();
+        },
+        
+        getOperators(field) {
+            const fieldDef = this.fields.find(f => f.field === field);
+            if (!fieldDef) return [];
+            return this.operators[fieldDef.type] || [];
+        },
+        
+        addCondition() {
+            this.segment.rules.conditions.push({ field: '', operator: '', value: '' });
+        },
+        
+        removeCondition(index) {
+            this.segment.rules.conditions.splice(index, 1);
+        },
+        
+        async previewSegment() {
+            const response = await fetch('/dashboard/segments/api/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    rules: this.segment.rules,
+                    rules_match: this.segment.rules_match
+                })
+            });
+            const data = await response.json();
+            this.previewCount = data.count;
+        },
+        
+        async saveSegment() {
+            const url = this.segmentId ? `/dashboard/segments/api/${this.segmentId}` : '/dashboard/segments/api/create';
+            const method = this.segmentId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.segment)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                window.location.href = '/dashboard/segments';
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

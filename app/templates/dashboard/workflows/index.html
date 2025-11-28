@@ -1,35 +1,155 @@
-{% extends "base.html" %}
-{% block title %}Workflows{% endblock %}
+{% extends "dashboard/base.html" %}
+{% block title %}Workflows - SendBaba{% endblock %}
 {% block content %}
-<div class="p-8">
-    <h1 class="text-3xl font-bold mb-4">🔄 Workflows</h1>
-    <p class="text-gray-600 mb-8">Create automated email sequences</p>
-    
-    <div class="grid md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white border-2 border-purple-200 rounded-lg p-6">
-            <div class="text-4xl mb-3">👋</div>
-            <h3 class="font-bold text-lg mb-2">Welcome Series</h3>
-            <p class="text-sm text-gray-600 mb-4">3-email onboarding sequence</p>
-            <button class="w-full bg-purple-600 text-white py-2 rounded-lg">Use Template</button>
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Workflows</h1>
+            <p class="text-gray-600">Automate your email marketing with workflows</p>
         </div>
-        <div class="bg-white border-2 border-green-200 rounded-lg p-6">
-            <div class="text-4xl mb-3">🛒</div>
-            <h3 class="font-bold text-lg mb-2">Abandoned Cart</h3>
-            <p class="text-sm text-gray-600 mb-4">Recover lost sales</p>
-            <button class="w-full bg-green-600 text-white py-2 rounded-lg">Use Template</button>
-        </div>
-        <div class="bg-white border-2 border-blue-200 rounded-lg p-6">
-            <div class="text-4xl mb-3">🎂</div>
-            <h3 class="font-bold text-lg mb-2">Birthday Campaign</h3>
-            <p class="text-sm text-gray-600 mb-4">Send birthday wishes</p>
-            <button class="w-full bg-blue-600 text-white py-2 rounded-lg">Use Template</button>
+        <div class="flex gap-3">
+            <a href="/dashboard/workflows/templates" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                <i class="fas fa-th-large mr-2"></i>Templates
+            </a>
+            <a href="/dashboard/workflows/create" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <i class="fas fa-plus mr-2"></i>Create Workflow
+            </a>
         </div>
     </div>
-    
-    <div class="bg-white rounded-lg p-8 text-center">
-        <div class="text-6xl mb-4">🔄</div>
-        <h3 class="text-xl font-bold mb-2">No workflows yet</h3>
-        <p class="text-gray-600">Create your first automated workflow</p>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-gray-900" id="totalWorkflows">0</div>
+            <div class="text-sm text-gray-500">Total Workflows</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-green-600" id="activeWorkflows">0</div>
+            <div class="text-sm text-gray-500">Active</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-blue-600" id="totalEnrolled">0</div>
+            <div class="text-sm text-gray-500">Total Enrolled</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-purple-600" id="avgConversion">0%</div>
+            <div class="text-sm text-gray-500">Avg Conversion</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow mb-6 p-4">
+        <div class="flex gap-4">
+            <input type="text" id="searchInput" placeholder="Search workflows..." class="flex-1 px-4 py-2 border rounded-lg">
+            <select id="statusFilter" class="px-4 py-2 border rounded-lg">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="draft">Draft</option>
+                <option value="paused">Paused</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Workflows List -->
+    <div id="workflowsList" class="space-y-4"></div>
+    <div id="emptyState" class="hidden text-center py-12 bg-white rounded-lg">
+        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-project-diagram text-2xl text-purple-600"></i>
+        </div>
+        <h3 class="text-lg font-medium mb-2">No workflows yet</h3>
+        <p class="text-gray-600 mb-4">Create your first automation workflow</p>
+        <a href="/dashboard/workflows/create" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg">
+            <i class="fas fa-plus mr-2"></i>Create Workflow
+        </a>
     </div>
 </div>
+
+<script>
+async function loadWorkflows() {
+    const status = document.getElementById('statusFilter').value;
+    const response = await fetch(`/dashboard/workflows/api/list?status=${status}`);
+    const data = await response.json();
+    
+    const workflows = data.workflows;
+    
+    document.getElementById('totalWorkflows').textContent = workflows.length;
+    document.getElementById('activeWorkflows').textContent = workflows.filter(w => w.status === 'active').length;
+    document.getElementById('totalEnrolled').textContent = workflows.reduce((sum, w) => sum + w.total_enrolled, 0);
+    
+    const avgConv = workflows.length > 0 
+        ? (workflows.reduce((sum, w) => sum + w.conversion_rate, 0) / workflows.length).toFixed(1)
+        : 0;
+    document.getElementById('avgConversion').textContent = avgConv + '%';
+    
+    const container = document.getElementById('workflowsList');
+    const empty = document.getElementById('emptyState');
+    
+    if (workflows.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    
+    empty.classList.add('hidden');
+    container.innerHTML = workflows.map(w => `
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-project-diagram text-purple-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium">${w.name}</h3>
+                        <div class="flex items-center gap-2 text-sm text-gray-500">
+                            <span>Trigger: ${w.trigger_type.replace('_', ' ')}</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs ${w.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${w.status}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div class="text-lg font-bold">${w.total_enrolled}</div>
+                        <div class="text-xs text-gray-500">Enrolled</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-lg font-bold">${w.active_contacts}</div>
+                        <div class="text-xs text-gray-500">Active</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-lg font-bold text-green-600">${w.conversion_rate}%</div>
+                        <div class="text-xs text-gray-500">Conversion</div>
+                    </div>
+                    <div class="flex gap-2">
+                        ${w.status === 'active' 
+                            ? `<button onclick="pauseWorkflow('${w.id}')" class="px-3 py-1 border rounded text-sm">Pause</button>`
+                            : `<button onclick="activateWorkflow('${w.id}')" class="px-3 py-1 bg-green-600 text-white rounded text-sm">Activate</button>`
+                        }
+                        <a href="/dashboard/workflows/${w.id}/edit" class="px-3 py-1 border rounded text-sm">Edit</a>
+                        <button onclick="deleteWorkflow('${w.id}')" class="px-3 py-1 text-red-600 border border-red-200 rounded text-sm">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function activateWorkflow(id) {
+    await fetch(`/dashboard/workflows/api/${id}/activate`, { method: 'POST' });
+    loadWorkflows();
+}
+
+async function pauseWorkflow(id) {
+    await fetch(`/dashboard/workflows/api/${id}/pause`, { method: 'POST' });
+    loadWorkflows();
+}
+
+async function deleteWorkflow(id) {
+    if (!confirm('Delete this workflow?')) return;
+    await fetch(`/dashboard/workflows/api/${id}`, { method: 'DELETE' });
+    loadWorkflows();
+}
+
+document.getElementById('statusFilter').addEventListener('change', loadWorkflows);
+loadWorkflows();
+</script>
 {% endblock %}

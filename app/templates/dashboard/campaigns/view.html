@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }} - SendBaba{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-50 p-8">
+    <div class="max-w-5xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-4">
+                <a href="/dashboard/campaigns" class="text-gray-600 hover:text-gray-900"><i class="fas fa-arrow-left text-xl"></i></a>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">{{ campaign.name }}</h1>
+                    <p class="text-gray-600">{{ campaign.subject or 'No subject' }}</p>
+                </div>
+            </div>
+            <span class="px-4 py-2 rounded-full text-sm font-semibold {% if campaign.status == 'sent' %}bg-green-100 text-green-700{% elif campaign.status == 'draft' %}bg-yellow-100 text-yellow-700{% else %}bg-gray-100 text-gray-700{% endif %}">{{ campaign.status|title }}</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200"><div class="text-gray-500 text-sm mb-1">Recipients</div><div class="text-3xl font-bold text-gray-900">{{ "{:,}".format(campaign.recipients or 0) }}</div></div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200"><div class="text-gray-500 text-sm mb-1">Delivered</div><div class="text-3xl font-bold text-green-600">{{ "{:,}".format(campaign.sent or 0) }}</div></div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200"><div class="text-gray-500 text-sm mb-1">Opens</div><div class="text-3xl font-bold text-blue-600">--</div></div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200"><div class="text-gray-500 text-sm mb-1">Clicks</div><div class="text-3xl font-bold text-purple-600">--</div></div>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Campaign Details</h2>
+            <div class="grid grid-cols-2 gap-6">
+                <div><div class="text-sm text-gray-500 mb-1">From</div><div class="font-medium">{% if campaign.from_name and campaign.from_email %}{{ campaign.from_name }} &lt;{{ campaign.from_email }}&gt;{% elif campaign.from_email %}{{ campaign.from_email }}{% else %}Not specified{% endif %}</div></div>
+                <div><div class="text-sm text-gray-500 mb-1">Reply-To</div><div class="font-medium">{{ campaign.reply_to or 'Same as From' }}</div></div>
+                <div><div class="text-sm text-gray-500 mb-1">Created</div><div class="font-medium">{{ campaign.created_at.strftime('%b %d, %Y at %I:%M %p') if campaign.created_at else 'N/A' }}</div></div>
+                <div><div class="text-sm text-gray-500 mb-1">Status</div><div class="font-medium">{{ campaign.status|title }}</div></div>
+            </div>
+        </div>
+        <div class="flex gap-4">
+            {% if campaign.status == 'draft' %}<a href="/dashboard/campaigns/design/blank?campaign_id={{ campaign.id }}" class="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition"><i class="fas fa-edit mr-2"></i>Continue Editing</a>{% endif %}
+            <a href="/dashboard/campaigns" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold transition"><i class="fas fa-arrow-left mr-2"></i>Back to Campaigns</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

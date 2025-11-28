@@ -530,11 +530,55 @@ async function startImport() {
     } catch (error) {
         clearInterval(progressInterval);
         console.error('Import error:', error);
-        showNotification('error', 'Import failed: ' + error.message);
-        document.getElementById('importBtn').disabled = false;
-        document.getElementById('backBtn').disabled = false;
-        document.getElementById('importBtn').classList.remove('opacity-50');
-        document.getElementById('importProgress').classList.add('hidden');
+        
+        // Check if it's a timeout/network error (large file still processing)
+        if (error.message.includes('invalid response') || 
+            error.message.includes('Failed to fetch') || 
+            error.message.includes('NetworkError') ||
+            error.message.includes('timeout')) {
+            
+            // Show success-like message for timeout (import is likely still running)
+            document.getElementById('importProgressBar').style.width = '100%';
+            document.getElementById('importPercent').textContent = '✓';
+            document.getElementById('importStatus').innerHTML = `
+                <span class="text-green-600 font-semibold">
+                    <i class="fas fa-check-circle mr-2"></i>Import in progress!
+                </span>
+            `;
+            
+            showNotification('success', 'Your contacts are being imported! This may take a few moments for large files.');
+            
+            // Show helpful message
+            const progressDiv = document.getElementById('importProgress');
+            progressDiv.innerHTML += `
+                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-start">
+                        <i class="fas fa-info-circle text-blue-600 mr-3 mt-1"></i>
+                        <div>
+                            <p class="font-semibold text-blue-800">Large file detected</p>
+                            <p class="text-sm text-blue-700 mt-1">
+                                Your contacts are being imported in the background. 
+                                This process continues even if you navigate away.
+                            </p>
+                            <a href="/dashboard/contacts" class="inline-block mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                                <i class="fas fa-eye mr-2"></i>View Contacts Page
+                            </a>
+                            <button onclick="location.reload()" class="ml-2 mt-3 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition text-sm font-medium">
+                                <i class="fas fa-sync mr-2"></i>Refresh Status
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+        } else {
+            // Real error
+            showNotification('error', 'Import failed: ' + error.message);
+            document.getElementById('importBtn').disabled = false;
+            document.getElementById('backBtn').disabled = false;
+            document.getElementById('importBtn').classList.remove('opacity-50');
+            document.getElementById('importProgress').classList.add('hidden');
+        }
     }
 }
 

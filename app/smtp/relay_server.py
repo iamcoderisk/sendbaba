@@ -86,23 +86,50 @@ class ProfessionalSMTPRelay:
         msg = MIMEMultipart('alternative')
         sender = email_data.get('from', 'noreply@sendbaba.com')
         sender_domain = sender.split('@')[1] if '@' in sender else 'sendbaba.com'
+        from_name = email_data.get('from_name', sender_domain.split('.')[0].title())
+        recipient = email_data.get('to')
         
-        msg['From'] = sender
-        msg['To'] = email_data.get('to')
+        # Professional headers for better deliverability
+        msg['From'] = f'{from_name} <{sender}>'
+        msg['To'] = recipient
         msg['Subject'] = email_data.get('subject', 'Message')
         msg['Date'] = formatdate(localtime=True)
         msg['Message-ID'] = make_msgid(domain=sender_domain)
-        msg['X-Mailer'] = 'SendBaba/2.0'
+        msg['MIME-Version'] = '1.0'
+        
+        # Return-Path for bounces
+        msg['Return-Path'] = f'bounces@{sender_domain}'
+        
+        # Reply-To (use provided or same as sender)
+        reply_to = email_data.get('reply_to', sender)
+        msg['Reply-To'] = reply_to
+        
+        # List-Unsubscribe header (helps with spam score)
+        unsubscribe_url = f'https://sendbaba.com/unsubscribe?email={recipient}&domain={sender_domain}'
+        msg['List-Unsubscribe'] = f'<{unsubscribe_url}>'
+        msg['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+        
+        # Precedence header
+        msg['Precedence'] = 'bulk'
+        
+        # DO NOT include X-Mailer (can trigger spam filters)
         
         text_body = email_data.get('text_body', '')
         html_body = email_data.get('html_body', '')
+        
+        # Always include both text and HTML versions
+        if not text_body and html_body:
+            # Generate text from HTML
+            import re
+            text_body = re.sub('<[^<]+?>', '', html_body)
+            text_body = text_body.strip()
         
         if text_body:
             msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
         if html_body:
             msg.attach(MIMEText(html_body, 'html', 'utf-8'))
         elif not text_body:
-            msg.attach(MIMEText('SendBaba', 'plain', 'utf-8'))
+            msg.attach(MIMEText('Message from ' + sender_domain, 'plain', 'utf-8'))
         
         message_bytes = msg.as_bytes()
         

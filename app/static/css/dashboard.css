@@ -76,7 +76,7 @@ a:hover { color: var(--primary-700); }
     overflow-y: auto;
 }
 .sidebar-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--gray-200); }
-.sidebar-logo { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; }
+.sidebar-logo { display: block; text-decoration: none; }
 .sidebar-logo-icon {
     width: 42px;
     height: 42px;
@@ -573,3 +573,4 @@ a:hover { color: var(--primary-700); }
         padding-left: 3.5rem !important;
     }
 }
+.sidebar-logo img { max-width: 100%; height: auto; }

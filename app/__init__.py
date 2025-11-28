@@ -30,7 +30,6 @@ def create_app():
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '60b55ca25a3391f98774c37d68c65b88')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://emailer:SecurePassword123@localhost:5432/emailer')
-    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"connect_args": {"options": "-c search_path=public"}}
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Initialize extensions
@@ -59,9 +58,6 @@ def create_app():
             from app.controllers.dashboard_controller import dashboard_bp
             app.register_blueprint(dashboard_bp)
             logger.info("✅ Dashboard")
-        
-            logger.error(f"❌ Bulk Send: {e}")
-
         except Exception as e:
             logger.error(f"❌ Dashboard: {e}")
         
@@ -79,6 +75,11 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Campaigns: {e}")
         
+        try:
+            from app.controllers.contact_controller import contact_bp
+            app.register_blueprint(contact_bp)
+            logger.info("✅ Contacts")
+        except Exception as e:
             logger.error(f"❌ Contacts: {e}")
         
         try:
@@ -124,9 +125,8 @@ def create_app():
             logger.error(f"❌ Forms: {e}")
         
         try:
-            from app.controllers.template_controller import template_bp, template_api_bp
+            from app.controllers.template_controller import template_bp
             app.register_blueprint(template_bp)
-            app.register_blueprint(template_api_bp)
             logger.info("✅ Templates")
         except Exception as e:
             logger.error(f"❌ Templates: {e}")
@@ -159,15 +159,13 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Reply AI: {e}")
         
-        # Register NEW API v1 Blueprint
         try:
-            from app.api.v1.api_v1 import api_v1_bp
-            app.register_blueprint(api_v1_bp)
-            logger.info("✅ API v1")
+            from app.controllers.email_builder_controller import email_builder_bp
+            app.register_blueprint(email_builder_bp)
+            logger.info("✅ Email Builder")
         except Exception as e:
-            logger.error(f"❌ API v1: {e}")
+            logger.error(f"❌ Email Builder: {e}")
         
-        # Register API Keys Management Blueprint
         try:
             from app.controllers.api_keys_controller import api_keys_bp
             app.register_blueprint(api_keys_bp)
@@ -175,16 +173,13 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ API Keys Management: {e}")
         
-        # Register Docs Blueprint
         try:
-            from app.controllers.docs_controller import docs_bp, swaggerui_blueprint
-            app.register_blueprint(docs_bp)
-            app.register_blueprint(swaggerui_blueprint)
+            from app.controllers.api_docs_controller import api_docs_bp
+            app.register_blueprint(api_docs_bp)
             logger.info("✅ API Documentation")
         except Exception as e:
             logger.error(f"❌ API Documentation: {e}")
         
-        # Register Team Management Blueprint
         try:
             from app.controllers.team_controller import team_bp
             app.register_blueprint(team_bp)
@@ -192,7 +187,6 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Team Management: {e}")
         
-        # Register Team Invitation Blueprint
         try:
             from app.controllers.team_invite_controller import team_invite_bp
             app.register_blueprint(team_invite_bp)
@@ -200,15 +194,13 @@ def create_app():
         except Exception as e:
             logger.error(f"❌ Team Invitations: {e}")
         
-        # Register Contacts Controller
         try:
-            from app.controllers.contact_controller import contact_bp
-            app.register_blueprint(contact_bp)
+            from app.controllers.contact_controller import contacts_bp
+            app.register_blueprint(contacts_bp)
             logger.info("✅ Contacts")
         except Exception as e:
             logger.error(f"❌ Contacts: {e}")
-    
-        # Register Pricing Blueprint
+        
         try:
             from app.controllers.pricing_controller import pricing_bp
             app.register_blueprint(pricing_bp)
@@ -227,6 +219,19 @@ def create_app():
             except:
                 return None
     
+    # Template API route
+    @app.route('/api/templates/<template_name>')
+    def serve_template(template_name):
+        """Serve email templates"""
+        import os
+        try:
+            template_path = os.path.join('app', 'templates', 'email_templates', f'{template_name}.html')
+            if os.path.exists(template_path):
+                with open(template_path, 'r') as f:
+                    return f.read(), 200, {'Content-Type': 'text/html; charset=utf-8'}
+            return 'Template not found', 404
+        except Exception as e:
+            return str(e), 500
+    
+
     return app
-
-

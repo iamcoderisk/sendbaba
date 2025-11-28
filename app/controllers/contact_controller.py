@@ -182,74 +182,71 @@ def parse_file():
 @contact_bp.route('/api/import', methods=['POST'])
 @login_required
 def import_contacts():
-    """Import contacts from CSV"""
+    """Import contacts from CSV with proper error handling"""
     try:
         if 'file' not in request.files:
             return jsonify({'success': False, 'error': 'No file provided'}), 400
-        
+       
         file = request.files['file']
         mapping = request.form.get('mapping')
         options = request.form.get('options', '{}')
-        
+       
         if not mapping:
             return jsonify({'success': False, 'error': 'No mapping provided'}), 400
-        
+       
         import json
-        
+       
         try:
             mapping = json.loads(mapping) if isinstance(mapping, str) else mapping
             options = json.loads(options) if isinstance(options, str) else options
         except json.JSONDecodeError as e:
             logger.error(f"JSON decode error: {e}")
             return jsonify({'success': False, 'error': 'Invalid JSON format'}), 400
-        
+       
         team_member = get_team_member()
-        
-        bulk_import = BulkImport(
-            organization_id=current_user.organization_id,
-            created_by_user_id=current_user.id,
-            filename=secure_filename(file.filename)
-        )
-        db.session.add(bulk_import)
-        db.session.flush()
-        
+       
+        # Read file content first
         content = file.read().decode('utf-8')
+        filename = secure_filename(file.filename)
+       
+        # Process CSV
         csv_reader = csv.DictReader(io.StringIO(content))
-        
+       
         imported = 0
         skipped = 0
         duplicates = 0
-        errors = []
-        
+        errors_list = []
+       
         for idx, row in enumerate(csv_reader):
             try:
                 email_col = mapping.get('email')
                 if not email_col or email_col not in row:
                     skipped += 1
                     continue
-                
+               
                 email = str(row[email_col]).strip().lower()
-                
+               
                 if not email or '@' not in email:
                     skipped += 1
                     continue
-                
+               
+                # Check for duplicates
                 if options.get('skip_duplicates', True):
                     existing = Contact.query.filter_by(
                         organization_id=current_user.organization_id,
                         email=email
                     ).first()
-                    
+                   
                     if existing:
                         duplicates += 1
                         skipped += 1
                         continue
-                
+               
                 first_name = row.get(mapping.get('first_name', ''), '') if mapping.get('first_name') else ''
                 last_name = row.get(mapping.get('last_name', ''), '') if mapping.get('last_name') else ''
                 company = row.get(mapping.get('company', ''), '') if mapping.get('company') else ''
                 phone = row.get(mapping.get('phone', ''), '') if mapping.get('phone') else ''
-                
+               
                 contact = Contact(
                     organization_id=current_user.organization_id,
                     email=email,
@@ -260,33 +257,64 @@ def import_contacts():
                     company=company,
                     phone=phone
                 )
-                
+               
                 db.session.add(contact)
                 imported += 1
-                bulk_import.successful_imports += 1
-                
-                # Commit in batches
+               
+                # Commit in batches of 500
                 if imported % 500 == 0:
-                    db.session.commit()
-                    logger.info(f"Imported {imported} contacts so far...")
-                
+                    try:
+                        db.session.commit()
+                        logger.info(f"Committed batch: {imported} contacts imported")
+                    except Exception as batch_error:
+                        logger.error(f"Batch commit error: {batch_error}")
+                        db.session.rollback()
+               
             except Exception as row_error:
                 logger.error(f"Row {idx} import error: {row_error}")
-                bulk_import.failed_imports += 1
+                db.session.rollback()
                 skipped += 1
-                errors.append({'row': idx + 2, 'error': str(row_error)})
-        
-        bulk_import.status = 'completed'
-        bulk_import.completed_at = datetime.utcnow()
-        bulk_import.duplicate_emails = duplicates
-        bulk_import.total_rows = imported + skipped
-        bulk_import.processed_rows = imported + skipped
-        bulk_import.errors = errors[:100]
-        
-        db.session.commit()
-        
+                errors_list.append({'row': idx + 2, 'error': str(row_error)})
+       
+        # Final commit
+        try:
+            db.session.commit()
+        except Exception as final_error:
+            logger.error(f"Final commit error: {final_error}")
+            db.session.rollback()
+            return jsonify({'success': False, 'error': f'Database error: {str(final_error)}'}), 500
+       
+        # Log the import
+        try:
+            from sqlalchemy import text
+            import uuid
+           
+            db.session.execute(
+                text("""
+                    INSERT INTO bulk_imports
+                    (id, organization_id, filename, status, total_rows, processed_rows,
+                     successful_imports, failed_imports, duplicate_emails, errors, created_at, completed_at)
+                    VALUES (:id, :org_id, :filename, 'completed', :total, :processed,
+                            :success, :failed, :dups, :errors, NOW(), NOW())
+                """),
+                {
+                    'id': str(uuid.uuid4()),
+                    'org_id': current_user.organization_id,
+                    'filename': filename,
+                    'total': imported + skipped,
+                    'processed': imported + skipped,
+                    'success': imported,
+                    'failed': len(errors_list),
+                    'dups': duplicates,
+                    'errors': json.dumps(errors_list[:100])
+                }
+            )
+            db.session.commit()
+        except Exception as log_error:
+            logger.warning(f"Could not log import: {log_error}")
+       
         logger.info(f"Import completed: {imported} imported, {skipped} skipped, {duplicates} duplicates")
-        
+       
         return jsonify({
             'success': True,
             'imported': imported,
@@ -294,7 +322,7 @@ def import_contacts():
             'duplicates': duplicates,
             'message': f'Successfully imported {imported} contacts. Skipped {skipped}.'
         })
-        
+       
     except Exception as e:
         logger.error(f"Import error: {e}", exc_info=True)
         db.session.rollback()

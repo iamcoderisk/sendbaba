@@ -1,0 +1,161 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{% if workflow %}Edit Workflow{% else %}Create Workflow{% endif %} - SendBaba{% endblock %}
+{% block content %}
+<div class="flex h-screen" x-data="workflowBuilder()">
+    <!-- Sidebar -->
+    <div class="w-80 bg-white border-r overflow-y-auto">
+        <div class="p-4 border-b">
+            <input type="text" x-model="workflow.name" placeholder="Workflow Name" class="w-full px-3 py-2 border rounded-lg font-medium">
+        </div>
+        
+        <div class="p-4 border-b">
+            <h4 class="font-medium mb-2">Trigger</h4>
+            <select x-model="workflow.trigger_type" class="w-full px-3 py-2 border rounded-lg">
+                <option value="contact_added">Contact Added</option>
+                <option value="tag_added">Tag Added</option>
+                <option value="form_submitted">Form Submitted</option>
+                <option value="date_based">Date Based</option>
+                <option value="api_trigger">API Trigger</option>
+            </select>
+        </div>
+        
+        <div class="p-4">
+            <h4 class="font-medium mb-2">Add Step</h4>
+            <div class="space-y-2">
+                <button @click="addStep('send_email')" class="w-full p-3 border rounded-lg text-left hover:bg-gray-50">
+                    <i class="fas fa-envelope text-purple-600 mr-2"></i>Send Email
+                </button>
+                <button @click="addStep('wait')" class="w-full p-3 border rounded-lg text-left hover:bg-gray-50">
+                    <i class="fas fa-clock text-blue-600 mr-2"></i>Wait
+                </button>
+                <button @click="addStep('condition')" class="w-full p-3 border rounded-lg text-left hover:bg-gray-50">
+                    <i class="fas fa-code-branch text-yellow-600 mr-2"></i>Condition
+                </button>
+                <button @click="addStep('add_tag')" class="w-full p-3 border rounded-lg text-left hover:bg-gray-50">
+                    <i class="fas fa-tag text-green-600 mr-2"></i>Add Tag
+                </button>
+                <button @click="addStep('webhook')" class="w-full p-3 border rounded-lg text-left hover:bg-gray-50">
+                    <i class="fas fa-plug text-orange-600 mr-2"></i>Webhook
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Canvas -->
+    <div class="flex-1 bg-gray-100 p-8 overflow-auto">
+        <div class="flex justify-end gap-2 mb-4">
+            <button @click="saveWorkflow('draft')" class="px-4 py-2 border rounded-lg bg-white">Save Draft</button>
+            <button @click="saveWorkflow('active')" class="px-4 py-2 bg-purple-600 text-white rounded-lg">Activate</button>
+        </div>
+        
+        <div class="max-w-md mx-auto space-y-4">
+            <!-- Trigger -->
+            <div class="bg-purple-600 text-white p-4 rounded-lg text-center">
+                <i class="fas fa-play-circle text-2xl mb-2"></i>
+                <div class="font-medium">Trigger: <span x-text="workflow.trigger_type.replace('_', ' ')"></span></div>
+            </div>
+            
+            <!-- Steps -->
+            <template x-for="(step, index) in workflow.steps" :key="step.id">
+                <div class="relative">
+                    <div class="absolute left-1/2 -top-4 w-0.5 h-4 bg-gray-300"></div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4" :class="getStepColor(step.type)">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-2">
+                                <i :class="getStepIcon(step.type)"></i>
+                                <span class="font-medium" x-text="step.name"></span>
+                            </div>
+                            <button @click="removeStep(index)" class="text-red-500"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <div x-show="step.type === 'send_email'">
+                            <input type="text" x-model="step.config.subject" placeholder="Email subject" class="w-full px-2 py-1 border rounded text-sm">
+                        </div>
+                        <div x-show="step.type === 'wait'">
+                            <div class="flex gap-2">
+                                <input type="number" x-model="step.config.delay_value" class="w-20 px-2 py-1 border rounded text-sm" placeholder="1">
+                                <select x-model="step.config.delay_unit" class="px-2 py-1 border rounded text-sm">
+                                    <option value="minutes">Minutes</option>
+                                    <option value="hours">Hours</option>
+                                    <option value="days">Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div x-show="step.type === 'add_tag'">
+                            <input type="text" x-model="step.config.tag" placeholder="Tag name" class="w-full px-2 py-1 border rounded text-sm">
+                        </div>
+                    </div>
+                </div>
+            </template>
+            
+            <!-- End -->
+            <div class="bg-gray-400 text-white p-4 rounded-lg text-center">
+                <i class="fas fa-flag-checkered text-2xl mb-2"></i>
+                <div class="font-medium">End</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function workflowBuilder() {
+    return {
+        workflowId: '{{ workflow.id if workflow else "" }}',
+        workflow: {
+            name: '{{ workflow.name if workflow else "Untitled Workflow" }}',
+            trigger_type: '{{ workflow.trigger_type if workflow else "contact_added" }}',
+            trigger_config: {},
+            steps: {{ workflow.steps_list | tojson if workflow else '[]' | safe }}
+        },
+        
+        addStep(type) {
+            const step = {
+                id: 'step_' + Date.now(),
+                type: type,
+                name: this.getStepName(type),
+                config: type === 'wait' ? { delay_value: 1, delay_unit: 'days' } : {}
+            };
+            this.workflow.steps.push(step);
+        },
+        
+        removeStep(index) {
+            this.workflow.steps.splice(index, 1);
+        },
+        
+        getStepName(type) {
+            const names = { send_email: 'Send Email', wait: 'Wait', condition: 'Condition', add_tag: 'Add Tag', webhook: 'Webhook' };
+            return names[type] || type;
+        },
+        
+        getStepIcon(type) {
+            const icons = { send_email: 'fas fa-envelope text-purple-600', wait: 'fas fa-clock text-blue-600', condition: 'fas fa-code-branch text-yellow-600', add_tag: 'fas fa-tag text-green-600', webhook: 'fas fa-plug text-orange-600' };
+            return icons[type] || 'fas fa-cog';
+        },
+        
+        getStepColor(type) {
+            const colors = { send_email: 'border-purple-600', wait: 'border-blue-600', condition: 'border-yellow-600', add_tag: 'border-green-600', webhook: 'border-orange-600' };
+            return colors[type] || 'border-gray-400';
+        },
+        
+        async saveWorkflow(status) {
+            const url = this.workflowId ? `/dashboard/workflows/api/${this.workflowId}` : '/dashboard/workflows/api/create';
+            const method = this.workflowId ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...this.workflow, status })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                if (!this.workflowId && result.workflow) {
+                    window.location.href = `/dashboard/workflows/${result.workflow.id}/edit`;
+                } else {
+                    alert(status === 'active' ? 'Workflow activated!' : 'Draft saved!');
+                }
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

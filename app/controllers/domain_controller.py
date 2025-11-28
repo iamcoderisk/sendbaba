@@ -124,18 +124,17 @@ def add_domain():
         
         db.session.execute(text("""
             INSERT INTO domains (
-                id, organization_id, created_by_user_id, domain_name,
+                id, organization_id, domain_name,
                 dkim_selector, dkim_private_key, dkim_public_key,
                 dns_verified, is_active, created_at
             ) VALUES (
-                :id, :org_id, :user_id, :domain,
+                :id, :org_id, :domain,
                 'mail', :private_key, :public_key,
                 false, true, NOW()
             )
         """), {
             'id': domain_id,
             'org_id': current_user.organization_id,
-            'user_id': current_user.id,
             'domain': domain_name,
             'private_key': private_key,
             'public_key': public_key
