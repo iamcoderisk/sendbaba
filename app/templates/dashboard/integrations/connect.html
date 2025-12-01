@@ -1,0 +1,81 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Connect {{ integration_info.name }} - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6">
+    <div class="max-w-lg mx-auto">
+        <a href="/dashboard/integrations" class="text-purple-600 mb-4 inline-block"><i class="fas fa-arrow-left mr-2"></i>Back</a>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="{{ integration_info.icon }} text-2xl text-purple-600"></i>
+                </div>
+                <h1 class="text-xl font-bold">Connect {{ integration_info.name }}</h1>
+                <p class="text-gray-600">{{ integration_info.description }}</p>
+            </div>
+            
+            <form id="connectForm" class="space-y-4">
+                <input type="hidden" name="integration_type" value="{{ integration_type }}">
+                
+                <div>
+                    <label class="block text-sm font-medium mb-1">Name (optional)</label>
+                    <input type="text" name="name" placeholder="My {{ integration_info.name }}" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                
+                {% if 'store_url' in integration_info.required_fields %}
+                <div>
+                    <label class="block text-sm font-medium mb-1">Store URL *</label>
+                    <input type="url" name="store_url" placeholder="https://your-store.myshopify.com" class="w-full px-3 py-2 border rounded-lg" required>
+                </div>
+                {% endif %}
+                
+                {% if 'api_key' in integration_info.required_fields %}
+                <div>
+                    <label class="block text-sm font-medium mb-1">API Key *</label>
+                    <input type="text" name="api_key" class="w-full px-3 py-2 border rounded-lg" required>
+                </div>
+                {% endif %}
+                
+                {% if 'api_secret' in integration_info.required_fields %}
+                <div>
+                    <label class="block text-sm font-medium mb-1">API Secret *</label>
+                    <input type="password" name="api_secret" class="w-full px-3 py-2 border rounded-lg" required>
+                </div>
+                {% endif %}
+                
+                <div class="flex gap-2">
+                    <label class="flex items-center"><input type="checkbox" name="sync_contacts" checked class="mr-2">Sync Contacts</label>
+                    <label class="flex items-center"><input type="checkbox" name="sync_orders" checked class="mr-2">Sync Orders</label>
+                </div>
+                
+                <button type="submit" class="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    Connect {{ integration_info.name }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('connectForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    data.sync_contacts = formData.has('sync_contacts');
+    data.sync_orders = formData.has('sync_orders');
+    
+    const response = await fetch('/dashboard/integrations/api/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    
+    const result = await response.json();
+    if (result.success) {
+        window.location.href = '/dashboard/integrations';
+    } else {
+        alert(result.error || 'Connection failed');
+    }
+});
+</script>
+{% endblock %}

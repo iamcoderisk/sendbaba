@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Workflow Templates - SendBaba{% endblock %}
+
+{% block content %}
+<div class="p-6 max-w-7xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Workflow Templates</h1>
+            <p class="text-gray-500">Pre-built automation templates to get started quickly</p>
+        </div>
+        <a href="/dashboard/workflows" class="text-purple-600 hover:text-purple-700 font-medium">
+            ← Back to Workflows
+        </a>
+    </div>
+    
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Welcome Series -->
+        <div onclick="useTemplate('welcome_series')" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">👋</div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Welcome Series</h3>
+                    <span class="text-xs text-gray-500">4 emails over 7 days</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Onboard new subscribers with a series of welcome emails introducing your brand.</p>
+            <div class="flex items-center justify-between">
+                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Onboarding</span>
+                <span class="text-purple-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Use Template →</span>
+            </div>
+        </div>
+        
+        <!-- Abandoned Cart -->
+        <div onclick="useTemplate('abandoned_cart')" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-2xl">🛒</div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Abandoned Cart</h3>
+                    <span class="text-xs text-gray-500">3 emails over 3 days</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Recover lost sales by reminding customers about items left in their cart.</p>
+            <div class="flex items-center justify-between">
+                <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">E-commerce</span>
+                <span class="text-purple-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Use Template →</span>
+            </div>
+        </div>
+        
+        <!-- Re-engagement -->
+        <div onclick="useTemplate('re_engagement')" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl">💜</div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Re-engagement</h3>
+                    <span class="text-xs text-gray-500">3 emails over 14 days</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Win back inactive subscribers with special offers and compelling content.</p>
+            <div class="flex items-center justify-between">
+                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Retention</span>
+                <span class="text-purple-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Use Template →</span>
+            </div>
+        </div>
+        
+        <!-- Birthday Campaign -->
+        <div onclick="useTemplate('birthday')" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center text-2xl">🎂</div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Birthday Campaign</h3>
+                    <span class="text-xs text-gray-500">2 emails</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Celebrate your customers' birthdays with special offers and wishes.</p>
+            <div class="flex items-center justify-between">
+                <span class="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full">Celebration</span>
+                <span class="text-purple-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Use Template →</span>
+            </div>
+        </div>
+        
+        <!-- Post-Purchase -->
+        <div onclick="useTemplate('post_purchase')" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl">📦</div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Post-Purchase</h3>
+                    <span class="text-xs text-gray-500">4 emails over 14 days</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Follow up after purchase with shipping updates, tips, and review requests.</p>
+            <div class="flex items-center justify-between">
+                <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">E-commerce</span>
+                <span class="text-purple-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Use Template →</span>
+            </div>
+        </div>
+        
+        <!-- Lead Nurturing -->
+        <div onclick="useTemplate('lead_nurturing')" class="bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 hover:shadow-lg transition-all cursor-pointer group">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-2xl">🌱</div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Lead Nurturing</h3>
+                    <span class="text-xs text-gray-500">5 emails over 21 days</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Guide leads through your funnel with educational content and offers.</p>
+            <div class="flex items-center justify-between">
+                <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">B2B</span>
+                <span class="text-purple-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Use Template →</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function useTemplate(templateType) {
+    window.location.href = `/dashboard/workflows/create?template=${templateType}`;
+}
+</script>
+{% endblock %}

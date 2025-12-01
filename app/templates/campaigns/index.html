@@ -1,0 +1,1011 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Campaigns - SendBaba{% endblock %}
+{% block page_title %}Campaigns{% endblock %}
+{% block page_subtitle %}Create and manage your email campaigns{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ============================================
+       WORLD-CLASS CAMPAIGNS PAGE STYLES
+       ============================================ */
+    
+    /* Stats Overview Cards */
+    .campaigns-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+    
+    @media (max-width: 1024px) {
+        .campaigns-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 640px) {
+        .campaigns-stats { grid-template-columns: 1fr; }
+    }
+    
+    .stat-mini {
+        background: white;
+        border-radius: 20px;
+        padding: 24px;
+        border: 1px solid rgba(229, 231, 235, 0.8);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-mini::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--stat-color, #F97316);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s;
+    }
+    
+    .stat-mini:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    }
+    
+    .stat-mini:hover::before {
+        transform: scaleX(1);
+    }
+    
+    .stat-mini-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        margin-bottom: 16px;
+        transition: all 0.3s;
+    }
+    
+    .stat-mini:hover .stat-mini-icon {
+        transform: scale(1.1) rotate(5deg);
+    }
+    
+    .stat-mini-value {
+        font-size: 32px;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1;
+        margin-bottom: 6px;
+    }
+    
+    .stat-mini-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #6B7280;
+    }
+    
+    /* Tabs Container */
+    .tabs-container {
+        background: white;
+        border-radius: 20px;
+        border: 1px solid rgba(229, 231, 235, 0.8);
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+    
+    .tabs-header {
+        display: flex;
+        border-bottom: 1px solid #F3F4F6;
+        background: linear-gradient(180deg, #FAFAFA 0%, white 100%);
+        padding: 0 8px;
+    }
+    
+    .tab-btn {
+        flex: 1;
+        padding: 20px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #6B7280;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    .tab-btn::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 3px;
+        background: linear-gradient(135deg, #F97316, #FB923C);
+        border-radius: 3px 3px 0 0;
+        transition: width 0.3s;
+    }
+    
+    .tab-btn:hover {
+        color: #F97316;
+        background: #FFF7ED;
+    }
+    
+    .tab-btn.active {
+        color: #F97316;
+    }
+    
+    .tab-btn.active::after {
+        width: 60%;
+    }
+    
+    .tab-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: 50px;
+        font-size: 13px;
+        font-weight: 700;
+        transition: all 0.3s;
+    }
+    
+    .tab-btn.active .tab-count {
+        background: linear-gradient(135deg, #F97316, #FB923C);
+        color: white;
+    }
+    
+    .tab-btn:not(.active) .tab-count {
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+    
+    .tabs-content {
+        padding: 24px;
+    }
+    
+    /* Campaign Cards */
+    .campaign-card {
+        background: #FAFAFA;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 16px;
+        border: 1px solid transparent;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .campaign-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--card-accent, #F97316);
+        transform: scaleY(0);
+        transition: transform 0.3s;
+    }
+    
+    .campaign-card:hover {
+        background: white;
+        border-color: #E5E7EB;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+        transform: translateX(8px);
+    }
+    
+    .campaign-card:hover::before {
+        transform: scaleY(1);
+    }
+    
+    .campaign-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+    }
+    
+    .campaign-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+        transition: all 0.3s;
+    }
+    
+    .campaign-card:hover .campaign-icon {
+        transform: scale(1.1) rotate(5deg);
+    }
+    
+    .campaign-icon.sent {
+        background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
+        color: #059669;
+    }
+    .campaign-icon.draft {
+        background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+        color: #D97706;
+    }
+    .campaign-icon.pending, .campaign-icon.scheduled {
+        background: linear-gradient(135deg, #DBEAFE, #BFDBFE);
+        color: #2563EB;
+    }
+    .campaign-icon.sending {
+        background: linear-gradient(135deg, #E0E7FF, #C7D2FE);
+        color: #4F46E5;
+    }
+    .campaign-icon.failed {
+        background: linear-gradient(135deg, #FEE2E2, #FECACA);
+        color: #DC2626;
+    }
+    
+    .campaign-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .campaign-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .campaign-subject {
+        font-size: 14px;
+        color: #6B7280;
+        margin-bottom: 12px;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .campaign-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 13px;
+        color: #9CA3AF;
+    }
+    
+    .campaign-meta span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .campaign-meta i {
+        color: #D1D5DB;
+    }
+    
+    .campaign-stats {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    
+    .campaign-stat {
+        text-align: center;
+        padding: 12px 20px;
+        background: white;
+        border-radius: 12px;
+        min-width: 90px;
+        transition: all 0.3s;
+    }
+    
+    .campaign-card:hover .campaign-stat {
+        background: #F9FAFB;
+    }
+    
+    .campaign-stat-value {
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+    
+    .campaign-stat-value.success { color: #10B981; }
+    .campaign-stat-value.warning { color: #F59E0B; }
+    .campaign-stat-value.primary { color: #F97316; }
+    
+    .campaign-stat-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #9CA3AF;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .campaign-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    /* Buttons */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+        border: none;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #F97316, #EA580C);
+        color: white;
+        box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
+    }
+    
+    .btn-primary:hover {
+        box-shadow: 0 8px 25px rgba(249, 115, 22, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    .btn-secondary {
+        background: white;
+        color: #374151;
+        border: 2px solid #E5E7EB;
+    }
+    
+    .btn-secondary:hover {
+        border-color: #F97316;
+        color: #F97316;
+        background: #FFF7ED;
+    }
+    
+    .btn-ghost {
+        background: transparent;
+        color: #6B7280;
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .btn-ghost:hover {
+        background: #FEE2E2;
+        color: #DC2626;
+    }
+    
+    .btn-icon {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border-radius: 12px;
+        background: #F3F4F6;
+        color: #6B7280;
+    }
+    
+    .btn-icon:hover {
+        background: #F97316;
+        color: white;
+    }
+    
+    /* Status Badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 50px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-badge.sent { background: #D1FAE5; color: #047857; }
+    .status-badge.draft { background: #FEF3C7; color: #B45309; }
+    .status-badge.pending, .status-badge.scheduled { background: #DBEAFE; color: #1D4ED8; }
+    .status-badge.sending { background: #E0E7FF; color: #4338CA; }
+    .status-badge.failed { background: #FEE2E2; color: #B91C1C; }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 40px;
+    }
+    
+    .empty-state-icon {
+        width: 120px;
+        height: 120px;
+        background: linear-gradient(135deg, #FFF7ED, #FFEDD5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 28px;
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    .empty-state-icon i {
+        font-size: 48px;
+        color: #F97316;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    .empty-state h3 {
+        font-size: 22px;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 10px;
+    }
+    
+    .empty-state p {
+        font-size: 15px;
+        color: #6B7280;
+        margin-bottom: 28px;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    /* Search & Filters */
+    .campaigns-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .search-box {
+        position: relative;
+        flex: 1;
+        max-width: 400px;
+    }
+    
+    .search-box input {
+        width: 100%;
+        padding: 14px 20px 14px 48px;
+        border: 2px solid #E5E7EB;
+        border-radius: 14px;
+        font-size: 14px;
+        transition: all 0.3s;
+        background: white;
+    }
+    
+    .search-box input:focus {
+        outline: none;
+        border-color: #F97316;
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
+    }
+    
+    .search-box i {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9CA3AF;
+    }
+    
+    /* Progress bar for sending campaigns */
+    .progress-bar {
+        height: 6px;
+        background: #E5E7EB;
+        border-radius: 3px;
+        margin-top: 12px;
+        overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #F97316, #FB923C);
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .campaign-card-header {
+            flex-direction: column;
+        }
+        .campaign-stats {
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 16px;
+        }
+        .campaigns-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .search-box {
+            max-width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Overview -->
+<div class="campaigns-stats">
+    <div class="stat-mini" style="--stat-color: #F97316;">
+        <div class="stat-mini-icon" style="background: linear-gradient(135deg, #FFF7ED, #FFEDD5); color: #EA580C;">
+            <i class="fas fa-paper-plane"></i>
+        </div>
+        <div class="stat-mini-value" id="totalCampaigns">{{ total_campaigns }}</div>
+        <div class="stat-mini-label">Total Campaigns</div>
+    </div>
+    
+    <div class="stat-mini" style="--stat-color: #10B981;">
+        <div class="stat-mini-icon" style="background: linear-gradient(135deg, #F0FDF4, #DCFCE7); color: #16A34A;">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-mini-value" id="sentCount">{{ campaigns.sent|length }}</div>
+        <div class="stat-mini-label">Sent</div>
+    </div>
+    
+    <div class="stat-mini" style="--stat-color: #F59E0B;">
+        <div class="stat-mini-icon" style="background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #D97706;">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="stat-mini-value" id="draftsCount">{{ campaigns.drafts|length }}</div>
+        <div class="stat-mini-label">Drafts</div>
+    </div>
+    
+    <div class="stat-mini" style="--stat-color: #3B82F6;">
+        <div class="stat-mini-icon" style="background: linear-gradient(135deg, #EFF6FF, #DBEAFE); color: #2563EB;">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-mini-value" id="pendingCount">{{ campaigns.pending|length }}</div>
+        <div class="stat-mini-label">Scheduled</div>
+    </div>
+</div>
+
+<!-- Toolbar -->
+<div class="campaigns-toolbar">
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Search campaigns... (⌘K)" onkeyup="filterCampaigns()">
+    </div>
+    <a href="/dashboard/campaigns/create" class="btn btn-primary">
+        <i class="fas fa-plus"></i>
+        Create Campaign
+    </a>
+</div>
+
+<!-- Tabs Container -->
+<div class="tabs-container">
+    <div class="tabs-header">
+        <button onclick="showTab('sent')" id="tab-sent" class="tab-btn active">
+            <i class="fas fa-check-circle"></i>
+            Sent
+            <span class="tab-count">{{ campaigns.sent|length }}</span>
+        </button>
+        <button onclick="showTab('drafts')" id="tab-drafts" class="tab-btn">
+            <i class="fas fa-file-alt"></i>
+            Drafts
+            <span class="tab-count">{{ campaigns.drafts|length }}</span>
+        </button>
+        <button onclick="showTab('pending')" id="tab-pending" class="tab-btn">
+            <i class="fas fa-clock"></i>
+            Scheduled
+            <span class="tab-count">{{ campaigns.pending|length }}</span>
+        </button>
+    </div>
+    
+    <div class="tabs-content">
+        <!-- Sent Tab -->
+        <div id="content-sent" class="tab-content">
+            {% if campaigns.sent %}
+            <div id="sentList">
+                {% for campaign in campaigns.sent %}
+                <div class="campaign-card" style="--card-accent: #10B981;" data-name="{{ campaign.name|lower }}">
+                    <div class="campaign-card-header">
+                        <div class="campaign-icon sent">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="campaign-info">
+                            <div class="campaign-name">
+                                {{ campaign.name or 'Untitled Campaign' }}
+                                <span class="status-badge sent">Sent</span>
+                            </div>
+                            <div class="campaign-subject">{{ campaign.subject or 'No subject' }}</div>
+                            <div class="campaign-meta">
+                                <span><i class="far fa-calendar"></i> {{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
+                                <span><i class="fas fa-users"></i> {{ "{:,}".format(campaign.recipients|default(0)|int) }} recipients</span>
+                            </div>
+                        </div>
+                        <div class="campaign-stats">
+                            <div class="campaign-stat">
+                                <div class="campaign-stat-value success">{{ "{:,}".format(campaign.emails_sent|default(0)|int) }}</div>
+                                <div class="campaign-stat-label">Delivered</div>
+                            </div>
+                            <div class="campaign-stat">
+                                {% set rate = (campaign.emails_sent|default(0)|int / campaign.recipients|default(1)|int * 100) if campaign.recipients and campaign.recipients > 0 else 0 %}
+                                <div class="campaign-stat-value primary">{{ "%.0f"|format(rate) }}%</div>
+                                <div class="campaign-stat-label">Success</div>
+                            </div>
+                        </div>
+                        <div class="campaign-actions">
+                            <a href="/dashboard/campaigns/view/{{ campaign.id }}" class="btn btn-secondary">
+                                <i class="fas fa-chart-bar"></i> View Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+                <h3>No sent campaigns yet</h3>
+                <p>Once you send your first campaign, it will appear here with detailed analytics</p>
+                <a href="/dashboard/campaigns/create" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create Your First Campaign
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Drafts Tab -->
+        <div id="content-drafts" class="tab-content hidden">
+            {% if campaigns.drafts %}
+            <div id="draftsList">
+                {% for campaign in campaigns.drafts %}
+                <div class="campaign-card" style="--card-accent: #F59E0B;" data-name="{{ campaign.name|lower }}" data-draft-id="{{ campaign.id }}">
+                    <div class="campaign-card-header">
+                        <div class="campaign-icon draft">
+                            <i class="fas fa-edit"></i>
+                        </div>
+                        <div class="campaign-info">
+                            <div class="campaign-name">
+                                {{ campaign.name or 'Untitled Campaign' }}
+                                <span class="status-badge draft">Draft</span>
+                            </div>
+                            <div class="campaign-subject">{{ campaign.subject if campaign.subject else 'No subject yet' }}</div>
+                            <div class="campaign-meta">
+                                <span><i class="far fa-clock"></i> Last edited {{ campaign.updated_at.strftime('%b %d, %Y') if campaign.updated_at else (campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A') }}</span>
+                            </div>
+                        </div>
+                        <div class="campaign-actions">
+                            <a href="/dashboard/campaigns/design/blank?campaign_id={{ campaign.id }}" class="btn btn-primary">
+                                <i class="fas fa-edit"></i> Continue Editing
+                            </a>
+                            <button onclick="deleteDraft('{{ campaign.id }}')" class="btn btn-ghost" title="Delete draft">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3>No drafts saved</h3>
+                <p>When you start creating a campaign, your drafts will be saved here automatically</p>
+                <a href="/dashboard/campaigns/create" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Start Creating
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Pending/Scheduled Tab -->
+        <div id="content-pending" class="tab-content hidden">
+            {% if campaigns.pending %}
+            <div id="pendingList">
+                {% for campaign in campaigns.pending %}
+                <div class="campaign-card" style="--card-accent: #3B82F6;" data-name="{{ campaign.name|lower }}">
+                    <div class="campaign-card-header">
+                        <div class="campaign-icon pending">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="campaign-info">
+                            <div class="campaign-name">
+                                {{ campaign.name or 'Untitled Campaign' }}
+                                <span class="status-badge {{ campaign.status|default('pending')|lower }}">{{ (campaign.status or 'Pending')|title }}</span>
+                            </div>
+                            <div class="campaign-subject">{{ campaign.subject or 'No subject' }}</div>
+                            <div class="campaign-meta">
+                                <span><i class="far fa-calendar"></i> Scheduled for {{ campaign.scheduled_at.strftime('%b %d, %Y at %I:%M %p') if campaign.scheduled_at else 'N/A' }}</span>
+                                <span><i class="fas fa-users"></i> {{ "{:,}".format(campaign.recipients|default(0)|int) }} recipients</span>
+                            </div>
+                            {% if campaign.status == 'sending' %}
+                            <div class="progress-bar">
+                                <div class="progress-bar-fill" style="width: {{ (campaign.emails_sent|default(0) / campaign.recipients|default(1) * 100)|int }}%"></div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="campaign-actions">
+                            {% if campaign.status == 'scheduled' %}
+                            <button onclick="cancelSchedule('{{ campaign.id }}')" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            {% endif %}
+                            <a href="/dashboard/campaigns/view/{{ campaign.id }}" class="btn btn-icon">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3>No scheduled campaigns</h3>
+                <p>Schedule your campaigns to send at the perfect time for your audience</p>
+                <a href="/dashboard/campaigns/create" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Schedule a Campaign
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50" onclick="closeDeleteModal(event)">
+    <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 transform transition-all" onclick="event.stopPropagation()">
+        <div class="text-center">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-trash text-red-500 text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Delete Campaign?</h3>
+            <p class="text-gray-600 mb-6">This action cannot be undone. The campaign will be permanently removed.</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeDeleteModal()" class="btn btn-secondary">Cancel</button>
+                <button id="confirmDeleteBtn" class="btn" style="background: #EF4444; color: white;">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================
+// CAMPAIGNS PAGE JAVASCRIPT
+// ============================================
+
+let campaignToDelete = null;
+
+// Tab Switching with smooth transition
+function showTab(tab) {
+    // Hide all content
+    document.querySelectorAll('.tab-content').forEach(el => {
+        el.classList.add('hidden');
+        el.style.opacity = '0';
+    });
+    
+    // Remove active from all tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected content with animation
+    const content = document.getElementById('content-' + tab);
+    content.classList.remove('hidden');
+    
+    // Trigger reflow for animation
+    setTimeout(() => {
+        content.style.opacity = '1';
+        content.style.transition = 'opacity 0.3s ease';
+    }, 10);
+    
+    // Activate tab
+    document.getElementById('tab-' + tab).classList.add('active');
+    
+    // Save to localStorage
+    localStorage.setItem('campaignsActiveTab', tab);
+}
+
+// Search/Filter campaigns
+function filterCampaigns() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    
+    document.querySelectorAll('.campaign-card').forEach(card => {
+        const name = card.getAttribute('data-name') || '';
+        if (name.includes(query)) {
+            card.style.display = 'block';
+            card.style.animation = 'fadeIn 0.3s ease';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// Delete Draft
+function deleteDraft(campaignId) {
+    campaignToDelete = campaignId;
+    const modal = document.getElementById('deleteModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
+    document.getElementById('confirmDeleteBtn').onclick = confirmDelete;
+}
+
+function closeDeleteModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    const modal = document.getElementById('deleteModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    campaignToDelete = null;
+}
+
+async function confirmDelete() {
+    if (!campaignToDelete) return;
+    
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/dashboard/campaigns/api/delete-draft/' + campaignToDelete, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            // Animate removal
+            const card = document.querySelector(`[data-draft-id="${campaignToDelete}"]`);
+            if (card) {
+                card.style.transform = 'translateX(100%)';
+                card.style.opacity = '0';
+                card.style.transition = 'all 0.4s ease';
+                setTimeout(() => card.remove(), 400);
+            }
+            
+            closeDeleteModal();
+            showToast('Campaign deleted successfully', 'success');
+            
+            // Update count
+            const countEl = document.getElementById('draftsCount');
+            countEl.textContent = parseInt(countEl.textContent) - 1;
+            
+            // Update tab count
+            const tabCount = document.querySelector('#tab-drafts .tab-count');
+            tabCount.textContent = parseInt(tabCount.textContent) - 1;
+        } else {
+            showToast(data.error || 'Failed to delete', 'error');
+        }
+    } catch (error) {
+        showToast('Something went wrong', 'error');
+    }
+    
+    btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+    btn.disabled = false;
+}
+
+// Cancel scheduled campaign
+async function cancelSchedule(campaignId) {
+    if (!confirm('Cancel this scheduled campaign?')) return;
+    
+    try {
+        const response = await fetch('/dashboard/campaigns/api/cancel-schedule/' + campaignId, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Campaign cancelled', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Failed to cancel', 'error');
+        }
+    } catch (error) {
+        showToast('Something went wrong', 'error');
+    }
+}
+
+// Toast notification
+function showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast-notification');
+    if (existing) existing.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification fixed bottom-6 right-6 px-6 py-4 rounded-xl text-white font-semibold shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-50`;
+    toast.style.background = type === 'success' ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #EF4444, #DC2626)';
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i> ${message}`;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+    }, 10);
+    
+    setTimeout(() => {
+        toast.style.transform = 'translateY(20px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Escape to close modal
+    if (e.key === 'Escape') {
+        closeDeleteModal();
+    }
+    
+    // Ctrl/Cmd + K to focus search
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('searchInput').focus();
+    }
+});
+
+// Restore last active tab on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const savedTab = localStorage.getItem('campaignsActiveTab');
+    if (savedTab && ['sent', 'drafts', 'pending'].includes(savedTab)) {
+        showTab(savedTab);
+    }
+    
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tab-content { transition: opacity 0.3s ease; }
+    `;
+    document.head.appendChild(style);
+    
+    // Animate cards on load
+    document.querySelectorAll('.campaign-card').forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.animation = `fadeIn 0.4s ease ${index * 0.08}s forwards`;
+    });
+    
+    document.querySelectorAll('.stat-mini').forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.animation = `fadeIn 0.4s ease ${index * 0.1}s forwards`;
+    });
+});
+
+// Auto-refresh stats every 30 seconds
+setInterval(async () => {
+    try {
+        const response = await fetch('/dashboard/campaigns/api/stats');
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('totalCampaigns').textContent = data.total || 0;
+            document.getElementById('sentCount').textContent = data.sent || 0;
+            document.getElementById('draftsCount').textContent = data.drafts || 0;
+            document.getElementById('pendingCount').textContent = data.pending || 0;
+        }
+    } catch (error) {
+        // Silent fail for stats refresh
+    }
+}, 30000);
+</script>
+{% endblock %}

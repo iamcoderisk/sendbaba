@@ -1,0 +1,117 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Reply Insights - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold">Reply Insights</h1>
+        <p class="text-gray-600">AI-powered analytics of your email replies</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Sentiment Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Sentiment Breakdown</h3>
+            <canvas id="sentimentChart"></canvas>
+        </div>
+        
+        <!-- Intent Chart -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Intent Distribution</h3>
+            <canvas id="intentChart"></canvas>
+        </div>
+        
+        <!-- Daily Trend -->
+        <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+            <h3 class="font-medium mb-4">Reply Trend (Last 30 Days)</h3>
+            <canvas id="trendChart"></canvas>
+        </div>
+        
+        <!-- Top Topics -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Top Topics</h3>
+            <div id="topTopics" class="space-y-2"></div>
+        </div>
+        
+        <!-- Response Metrics -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="font-medium mb-4">Response Metrics</h3>
+            <div class="space-y-4">
+                <div>
+                    <div class="text-sm text-gray-500">Average Response Time</div>
+                    <div class="text-2xl font-bold text-purple-600" id="avgResponseTime">--</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Response Rate</div>
+                    <div class="text-2xl font-bold text-green-600" id="responseRate">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+async function loadInsights() {
+    const response = await fetch('/dashboard/replies/api/insights?days=30');
+    const data = await response.json();
+    const insights = data.insights;
+    
+    // Sentiment chart
+    new Chart(document.getElementById('sentimentChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Positive', 'Neutral', 'Negative'],
+            datasets: [{
+                data: [
+                    insights.sentiment_breakdown.positive || 0,
+                    insights.sentiment_breakdown.neutral || 0,
+                    insights.sentiment_breakdown.negative || 0
+                ],
+                backgroundColor: ['#10B981', '#6B7280', '#EF4444']
+            }]
+        }
+    });
+    
+    // Intent chart
+    new Chart(document.getElementById('intentChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(insights.intent_breakdown),
+            datasets: [{
+                data: Object.values(insights.intent_breakdown),
+                backgroundColor: '#8B5CF6'
+            }]
+        },
+        options: { plugins: { legend: { display: false } } }
+    });
+    
+    // Trend chart
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: insights.daily_trend.map(d => d.date),
+            datasets: [{
+                label: 'Replies',
+                data: insights.daily_trend.map(d => d.count),
+                borderColor: '#8B5CF6',
+                tension: 0.4
+            }]
+        }
+    });
+    
+    // Top topics
+    document.getElementById('topTopics').innerHTML = insights.top_topics.map(t => `
+        <div class="flex justify-between items-center">
+            <span>${t.topic}</span>
+            <span class="text-purple-600 font-medium">${t.count}</span>
+        </div>
+    `).join('');
+    
+    // Metrics
+    document.getElementById('avgResponseTime').textContent = insights.avg_response_time_formatted;
+    document.getElementById('responseRate').textContent = insights.response_rate + '%';
+}
+
+loadInsights();
+</script>
+{% endblock %}

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - SendBaba</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="https://sendbaba.sirv.com/Images/favicon-96x96.png" sizes="96x96">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-orange': '#F7601F',
+                        'brand-light': '#F87036',
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://scripts.sirv.com/sirvjs/v3/sirv.js"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Simple Top Bar -->
+    <div class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <a href="/" class="flex items-center space-x-2">
+                <div class="w-10 h-10 bg-gradient-to-br from-brand-orange to-brand-light rounded-xl flex items-center justify-center">
+                    <i class="fas fa-paper-plane text-white"></i>
+                </div>
+                <span class="text-2xl font-bold text-gray-900">SendBaba</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Register Form -->
+    <div class="min-h-screen flex items-center justify-center py-12 px-4">
+        <div class="max-w-md w-full">
+            <!-- Card -->
+            <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-10 border border-gray-100">
+                <!-- Header -->
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Create Account</h2>
+                    <p class="text-gray-600">Start sending emails in minutes</p>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="mb-6 p-4 rounded-xl {% if category == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+                                <div class="flex items-start">
+                                    <i class="fas fa-{% if category == 'error' %}exclamation-circle{% else %}check-circle{% endif %} mt-0.5 mr-3"></i>
+                                    <span class="text-sm">{{ message }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Form -->
+                <form method="POST" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fas fa-user text-gray-400"></i>
+                            </div>
+                            <input type="text" 
+                                   name="name" 
+                                   required 
+                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
+                                   placeholder="John Doe">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fas fa-envelope text-gray-400"></i>
+                            </div>
+                            <input type="email" 
+                                   name="email" 
+                                   required 
+                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
+                                   placeholder="you@example.com">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fas fa-lock text-gray-400"></i>
+                            </div>
+                            <input type="password" 
+                                   name="password" 
+                                   required 
+                                   minlength="8"
+                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
+                                   placeholder="••••••••">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
+                    </div>
+                    
+                    <div class="flex items-start">
+                        <input type="checkbox" name="terms" required class="w-4 h-4 mt-1 text-brand-orange border-gray-300 rounded focus:ring-brand-orange">
+                        <span class="ml-2 text-sm text-gray-600">I agree to the <a href="/terms" class="text-brand-orange hover:underline">Terms of Service</a> and <a href="/privacy" class="text-brand-orange hover:underline">Privacy Policy</a></span>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-gradient-to-r from-brand-orange to-brand-light text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg transform hover:-translate-y-0.5 transition">
+                        Create Account
+                    </button>
+                </form>
+                
+                <!-- Social Login -->
+                <div class="mt-8">
+                    <div class="relative">
+                        <div class="absolute inset-0 flex items-center">
+                            <div class="w-full border-t border-gray-200"></div>
+                        </div>
+                        <div class="relative flex justify-center text-sm">
+                            <span class="px-4 bg-white text-gray-500">Or sign up with</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-2 gap-4">
+                        <button class="flex items-center justify-center px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-brand-orange hover:bg-brand-orange/5 transition">
+                            <i class="fab fa-google text-xl mr-2"></i>
+                            <span class="font-semibold text-gray-700">Google</span>
+                        </button>
+                        <button class="flex items-center justify-center px-4 py-3 border-2 border-gray-200 rounded-xl hover:border-brand-orange hover:bg-brand-orange/5 transition">
+                            <i class="fab fa-github text-xl mr-2"></i>
+                            <span class="font-semibold text-gray-700">GitHub</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Login Link -->
+            <p class="text-center mt-8 text-gray-600">
+                Already have an account? 
+                <a href="/login" class="text-brand-orange hover:text-brand-light font-bold">Sign in →</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

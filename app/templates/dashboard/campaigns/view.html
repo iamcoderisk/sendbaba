@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }} - SendBaba{% endblock %}
+{% block content %}
+<style>
+.stat-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.stat-value { font-size: 32px; font-weight: 700; color: #1e293b; }
+.stat-label { font-size: 14px; color: #64748b; margin-top: 4px; }
+.recipient-table { width: 100%; border-collapse: collapse; }
+.recipient-table th { text-align: left; padding: 12px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; color: #475569; }
+.recipient-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.status-sent { background: #dbeafe; color: #1d4ed8; }
+.status-delivered { background: #d1fae5; color: #059669; }
+.status-opened { background: #fef3c7; color: #d97706; }
+.status-clicked { background: #ede9fe; color: #7c3aed; }
+.status-failed { background: #fee2e2; color: #dc2626; }
+.status-bounced { background: #fecaca; color: #b91c1c; }
+.tab-btn { padding: 12px 24px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #64748b; cursor: pointer; font-weight: 500; }
+.tab-btn.active { color: #10b981; border-bottom-color: #10b981; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+
+<div class="p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4">
+            <a href="/dashboard/campaigns" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-arrow-left text-xl"></i>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">{{ campaign.name }}</h1>
+                <p class="text-gray-500">{{ campaign.subject }}</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-medium">
+                <i class="fas fa-check-circle mr-2"></i>{{ campaign.status|title }}
+            </span>
+            {% if campaign.sent_at %}
+            <span class="text-gray-500">
+                Sent {{ campaign.sent_at.strftime('%b %d, %Y at %I:%M %p') }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+        <div class="stat-card">
+            <div class="stat-value text-blue-600">{{ stats.total }}</div>
+            <div class="stat-label">Total Sent</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-green-600">{{ stats.delivered }}</div>
+            <div class="stat-label">Delivered</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-yellow-600">{{ stats.opens }}</div>
+            <div class="stat-label">Opens</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-purple-600">{{ stats.clicks }}</div>
+            <div class="stat-label">Clicks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-green-600">{{ stats.open_rate }}%</div>
+            <div class="stat-label">Open Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-purple-600">{{ stats.click_rate }}%</div>
+            <div class="stat-label">Click Rate</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-red-600">{{ stats.failed + stats.bounced }}</div>
+            <div class="stat-label">Failed</div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-xl shadow-sm">
+        <div class="border-b border-gray-200">
+            <nav class="flex">
+                <button class="tab-btn active" onclick="switchViewTab('recipients')">
+                    <i class="fas fa-users mr-2"></i>Recipients ({{ stats.total }})
+                </button>
+                <button class="tab-btn" onclick="switchViewTab('content')">
+                    <i class="fas fa-envelope mr-2"></i>Email Content
+                </button>
+                <button class="tab-btn" onclick="switchViewTab('details')">
+                    <i class="fas fa-info-circle mr-2"></i>Details
+                </button>
+            </nav>
+        </div>
+
+        <!-- Recipients Tab -->
+        <div id="recipients-tab" class="tab-content active p-6">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex gap-2">
+                    <button onclick="filterRecipients('all')" class="filter-btn px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">All</button>
+                    <button onclick="filterRecipients('delivered')" class="filter-btn px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">Delivered</button>
+                    <button onclick="filterRecipients('opened')" class="filter-btn px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">Opened</button>
+                    <button onclick="filterRecipients('clicked')" class="filter-btn px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">Clicked</button>
+                    <button onclick="filterRecipients('failed')" class="filter-btn px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">Failed</button>
+                </div>
+                <button onclick="exportRecipients()" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium">
+                    <i class="fas fa-download mr-2"></i>Export CSV
+                </button>
+            </div>
+
+            <table class="recipient-table">
+                <thead>
+                    <tr>
+                        <th>Recipient</th>
+                        <th>Status</th>
+                        <th>Sent</th>
+                        <th>Opened</th>
+                        <th>Clicked</th>
+                    </tr>
+                </thead>
+                <tbody id="recipientsBody">
+                    {% for r in recipients %}
+                    <tr>
+                        <td>
+                            <div class="font-medium">{{ r.name }}</div>
+                            <div class="text-gray-500 text-sm">{{ r.email }}</div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ r.status }}">{{ r.status|title }}</span>
+                        </td>
+                        <td class="text-gray-600 text-sm">
+                            {{ r.sent_at.strftime('%b %d, %I:%M %p') if r.sent_at else '-' }}
+                        </td>
+                        <td class="text-gray-600 text-sm">
+                            {% if r.opened_at %}
+                                <span class="text-yellow-600"><i class="fas fa-eye mr-1"></i>{{ r.opened_at.strftime('%b %d, %I:%M %p') }}</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-gray-600 text-sm">
+                            {% if r.clicked_at %}
+                                <span class="text-purple-600"><i class="fas fa-mouse-pointer mr-1"></i>{{ r.clicked_at.strftime('%b %d, %I:%M %p') }}</span>
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Content Tab -->
+        <div id="content-tab" class="tab-content p-6">
+            <div class="max-w-2xl mx-auto bg-gray-100 rounded-lg p-4">
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    {{ campaign.html_content|safe }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Tab -->
+        <div id="details-tab" class="tab-content p-6">
+            <div class="max-w-2xl space-y-4">
+                <div class="flex justify-between py-3 border-b">
+                    <span class="text-gray-500">From Name</span>
+                    <span class="font-medium">{{ campaign.from_name or 'Not set' }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b">
+                    <span class="text-gray-500">From Email</span>
+                    <span class="font-medium">{{ campaign.from_email or 'Not set' }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b">
+                    <span class="text-gray-500">Reply-To</span>
+                    <span class="font-medium">{{ campaign.reply_to or 'Same as from' }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b">
+                    <span class="text-gray-500">Subject</span>
+                    <span class="font-medium">{{ campaign.subject }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b">
+                    <span class="text-gray-500">Preview Text</span>
+                    <span class="font-medium">{{ campaign.preview_text or 'None' }}</span>
+                </div>
+                <div class="flex justify-between py-3 border-b">
+                    <span class="text-gray-500">Created</span>
+                    <span class="font-medium">{{ campaign.created_at.strftime('%b %d, %Y at %I:%M %p') }}</span>
+                </div>
+                <div class="flex justify-between py-3">
+                    <span class="text-gray-500">Sent</span>
+                    <span class="font-medium">{{ campaign.sent_at.strftime('%b %d, %Y at %I:%M %p') if campaign.sent_at else 'Not sent' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function switchViewTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(tab + '-tab').classList.add('active');
+}
+
+function filterRecipients(status) {
+    // Reload with filter
+    window.location.href = window.location.pathname + '?status=' + status;
+}
+
+function exportRecipients() {
+    const campaignId = '{{ campaign.id }}';
+    window.location.href = '/dashboard/campaigns/api/export/' + campaignId;
+}
+</script>
+{% endblock %}

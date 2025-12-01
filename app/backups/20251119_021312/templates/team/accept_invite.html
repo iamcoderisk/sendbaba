@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accept Invitation - SendBaba</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://scripts.sirv.com/sirvjs/v3/sirv.js"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-500 to-indigo-600 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12 max-w-md w-full">
+        <div class="text-center mb-8">
+            <div class="inline-block bg-purple-100 p-4 rounded-full mb-4">
+                <i class="fas fa-envelope-open-text text-4xl text-purple-600"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome to SendBaba!</h1>
+            <p class="text-gray-600">You've been invited to join the team</p>
+        </div>
+
+        <div class="bg-purple-50 rounded-lg p-4 mb-6">
+            <p class="text-sm text-gray-700 mb-1">You're joining as:</p>
+            <p class="font-bold text-gray-900">{{ member.email }}</p>
+            <p class="text-sm text-gray-600 mt-2">Role: <span class="font-semibold">{{ member.role|title }}</span></p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('team_invite.accept_invite', token=member.invitation_token) }}">
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-lock mr-1"></i>Set Your Password
+                </label>
+                <input 
+                    type="password" 
+                    name="password" 
+                    required 
+                    minlength="8"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Choose a strong password (min. 8 characters)"
+                >
+                <p class="text-xs text-gray-500 mt-1">Must be at least 8 characters long</p>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-lock mr-1"></i>Confirm Password
+                </label>
+                <input 
+                    type="password" 
+                    name="confirm_password" 
+                    required 
+                    minlength="8"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Confirm your password"
+                >
+            </div>
+
+            <button 
+                type="submit" 
+                class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition font-semibold shadow-lg"
+            >
+                <i class="fas fa-check-circle mr-2"></i>Accept Invitation & Join Team
+            </button>
+        </form>
+
+        <p class="text-center text-sm text-gray-500 mt-6">
+            Already have an account? <a href="/login" class="text-purple-600 hover:text-purple-700 font-semibold">Log in</a>
+        </p>
+    </div>
+
+    <script>
+        // Password match validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const password = document.querySelector('input[name="password"]').value;
+            const confirm = document.querySelector('input[name="confirm_password"]').value;
+            
+            if (password !== confirm) {
+                e.preventDefault();
+                alert('Passwords do not match!');
+            }
+        });
+    </script>
+</body>
+</html>

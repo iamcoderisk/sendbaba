@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+*.pid
+
+# OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# PM2
+.pm2/
+
+# Uploads
+uploads/
+temp/
+
+# DKIM private keys (keep these secure!)
+data/dkim/*_private.key
+
+# Node modules (if any)
+node_modules/

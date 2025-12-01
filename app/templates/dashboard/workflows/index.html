@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Workflows - SendBaba{% endblock %}
+
+{% block content %}
+<div class="p-6 max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Workflows</h1>
+            <p class="text-gray-500">Automate your email marketing</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/dashboard/workflows/templates" class="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm font-medium">
+                📋 Templates
+            </a>
+            <a href="/dashboard/workflows/create" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium">
+                + Create Workflow
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl p-5 border border-gray-200">
+            <div class="text-3xl font-bold text-gray-900" id="totalWorkflows">0</div>
+            <div class="text-sm text-gray-500">Total Workflows</div>
+        </div>
+        <div class="bg-white rounded-xl p-5 border border-gray-200">
+            <div class="text-3xl font-bold text-green-600" id="activeWorkflows">0</div>
+            <div class="text-sm text-gray-500">Active</div>
+        </div>
+        <div class="bg-white rounded-xl p-5 border border-gray-200">
+            <div class="text-3xl font-bold text-blue-600" id="totalEnrolled">0</div>
+            <div class="text-sm text-gray-500">Total Enrolled</div>
+        </div>
+        <div class="bg-white rounded-xl p-5 border border-gray-200">
+            <div class="text-3xl font-bold text-purple-600" id="avgConversion">0%</div>
+            <div class="text-sm text-gray-500">Avg Conversion</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        <div class="flex flex-col sm:flex-row gap-4">
+            <input type="text" id="searchInput" placeholder="Search workflows..." 
+                   class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            <select id="statusFilter" class="px-4 py-2 border border-gray-200 rounded-lg">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="draft">Draft</option>
+                <option value="paused">Paused</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Workflows List -->
+    <div id="workflowsList" class="space-y-4"></div>
+    
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-16 bg-white rounded-xl border border-gray-200">
+        <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+            </svg>
+        </div>
+        <h3 class="text-xl font-semibold mb-2">No workflows yet</h3>
+        <p class="text-gray-500 mb-6">Create your first automation workflow</p>
+        <a href="/dashboard/workflows/create" class="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700">
+            + Create Workflow
+        </a>
+    </div>
+</div>
+
+<script>
+let allWorkflows = [];
+
+async function loadWorkflows() {
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    try {
+        const response = await fetch(`/dashboard/workflows/api/list?status=${status}`);
+        const data = await response.json();
+        
+        allWorkflows = data.workflows || [];
+        
+        // Filter by search
+        let filtered = allWorkflows;
+        if (search) {
+            filtered = allWorkflows.filter(w => w.name.toLowerCase().includes(search));
+        }
+        
+        // Update stats
+        document.getElementById('totalWorkflows').textContent = allWorkflows.length;
+        document.getElementById('activeWorkflows').textContent = allWorkflows.filter(w => w.status === 'active').length;
+        document.getElementById('totalEnrolled').textContent = allWorkflows.reduce((sum, w) => sum + (w.total_enrolled || 0), 0);
+        
+        const avgConv = allWorkflows.length > 0 
+            ? (allWorkflows.reduce((sum, w) => sum + (w.conversion_rate || 0), 0) / allWorkflows.length).toFixed(1)
+            : 0;
+        document.getElementById('avgConversion').textContent = avgConv + '%';
+        
+        renderWorkflows(filtered);
+    } catch (e) {
+        console.error('Failed to load workflows:', e);
+    }
+}
+
+function renderWorkflows(workflows) {
+    const container = document.getElementById('workflowsList');
+    const empty = document.getElementById('emptyState');
+    
+    if (workflows.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    
+    empty.classList.add('hidden');
+    
+    container.innerHTML = workflows.map(w => `
+        <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-900">${w.name}</h3>
+                        <div class="flex items-center gap-3 text-sm text-gray-500">
+                            <span>Trigger: ${formatTrigger(w.trigger_type)}</span>
+                            <span class="px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass(w.status)}">${w.status}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-6">
+                    <div class="grid grid-cols-3 gap-6 text-center">
+                        <div>
+                            <div class="text-lg font-bold text-gray-900">${w.total_enrolled || 0}</div>
+                            <div class="text-xs text-gray-500">Enrolled</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-bold text-gray-900">${w.active_contacts || 0}</div>
+                            <div class="text-xs text-gray-500">Active</div>
+                        </div>
+                        <div>
+                            <div class="text-lg font-bold text-green-600">${w.conversion_rate || 0}%</div>
+                            <div class="text-xs text-gray-500">Conversion</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        ${w.status === 'active' 
+                            ? `<button onclick="pauseWorkflow('${w.id}')" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">Pause</button>`
+                            : `<button onclick="activateWorkflow('${w.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Activate</button>`
+                        }
+                        <a href="/dashboard/workflows/${w.id}/edit" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">Edit</a>
+                        <button onclick="duplicateWorkflow('${w.id}')" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">Duplicate</button>
+                        <button onclick="deleteWorkflow('${w.id}')" class="px-3 py-1.5 text-red-600 border border-red-200 rounded-lg text-sm hover:bg-red-50">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function formatTrigger(type) {
+    const triggers = {
+        'contact_added': 'Contact Added',
+        'tag_added': 'Tag Added',
+        'form_submitted': 'Form Submitted',
+        'date_based': 'Date Based',
+        'api_trigger': 'API Trigger'
+    };
+    return triggers[type] || type;
+}
+
+function getStatusClass(status) {
+    const classes = {
+        'active': 'bg-green-100 text-green-700',
+        'draft': 'bg-gray-100 text-gray-700',
+        'paused': 'bg-yellow-100 text-yellow-700'
+    };
+    return classes[status] || 'bg-gray-100 text-gray-700';
+}
+
+async function activateWorkflow(id) {
+    await fetch(`/dashboard/workflows/api/${id}/activate`, { method: 'POST' });
+    loadWorkflows();
+}
+
+async function pauseWorkflow(id) {
+    await fetch(`/dashboard/workflows/api/${id}/pause`, { method: 'POST' });
+    loadWorkflows();
+}
+
+async function duplicateWorkflow(id) {
+    await fetch(`/dashboard/workflows/api/${id}/duplicate`, { method: 'POST' });
+    loadWorkflows();
+}
+
+async function deleteWorkflow(id) {
+    if (!confirm('Are you sure you want to delete this workflow?')) return;
+    await fetch(`/dashboard/workflows/api/${id}`, { method: 'DELETE' });
+    loadWorkflows();
+}
+
+document.getElementById('statusFilter').addEventListener('change', loadWorkflows);
+document.getElementById('searchInput').addEventListener('input', () => {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allWorkflows.filter(w => w.name.toLowerCase().includes(search));
+    renderWorkflows(filtered);
+});
+
+loadWorkflows();
+</script>
+{% endblock %}

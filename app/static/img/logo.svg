@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="42" height="42">
+  <defs>
+    <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F7601F"/>
+      <stop offset="100%" style="stop-color:#F9804D"/>
+    </linearGradient>
+  </defs>
+  <!-- Top arrow pointing right -->
+  <path d="M30 20 L55 35 L30 50 L40 35 Z" fill="url(#logoGrad)"/>
+  <!-- Bottom arrow pointing right -->
+  <path d="M45 50 L70 65 L45 80 L55 65 Z" fill="url(#logoGrad)"/>
+  <!-- Connecting diagonal -->
+  <path d="M40 35 L55 50 L45 50 L30 35 Z" fill="#C74A15" opacity="0.8"/>
+</svg>

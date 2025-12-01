@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Choose Template - SendBaba{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-8 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Email Templates</h1>
+                    <p class="text-gray-600 mt-1">Choose a template to start designing</p>
+                </div>
+                <a href="/dashboard/campaigns/create" class="text-gray-600 hover:text-gray-900 font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Back
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-8 py-8">
+        <div id="templatesGrid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Blank -->
+            <div class="template-card bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden cursor-pointer" onclick="selectTemplate('blank', 'Blank Template')">
+                <div class="bg-gradient-to-br from-gray-200 to-gray-300 h-48 flex items-center justify-center">
+                    <i class="fas fa-plus text-6xl text-gray-500"></i>
+                </div>
+                <div class="p-6">
+                    <h3 class="font-bold text-xl mb-2 text-gray-900">Start from Scratch</h3>
+                    <p class="text-sm text-gray-600">Build your email from a blank canvas</p>
+                </div>
+            </div>
+
+            <!-- Welcome -->
+            <div class="template-card bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden cursor-pointer" onclick="selectTemplate('welcome', 'Welcome Email')">
+                <div class="bg-gradient-to-br from-purple-500 to-indigo-600 h-48 flex items-center justify-center">
+                    <div class="text-white text-center">
+                        <div class="text-5xl mb-2">👋</div>
+                        <h3 class="text-2xl font-bold">Welcome!</h3>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="font-bold text-xl mb-2 text-gray-900">Welcome Email</h3>
+                    <p class="text-sm text-gray-600">Greet new users warmly</p>
+                </div>
+            </div>
+
+            <!-- Newsletter -->
+            <div class="template-card bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden cursor-pointer" onclick="selectTemplate('newsletter', 'Newsletter')">
+                <div class="bg-gradient-to-br from-blue-500 to-cyan-600 h-48 flex items-center justify-center">
+                    <div class="text-white text-center">
+                        <div class="text-5xl mb-2">📰</div>
+                        <h3 class="text-2xl font-bold">Newsletter</h3>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="font-bold text-xl mb-2 text-gray-900">Business Newsletter</h3>
+                    <p class="text-sm text-gray-600">Monthly updates template</p>
+                </div>
+            </div>
+
+            <!-- Promotional -->
+            <div class="template-card bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden cursor-pointer" onclick="selectTemplate('promotional', 'Special Offer')">
+                <div class="bg-gradient-to-br from-pink-500 to-red-600 h-48 flex items-center justify-center">
+                    <div class="text-white text-center">
+                        <div class="text-5xl mb-2">🎁</div>
+                        <h3 class="text-2xl font-bold">50% OFF</h3>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="font-bold text-xl mb-2 text-gray-900">Special Offer</h3>
+                    <p class="text-sm text-gray-600">Promotional sales template</p>
+                </div>
+            </div>
+
+            <!-- Event -->
+            <div class="template-card bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden cursor-pointer" onclick="selectTemplate('event', 'Event Invitation')">
+                <div class="bg-gradient-to-br from-green-500 to-teal-600 h-48 flex items-center justify-center">
+                    <div class="text-white text-center">
+                        <div class="text-5xl mb-2">🎉</div>
+                        <h3 class="text-2xl font-bold">Event!</h3>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="font-bold text-xl mb-2 text-gray-900">Event Invitation</h3>
+                    <p class="text-sm text-gray-600">Beautiful event template</p>
+                </div>
+            </div>
+
+            <!-- Simple -->
+            <div class="template-card bg-white rounded-xl shadow-sm hover:shadow-lg transition overflow-hidden cursor-pointer" onclick="selectTemplate('simple', 'Simple Email')">
+                <div class="bg-gradient-to-br from-gray-700 to-gray-900 h-48 flex items-center justify-center">
+                    <div class="text-white text-center">
+                        <div class="text-5xl mb-2">✉️</div>
+                        <h3 class="text-2xl font-bold">Simple</h3>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="font-bold text-xl mb-2 text-gray-900">Simple Text</h3>
+                    <p class="text-sm text-gray-600">Clean minimal design</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Name Modal -->
+<div id="nameModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <h3 class="text-2xl font-bold text-gray-900 mb-2">Name your campaign</h3>
+        <p class="text-gray-600 mb-6">This helps you identify your campaigns.</p>
+        <input type="text" id="campaignName" placeholder="e.g., Summer Sale Newsletter" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg mb-6 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+        <div class="flex gap-3">
+            <button onclick="closeModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-semibold">Cancel</button>
+            <button onclick="createCampaign()" id="createBtn" class="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold">Continue</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div id="loadingModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl p-8 text-center">
+        <i class="fas fa-spinner fa-spin text-4xl text-purple-600 mb-4"></i>
+        <p class="text-lg font-semibold">Creating campaign...</p>
+    </div>
+</div>
+
+<script>
+let selectedTemplateId = null;
+let selectedTemplateName = null;
+
+function selectTemplate(id, name) {
+    selectedTemplateId = id;
+    selectedTemplateName = name;
+    document.getElementById('campaignName').value = name;
+    document.getElementById('nameModal').classList.remove('hidden');
+    document.getElementById('campaignName').focus();
+    document.getElementById('campaignName').select();
+}
+
+function closeModal() {
+    document.getElementById('nameModal').classList.add('hidden');
+}
+
+function createCampaign() {
+    const name = document.getElementById('campaignName').value.trim();
+    if (!name) {
+        alert('Please enter a campaign name');
+        return;
+    }
+    
+    // Show loading
+    document.getElementById('nameModal').classList.add('hidden');
+    document.getElementById('loadingModal').classList.remove('hidden');
+    
+    // Redirect directly - the controller will create the campaign
+    window.location.href = '/dashboard/campaigns/design/' + selectedTemplateId + '?name=' + encodeURIComponent(name);
+}
+
+document.getElementById('campaignName')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') createCampaign();
+});
+</script>
+{% endblock %}

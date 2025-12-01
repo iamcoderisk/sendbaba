@@ -1,0 +1,791 @@
+{% extends "base.html" %}
+
+{% block title %}Integrations - SendBaba{% endblock %}
+
+{% block page_title %}Integrations{% endblock %}
+{% block page_subtitle %}Connect your favorite tools to SendBaba{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Connected Integrations -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Connected</h3>
+            <span class="text-sm text-gray-500" id="connectedCount">0 integrations</span>
+        </div>
+        <div id="connectedIntegrations" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="text-center py-8 text-gray-500 col-span-full" id="noConnected">
+                <i class="fas fa-plug text-4xl mb-3 text-gray-300"></i>
+                <p>No integrations connected yet</p>
+                <p class="text-sm">Connect your first integration below</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex-1 relative">
+            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="searchIntegrations" placeholder="Search integrations..." 
+                   class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+        </div>
+        <div class="flex gap-2 flex-wrap">
+            <button onclick="filterCategory('all')" class="filter-btn active px-4 py-2 rounded-lg text-sm font-medium bg-orange-100 text-orange-700" data-category="all">All</button>
+            <button onclick="filterCategory('ecommerce')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-category="ecommerce">E-commerce</button>
+            <button onclick="filterCategory('crm')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-category="crm">CRM</button>
+            <button onclick="filterCategory('automation')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-category="automation">Automation</button>
+            <button onclick="filterCategory('analytics')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-category="analytics">Analytics</button>
+            <button onclick="filterCategory('cms')" class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-category="cms">CMS</button>
+        </div>
+    </div>
+
+    <!-- Available Integrations -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-6">Available Integrations</h3>
+        
+        <div id="integrationsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            <!-- E-COMMERCE -->
+            <!-- Shopify -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="ecommerce" data-name="shopify">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-3">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#96bf48">
+                                <path d="M15.337 3.415c-.083-.005-.166-.005-.245 0-.079.005-.162.005-.241.01-.079.005-.158.015-.237.025-.079.01-.158.02-.236.035-.078.015-.157.03-.235.05-.078.02-.156.04-.233.065-.078.025-.155.05-.231.08-.077.03-.153.06-.228.095-.076.035-.15.07-.224.11-.074.04-.147.08-.219.125-.072.045-.143.09-.213.14-.07.05-.139.1-.206.155-.067.055-.133.11-.198.17s-.128.12-.19.185c-.061.065-.121.13-.179.2-.058.07-.114.14-.168.215-.054.075-.106.15-.156.23-.05.08-.098.16-.143.245-.046.085-.089.17-.13.26-.041.09-.079.18-.115.275-.036.095-.069.19-.1.29-.031.1-.059.2-.084.305-.025.105-.047.21-.066.32-.019.11-.035.22-.048.335-.013.115-.023.23-.03.35-.007.12-.011.24-.011.365v7.64c0 .095.003.19.008.28.005.09.013.18.024.265.011.085.025.17.042.25.017.08.037.16.06.235.023.075.049.15.078.22.029.07.061.14.096.205.035.065.073.13.114.19.041.06.085.12.132.175.047.055.097.11.15.16.053.05.109.1.168.145.059.045.12.09.184.13.064.04.13.08.199.115.069.035.14.07.213.1.073.03.148.06.225.085.077.025.156.05.237.07.081.02.163.04.247.055.084.015.17.03.257.04.087.01.176.02.265.025.089.005.18.01.271.01h.018l4.858-1.475V4.73l-4.858-1.315z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Shopify</h4>
+                            <span class="text-xs text-gray-500">E-commerce</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Popular</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Sync customers, orders, and abandoned carts. Trigger automated emails based on purchase behavior.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 50k+ users
+                    </div>
+                    <button onclick="connectIntegration('shopify')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- WooCommerce -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="ecommerce" data-name="woocommerce">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-3">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#96588a">
+                                <path d="M2.227 4.857A2.228 2.228 0 000 7.094v6.457c0 1.236 1.001 2.238 2.227 2.238h7.291l2.17 2.792a.382.382 0 00.622 0l2.17-2.792h7.291A2.228 2.228 0 0024 13.551V7.094a2.228 2.228 0 00-2.229-2.237H2.227z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">WooCommerce</h4>
+                            <span class="text-xs text-gray-500">E-commerce</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Popular</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Connect your WordPress store. Sync products, customers, and automate order notifications.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 35k+ users
+                    </div>
+                    <button onclick="connectIntegration('woocommerce')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stripe -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="ecommerce" data-name="stripe">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mr-3">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#635bff">
+                                <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Stripe</h4>
+                            <span class="text-xs text-gray-500">Payments</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Trigger emails on successful payments, failed charges, subscription events, and refunds.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 40k+ users
+                    </div>
+                    <button onclick="connectIntegration('stripe')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- BigCommerce -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="ecommerce" data-name="bigcommerce">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-shopping-bag text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">BigCommerce</h4>
+                            <span class="text-xs text-gray-500">E-commerce</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Enterprise e-commerce integration with advanced segmentation and automation triggers.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 8k+ users
+                    </div>
+                    <button onclick="connectIntegration('bigcommerce')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Magento -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="ecommerce" data-name="magento">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-store text-orange-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Magento</h4>
+                            <span class="text-xs text-gray-500">E-commerce</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Adobe Commerce integration for enterprise-level e-commerce email automation.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 5k+ users
+                    </div>
+                    <button onclick="connectIntegration('magento')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- PayPal -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="ecommerce" data-name="paypal">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fab fa-paypal text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">PayPal</h4>
+                            <span class="text-xs text-gray-500">Payments</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Send automated receipts and follow-up emails based on PayPal transactions.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 15k+ users
+                    </div>
+                    <button onclick="connectIntegration('paypal')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- CRM -->
+            <!-- Salesforce -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="crm" data-name="salesforce">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-3">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#00a1e0">
+                                <path d="M10.006 5.415a4.195 4.195 0 013.045-1.306c1.56 0 2.954.9 3.69 2.205.63-.3 1.35-.45 2.1-.45 2.85 0 5.159 2.34 5.159 5.22s-2.31 5.22-5.16 5.22c-.45 0-.884-.06-1.305-.165a3.905 3.905 0 01-3.42 2.025c-.405 0-.795-.06-1.17-.18a4.793 4.793 0 01-4.215 2.505c-2.13 0-3.96-1.395-4.62-3.33a3.78 3.78 0 01-.93.12A3.645 3.645 0 010 13.634c0-1.5.9-2.79 2.19-3.36a5.14 5.14 0 01-.06-.72c0-2.94 2.37-5.325 5.28-5.325 1.065 0 2.055.315 2.895.855l-.3.33z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Salesforce</h4>
+                            <span class="text-xs text-gray-500">CRM</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Enterprise</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Two-way sync with Salesforce. Trigger campaigns based on CRM data and activities.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 25k+ users
+                    </div>
+                    <button onclick="connectIntegration('salesforce')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- HubSpot -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="crm" data-name="hubspot">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-3">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#ff7a59">
+                                <path d="M18.164 7.93V5.084a2.198 2.198 0 001.267-1.984v-.066A2.198 2.198 0 0017.232.836h-.066a2.198 2.198 0 00-2.198 2.198v.066c0 .87.506 1.621 1.24 1.977v2.86a6.154 6.154 0 00-2.864 1.428l-7.56-5.502a2.918 2.918 0 00.096-.725A2.922 2.922 0 002.958 0 2.922 2.922 0 000 2.922a2.922 2.922 0 002.922 2.922c.47 0 .913-.111 1.306-.308l7.436 5.412a6.197 6.197 0 00-.037 6.628l-2.263 2.263a2.318 2.318 0 00-.668-.105 2.327 2.327 0 100 4.654 2.327 2.327 0 002.327-2.327c0-.243-.04-.476-.105-.697l2.205-2.205a6.197 6.197 0 105.041-11.229z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">HubSpot</h4>
+                            <span class="text-xs text-gray-500">CRM</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Popular</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Sync contacts, deals, and companies. Trigger emails based on lifecycle stages.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 30k+ users
+                    </div>
+                    <button onclick="connectIntegration('hubspot')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pipedrive -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="crm" data-name="pipedrive">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-handshake text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Pipedrive</h4>
+                            <span class="text-xs text-gray-500">CRM</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Sales-focused CRM integration. Automate follow-ups based on deal stages.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 12k+ users
+                    </div>
+                    <button onclick="connectIntegration('pipedrive')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Zoho CRM -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="crm" data-name="zoho">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-address-book text-red-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Zoho CRM</h4>
+                            <span class="text-xs text-gray-500">CRM</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Full Zoho ecosystem integration for contacts, leads, and campaign tracking.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 10k+ users
+                    </div>
+                    <button onclick="connectIntegration('zoho')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- AUTOMATION -->
+            <!-- Zapier -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="automation" data-name="zapier">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-3">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="#ff4a00">
+                                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 14.08h-3.88v3.88c0 .442-.358.8-.8.8h-2.428a.8.8 0 01-.8-.8v-3.88h-3.88a.8.8 0 01-.8-.8v-2.428c0-.442.358-.8.8-.8h3.88v-3.88c0-.442.358-.8.8-.8h2.428c.442 0 .8.358.8.8v3.88h3.88c.442 0 .8.358.8.8v2.428a.8.8 0 01-.8.8z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Zapier</h4>
+                            <span class="text-xs text-gray-500">Automation</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Popular</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Connect SendBaba to 5,000+ apps. Create automated workflows without code.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 45k+ users
+                    </div>
+                    <button onclick="connectIntegration('zapier')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Make (Integromat) -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="automation" data-name="make">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-cogs text-purple-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Make (Integromat)</h4>
+                            <span class="text-xs text-gray-500">Automation</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Visual automation platform for complex multi-step workflows and scenarios.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 18k+ users
+                    </div>
+                    <button onclick="connectIntegration('make')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- n8n -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="automation" data-name="n8n">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-sitemap text-red-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">n8n</h4>
+                            <span class="text-xs text-gray-500">Automation</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Self-hosted workflow automation. Full control over your data and processes.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 6k+ users
+                    </div>
+                    <button onclick="connectIntegration('n8n')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Webhooks -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="automation" data-name="webhooks">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-code text-gray-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Webhooks</h4>
+                            <span class="text-xs text-gray-500">Developer</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Custom HTTP webhooks for any integration. Send and receive data in real-time.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 20k+ users
+                    </div>
+                    <button onclick="connectIntegration('webhooks')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Configure
+                    </button>
+                </div>
+            </div>
+
+            <!-- ANALYTICS -->
+            <!-- Google Analytics -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="analytics" data-name="google-analytics">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fab fa-google text-yellow-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Google Analytics</h4>
+                            <span class="text-xs text-gray-500">Analytics</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Popular</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Track email campaign performance in GA4. See conversions and revenue attribution.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 55k+ users
+                    </div>
+                    <button onclick="connectIntegration('google-analytics')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mixpanel -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="analytics" data-name="mixpanel">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-chart-pie text-purple-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Mixpanel</h4>
+                            <span class="text-xs text-gray-500">Analytics</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Product analytics integration. Trigger emails based on user behavior events.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 8k+ users
+                    </div>
+                    <button onclick="connectIntegration('mixpanel')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Segment -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="analytics" data-name="segment">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-database text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Segment</h4>
+                            <span class="text-xs text-gray-500">CDP</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Customer data platform integration. Unified customer profiles for personalization.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 12k+ users
+                    </div>
+                    <button onclick="connectIntegration('segment')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- CMS -->
+            <!-- WordPress -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="cms" data-name="wordpress">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fab fa-wordpress text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">WordPress</h4>
+                            <span class="text-xs text-gray-500">CMS</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Popular</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Embed forms, sync subscribers, and trigger emails from WordPress actions.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 60k+ users
+                    </div>
+                    <button onclick="connectIntegration('wordpress')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Webflow -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="cms" data-name="webflow">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-paint-brush text-indigo-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Webflow</h4>
+                            <span class="text-xs text-gray-500">CMS</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Capture leads from Webflow forms and trigger automated email sequences.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 15k+ users
+                    </div>
+                    <button onclick="connectIntegration('webflow')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Squarespace -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="cms" data-name="squarespace">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-gray-800 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fab fa-squarespace text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Squarespace</h4>
+                            <span class="text-xs text-gray-500">CMS</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Connect your Squarespace site for form submissions and commerce emails.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 10k+ users
+                    </div>
+                    <button onclick="connectIntegration('squarespace')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Slack -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="automation" data-name="slack">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fab fa-slack text-purple-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Slack</h4>
+                            <span class="text-xs text-gray-500">Communication</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Get notifications in Slack for new subscribers, bounces, and campaign performance.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 22k+ users
+                    </div>
+                    <button onclick="connectIntegration('slack')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Facebook -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="analytics" data-name="facebook">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fab fa-facebook text-blue-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Facebook Ads</h4>
+                            <span class="text-xs text-gray-500">Advertising</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Sync audiences with Facebook Custom Audiences for retargeting campaigns.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 28k+ users
+                    </div>
+                    <button onclick="connectIntegration('facebook')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+            <!-- Google Ads -->
+            <div class="integration-card border border-gray-200 rounded-xl p-5 hover:border-orange-300 hover:shadow-lg transition-all" data-category="analytics" data-name="google-ads">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fab fa-google text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-900">Google Ads</h4>
+                            <span class="text-xs text-gray-500">Advertising</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Export audiences to Google Ads Customer Match for cross-channel targeting.</p>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center text-xs text-gray-500">
+                        <i class="fas fa-users mr-1"></i> 25k+ users
+                    </div>
+                    <button onclick="connectIntegration('google-ads')" class="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors">
+                        Connect
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Connection Modal -->
+<div id="connectionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl max-w-lg w-full mx-4 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold" id="modalTitle">Connect Integration</h3>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="modalContent">
+            <!-- Dynamic content -->
+        </div>
+    </div>
+</div>
+
+<style>
+.filter-btn.active {
+    background-color: rgb(255 237 213);
+    color: rgb(194 65 12);
+}
+</style>
+
+<script>
+function filterCategory(category) {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-orange-100', 'text-orange-700');
+        btn.classList.add('bg-gray-100', 'text-gray-600');
+    });
+    
+    document.querySelector(`[data-category="${category}"]`).classList.add('active', 'bg-orange-100', 'text-orange-700');
+    document.querySelector(`[data-category="${category}"]`).classList.remove('bg-gray-100', 'text-gray-600');
+    
+    document.querySelectorAll('.integration-card').forEach(card => {
+        if (category === 'all' || card.dataset.category === category) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+document.getElementById('searchIntegrations').addEventListener('input', function(e) {
+    const search = e.target.value.toLowerCase();
+    document.querySelectorAll('.integration-card').forEach(card => {
+        const name = card.dataset.name.toLowerCase();
+        const text = card.textContent.toLowerCase();
+        card.style.display = (name.includes(search) || text.includes(search)) ? 'block' : 'none';
+    });
+});
+
+function connectIntegration(type) {
+    const configs = {
+        shopify: {
+            title: 'Connect Shopify',
+            content: `
+                <p class="text-gray-600 mb-4">Enter your Shopify store URL to connect:</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Store URL</label>
+                        <div class="flex">
+                            <input type="text" placeholder="your-store" class="flex-1 px-3 py-2 border border-r-0 rounded-l-lg focus:ring-2 focus:ring-orange-500">
+                            <span class="px-3 py-2 bg-gray-100 border border-l-0 rounded-r-lg text-gray-500">.myshopify.com</span>
+                        </div>
+                    </div>
+                    <button class="w-full py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                        <i class="fab fa-shopify mr-2"></i>Install SendBaba App
+                    </button>
+                </div>
+            `
+        },
+        stripe: {
+            title: 'Connect Stripe',
+            content: `
+                <p class="text-gray-600 mb-4">Connect your Stripe account to trigger emails on payment events.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                        <input type="password" placeholder="sk_live_..." class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div class="flex items-center text-sm text-gray-500">
+                        <i class="fas fa-lock mr-2"></i>
+                        Your API key is encrypted and stored securely
+                    </div>
+                    <button class="w-full py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                        Connect Stripe
+                    </button>
+                </div>
+            `
+        },
+        zapier: {
+            title: 'Connect Zapier',
+            content: `
+                <p class="text-gray-600 mb-4">Connect SendBaba to 5,000+ apps through Zapier.</p>
+                <div class="space-y-4">
+                    <div class="p-4 bg-orange-50 rounded-lg">
+                        <p class="text-sm text-orange-800"><strong>Your API Key:</strong></p>
+                        <code class="text-xs bg-white px-2 py-1 rounded mt-1 block">sb_live_xxxxxxxxxxxxxxxx</code>
+                    </div>
+                    <a href="https://zapier.com/apps/sendbaba" target="_blank" class="block w-full py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-center">
+                        <i class="fas fa-external-link-alt mr-2"></i>Open Zapier
+                    </a>
+                </div>
+            `
+        },
+        webhooks: {
+            title: 'Configure Webhooks',
+            content: `
+                <p class="text-gray-600 mb-4">Set up custom webhooks to integrate with any system.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Webhook URL</label>
+                        <input type="url" placeholder="https://your-site.com/webhook" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Events to Send</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" checked> New Subscriber</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" checked> Email Opened</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2" checked> Link Clicked</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2"> Unsubscribed</label>
+                            <label class="flex items-center"><input type="checkbox" class="mr-2"> Bounced</label>
+                        </div>
+                    </div>
+                    <button class="w-full py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                        Save Webhook
+                    </button>
+                </div>
+            `
+        }
+    };
+    
+    const config = configs[type] || {
+        title: `Connect ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+        content: `
+            <p class="text-gray-600 mb-4">This integration is coming soon!</p>
+            <div class="p-4 bg-blue-50 rounded-lg mb-4">
+                <p class="text-sm text-blue-800">We're working on this integration. Enter your email to get notified when it's ready.</p>
+            </div>
+            <div class="space-y-4">
+                <input type="email" placeholder="your@email.com" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500">
+                <button class="w-full py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                    Notify Me
+                </button>
+            </div>
+        `
+    };
+    
+    document.getElementById('modalTitle').textContent = config.title;
+    document.getElementById('modalContent').innerHTML = config.content;
+    document.getElementById('connectionModal').classList.remove('hidden');
+    document.getElementById('connectionModal').classList.add('flex');
+}
+
+function closeModal() {
+    document.getElementById('connectionModal').classList.add('hidden');
+    document.getElementById('connectionModal').classList.remove('flex');
+}
+
+// Close modal on backdrop click
+document.getElementById('connectionModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Replies - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Reply Intelligence</h1>
+            <p class="text-gray-600">AI-powered email reply analysis and management</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/dashboard/replies/insights" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                <i class="fas fa-chart-bar mr-2"></i>Insights
+            </a>
+            <a href="/dashboard/replies/templates" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                <i class="fas fa-file-alt mr-2"></i>Templates
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-blue-600" id="totalReplies">0</div>
+            <div class="text-sm text-gray-500">Total Replies</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-red-600" id="unreadCount">0</div>
+            <div class="text-sm text-gray-500">Unread</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-green-600" id="positiveCount">0</div>
+            <div class="text-sm text-gray-500">Positive</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-orange-600" id="negativeCount">0</div>
+            <div class="text-sm text-gray-500">Negative</div>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="text-2xl font-bold text-purple-600" id="responseRate">0%</div>
+            <div class="text-sm text-gray-500">Response Rate</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow mb-6 p-4">
+        <div class="flex gap-4 flex-wrap">
+            <input type="text" id="searchInput" placeholder="Search replies..." class="flex-1 min-w-[200px] px-4 py-2 border rounded-lg">
+            <select id="statusFilter" class="px-4 py-2 border rounded-lg">
+                <option value="">All Status</option>
+                <option value="unread">Unread</option>
+                <option value="read">Read</option>
+                <option value="replied">Replied</option>
+                <option value="archived">Archived</option>
+            </select>
+            <select id="sentimentFilter" class="px-4 py-2 border rounded-lg">
+                <option value="">All Sentiment</option>
+                <option value="positive">Positive</option>
+                <option value="neutral">Neutral</option>
+                <option value="negative">Negative</option>
+            </select>
+            <select id="intentFilter" class="px-4 py-2 border rounded-lg">
+                <option value="">All Intent</option>
+                <option value="inquiry">Inquiry</option>
+                <option value="complaint">Complaint</option>
+                <option value="feedback">Feedback</option>
+                <option value="purchase_intent">Purchase Intent</option>
+                <option value="support">Support</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Replies List -->
+    <div id="repliesList" class="space-y-2"></div>
+    
+    <div id="emptyState" class="hidden text-center py-12 bg-white rounded-lg">
+        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-inbox text-2xl text-purple-600"></i>
+        </div>
+        <h3 class="text-lg font-medium mb-2">No replies yet</h3>
+        <p class="text-gray-600">Replies to your campaigns will appear here</p>
+    </div>
+</div>
+
+<script>
+async function loadReplies() {
+    const params = new URLSearchParams({
+        status: document.getElementById('statusFilter').value,
+        sentiment: document.getElementById('sentimentFilter').value,
+        intent: document.getElementById('intentFilter').value,
+        search: document.getElementById('searchInput').value
+    });
+    
+    const response = await fetch(`/dashboard/replies/api/list?${params}`);
+    const data = await response.json();
+    
+    document.getElementById('unreadCount').textContent = data.unread_count;
+    
+    const container = document.getElementById('repliesList');
+    const empty = document.getElementById('emptyState');
+    
+    if (data.replies.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    
+    empty.classList.add('hidden');
+    container.innerHTML = data.replies.map(r => `
+        <div class="bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer ${r.status === 'unread' ? 'border-l-4 border-purple-600' : ''}" onclick="window.location='/dashboard/replies/${r.id}'">
+            <div class="flex items-start justify-between">
+                <div class="flex items-start gap-3">
+                    <button onclick="event.stopPropagation(); toggleStar('${r.id}')" class="mt-1 ${r.starred ? 'text-yellow-500' : 'text-gray-300'} hover:text-yellow-500">
+                        <i class="fas fa-star"></i>
+                    </button>
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-medium">${r.from_name || r.from_email}</span>
+                            ${getSentimentBadge(r.sentiment)}
+                            ${getIntentBadge(r.intent)}
+                            ${r.urgency === 'high' || r.urgency === 'critical' ? '<span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">Urgent</span>' : ''}
+                        </div>
+                        <div class="text-gray-900 ${r.status === 'unread' ? 'font-medium' : ''}">${r.subject || '(No subject)'}</div>
+                        <div class="text-sm text-gray-500 mt-1 line-clamp-1">${r.ai_summary || (r.body_text ? r.body_text.substring(0, 100) + '...' : '')}</div>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400 whitespace-nowrap">
+                    ${new Date(r.received_at).toLocaleDateString()}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function getSentimentBadge(sentiment) {
+    const colors = { positive: 'bg-green-100 text-green-800', negative: 'bg-red-100 text-red-800', neutral: 'bg-gray-100 text-gray-800' };
+    return sentiment ? `<span class="px-2 py-0.5 rounded-full text-xs ${colors[sentiment] || colors.neutral}">${sentiment}</span>` : '';
+}
+
+function getIntentBadge(intent) {
+    if (!intent) return '';
+    return `<span class="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-800">${intent.replace('_', ' ')}</span>`;
+}
+
+async function toggleStar(id) {
+    await fetch(`/dashboard/replies/api/${id}/star`, { method: 'POST' });
+    loadReplies();
+}
+
+document.getElementById('searchInput').addEventListener('input', debounce(loadReplies, 300));
+document.getElementById('statusFilter').addEventListener('change', loadReplies);
+document.getElementById('sentimentFilter').addEventListener('change', loadReplies);
+document.getElementById('intentFilter').addEventListener('change', loadReplies);
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    };
+}
+
+loadReplies();
+</script>
+{% endblock %}

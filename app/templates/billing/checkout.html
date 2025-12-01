@@ -1,0 +1,221 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Checkout - {{ plan.name }} Plan - SendBaba{% endblock %}
+{% block page_title %}Complete Your Order{% endblock %}
+{% block page_subtitle %}You're almost there!{% endblock %}
+
+{% block extra_css %}
+<style>
+    .checkout-card {
+        background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+        border: 1px solid #FCD34D;
+    }
+    .secure-badge {
+        background: linear-gradient(135deg, #10B981, #059669);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="grid lg:grid-cols-5 gap-8">
+        <!-- Order Summary - Left Side -->
+        <div class="lg:col-span-2 order-2 lg:order-1">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
+                
+                <!-- Plan Info -->
+                <div class="flex items-center gap-4 pb-6 border-b border-gray-100">
+                    <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-crown text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900">{{ plan.name }} Plan</h3>
+                        <p class="text-gray-500 text-sm">{{ billing_cycle|capitalize }} billing</p>
+                    </div>
+                </div>
+                
+                <!-- Plan Limits -->
+                <div class="py-6 border-b border-gray-100">
+                    <h4 class="font-semibold text-gray-900 mb-4">What's included:</h4>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-600"><i class="fas fa-envelope text-orange-500 mr-2"></i>Daily emails</span>
+                            <span class="font-semibold">{{ "{:,}".format(plan.email_limit_daily) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-600"><i class="fas fa-calendar text-orange-500 mr-2"></i>Monthly emails</span>
+                            <span class="font-semibold">{{ "{:,}".format(plan.email_limit_monthly) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-600"><i class="fas fa-users text-orange-500 mr-2"></i>Contacts</span>
+                            <span class="font-semibold">{{ "{:,}".format(plan.contact_limit) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm">
+                            <span class="text-gray-600"><i class="fas fa-user-friends text-orange-500 mr-2"></i>Team members</span>
+                            <span class="font-semibold">{{ plan.team_member_limit }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pricing -->
+                <div class="py-6 border-b border-gray-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600">{{ plan.name }} Plan ({{ billing_cycle }})</span>
+                        <span class="font-semibold">${{ "%.2f"|format(price) }}</span>
+                    </div>
+                    {% if billing_cycle == 'annual' %}
+                    <div class="flex items-center justify-between text-green-600 text-sm">
+                        <span><i class="fas fa-tag mr-1"></i>Annual discount</span>
+                        <span>-20%</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Total -->
+                <div class="pt-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-bold text-gray-900">Total</span>
+                        <div class="text-right">
+                            <span class="text-2xl font-bold text-gray-900">${{ "%.2f"|format(price) }}</span>
+                            <p class="text-sm text-gray-500">
+                                {% if billing_cycle == 'annual' %}billed annually{% else %}billed monthly{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Guarantee -->
+                <div class="mt-6 p-4 checkout-card rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
+                            <i class="fas fa-shield-alt text-yellow-800"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-yellow-800">14-Day Money Back</p>
+                            <p class="text-yellow-700 text-sm">No questions asked guarantee</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Payment Section - Right Side -->
+        <div class="lg:col-span-3 order-1 lg:order-2">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="w-12 h-12 secure-badge rounded-xl flex items-center justify-center">
+                        <i class="fas fa-lock text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">Secure Payment</h2>
+                        <p class="text-gray-500 text-sm">Powered by Korapay • 256-bit SSL encryption</p>
+                    </div>
+                </div>
+                
+                <!-- Features Grid -->
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-sm text-gray-700">Instant activation</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-sm text-gray-700">Cancel anytime</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-sm text-gray-700">14-day free trial</span>
+                    </div>
+                    <div class="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-sm text-gray-700">24/7 support</span>
+                    </div>
+                </div>
+                
+                <!-- Pay Button -->
+                <button onclick="initiatePayment()" id="payButton" class="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold text-lg hover:shadow-xl hover:shadow-orange-500/30 transition flex items-center justify-center gap-3">
+                    <i class="fas fa-lock"></i>
+                    <span>Pay ${{ "%.2f"|format(price) }} Securely</span>
+                </button>
+                
+                <!-- Loading State -->
+                <div id="loadingState" class="hidden w-full py-4 bg-gray-200 text-gray-600 rounded-xl font-bold text-lg flex items-center justify-center gap-3">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Processing payment...</span>
+                </div>
+                
+                <!-- Trust Icons -->
+                <div class="mt-8 pt-6 border-t border-gray-100">
+                    <div class="flex items-center justify-center gap-6 text-gray-400 text-sm">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>SSL Secured</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-lock"></i>
+                            <span>PCI Compliant</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Safe Checkout</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Change Plan -->
+                <div class="mt-6 text-center">
+                    <a href="/dashboard/billing/plans" class="text-gray-500 hover:text-gray-700 text-sm">
+                        <i class="fas fa-arrow-left mr-1"></i> Change plan
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Payment Methods -->
+            <div class="mt-6 text-center">
+                <p class="text-gray-400 text-sm mb-3">Accepted payment methods</p>
+                <div class="flex items-center justify-center gap-4">
+                    <i class="fab fa-cc-visa text-3xl text-gray-400"></i>
+                    <i class="fab fa-cc-mastercard text-3xl text-gray-400"></i>
+                    <i class="fab fa-cc-amex text-3xl text-gray-400"></i>
+                    <i class="fas fa-university text-2xl text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function initiatePayment() {
+    const btn = document.getElementById('payButton');
+    const loading = document.getElementById('loadingState');
+    
+    btn.classList.add('hidden');
+    loading.classList.remove('hidden');
+    
+    fetch('/dashboard/billing/api/initialize-payment', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            plan: '{{ plan.slug }}',
+            billing_cycle: '{{ billing_cycle }}'
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else {
+            alert(data.error || 'Payment initialization failed. Please try again.');
+            btn.classList.remove('hidden');
+            loading.classList.add('hidden');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('An error occurred. Please try again.');
+        btn.classList.remove('hidden');
+        loading.classList.add('hidden');
+    });
+}
+</script>
+{% endblock %}

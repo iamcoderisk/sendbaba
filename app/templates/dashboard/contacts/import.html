@@ -1,0 +1,291 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Import Contacts - SendBaba{% endblock %}
+{% block page_title %}Import Contacts{% endblock %}
+{% block page_subtitle %}Upload CSV file to import your contacts{% endblock %}
+
+{% block extra_css %}
+<style>
+    .import-container { max-width: 800px; margin: 0 auto; }
+    .upload-card { background: white; border-radius: 24px; border: 1px solid rgba(229,231,235,0.8); box-shadow: 0 4px 20px rgba(0,0,0,0.03); overflow: hidden; padding: 32px; }
+    .upload-zone { border: 2px dashed #E5E7EB; border-radius: 20px; padding: 60px 40px; text-align: center; transition: all 0.3s; cursor: pointer; background: linear-gradient(180deg, #FAFAFA 0%, #F9FAFB 100%); }
+    .upload-zone:hover, .upload-zone.dragover { border-color: #F97316; background: linear-gradient(180deg, #FFF7ED 0%, #FFEDD5 100%); }
+    .upload-icon { width: 100px; height: 100px; background: linear-gradient(135deg, #FFF7ED, #FFEDD5); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
+    .upload-icon i { font-size: 42px; color: #F97316; }
+    .upload-title { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+    .upload-subtitle { font-size: 15px; color: #6B7280; margin-bottom: 24px; }
+    .browse-btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 32px; background: linear-gradient(135deg, #F97316, #EA580C); color: white; font-weight: 600; border-radius: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(249,115,22,0.3); }
+    .file-info { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: linear-gradient(135deg, #F0FDF4, #DCFCE7); border-radius: 16px; margin-top: 24px; }
+    .file-icon { width: 56px; height: 56px; background: white; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+    .file-icon i { font-size: 28px; color: #10B981; }
+    .file-details { flex: 1; }
+    .file-name { font-size: 16px; font-weight: 600; color: #111827; }
+    .file-meta { font-size: 13px; color: #6B7280; margin-top: 4px; }
+    .file-remove { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #9CA3AF; cursor: pointer; }
+    .file-remove:hover { background: #FEE2E2; color: #DC2626; }
+    .progress-container { margin-top: 24px; padding: 24px; background: #F9FAFB; border-radius: 16px; }
+    .progress-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .progress-label { font-size: 14px; font-weight: 600; color: #374151; display: flex; align-items: center; gap: 8px; }
+    .progress-percent { font-size: 14px; font-weight: 700; color: #F97316; }
+    .progress-bar-bg { height: 10px; background: #E5E7EB; border-radius: 5px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #F97316, #FB923C); border-radius: 5px; transition: width 0.3s; }
+    .step-card { background: white; border-radius: 20px; border: 1px solid #E5E7EB; padding: 28px; margin-top: 24px; }
+    .step-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .step-number { width: 40px; height: 40px; background: linear-gradient(135deg, #F97316, #EA580C); color: white; font-weight: 700; font-size: 18px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+    .step-title { font-size: 18px; font-weight: 700; color: #111827; }
+    .mapping-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .mapping-field label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .mapping-field select { width: 100%; padding: 12px 16px; border: 2px solid #E5E7EB; border-radius: 12px; font-size: 14px; background: white; }
+    .mapping-field select:focus { outline: none; border-color: #F97316; }
+    .preview-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+    .preview-table th { background: #F9FAFB; padding: 12px 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #E5E7EB; }
+    .preview-table td { padding: 12px 16px; border-bottom: 1px solid #F3F4F6; color: #6B7280; }
+    .option-item { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: #F9FAFB; border-radius: 12px; cursor: pointer; margin-bottom: 12px; }
+    .option-item input[type="checkbox"] { width: 20px; height: 20px; accent-color: #F97316; }
+    .action-buttons { display: flex; gap: 12px; margin-top: 28px; }
+    .btn-import { flex: 1; padding: 16px 32px; background: linear-gradient(135deg, #F97316, #EA580C); color: white; font-weight: 600; font-size: 15px; border: none; border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .btn-import:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-cancel { padding: 16px 28px; background: #F3F4F6; color: #374151; font-weight: 600; border: none; border-radius: 14px; cursor: pointer; }
+    .result-card { padding: 32px; border-radius: 20px; text-align: center; margin-top: 24px; background: linear-gradient(135deg, #F0FDF4, #DCFCE7); border: 1px solid #86EFAC; }
+    .result-icon { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; background: white; }
+    .result-icon i { font-size: 36px; color: #10B981; }
+    .result-title { font-size: 24px; font-weight: 700; color: #047857; margin-bottom: 8px; }
+    .result-stats { display: flex; justify-content: center; gap: 32px; margin: 24px 0; }
+    .result-stat { text-align: center; }
+    .result-stat-value { font-size: 28px; font-weight: 800; color: #111827; }
+    .result-stat-label { font-size: 13px; color: #6B7280; margin-top: 4px; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: #F97316; font-weight: 600; text-decoration: none; margin-bottom: 24px; }
+    .hidden { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-container">
+    <a href="/dashboard/contacts" class="back-link"><i class="fas fa-arrow-left"></i> Back to Contacts</a>
+    
+    <div class="upload-card">
+        <div id="uploadZone" class="upload-zone" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" accept=".csv" class="hidden" onchange="handleFileSelect(this.files[0])">
+            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <div class="upload-title">Drop your CSV file here</div>
+            <div class="upload-subtitle">or click to browse from your computer</div>
+            <div class="browse-btn"><i class="fas fa-folder-open"></i> Choose File</div>
+            <p style="margin-top: 20px; font-size: 13px; color: #9CA3AF;">Maximum file size: 100MB</p>
+        </div>
+        
+        <div id="fileInfo" class="file-info hidden">
+            <div class="file-icon"><i class="fas fa-file-csv"></i></div>
+            <div class="file-details">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-meta" id="fileMeta"></div>
+            </div>
+            <div class="file-remove" onclick="resetUpload()"><i class="fas fa-times"></i></div>
+        </div>
+        
+        <div id="progressContainer" class="progress-container hidden">
+            <div class="progress-header">
+                <div class="progress-label"><i class="fas fa-spinner fa-spin"></i> <span id="progressLabel">Uploading...</span></div>
+                <div class="progress-percent" id="progressPercent">0%</div>
+            </div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar" style="width: 0%"></div></div>
+        </div>
+    </div>
+    
+    <div id="mappingCard" class="step-card hidden">
+        <div class="step-header"><div class="step-number">2</div><div class="step-title">Map Your Columns</div></div>
+        <div class="mapping-grid">
+            <div class="mapping-field"><label>Email Address *</label><select id="mapEmail"></select></div>
+            <div class="mapping-field"><label>First Name</label><select id="mapFirstName"></select></div>
+            <div class="mapping-field"><label>Last Name</label><select id="mapLastName"></select></div>
+            <div class="mapping-field"><label>Company</label><select id="mapCompany"></select></div>
+            <div class="mapping-field"><label>Phone</label><select id="mapPhone"></select></div>
+        </div>
+        <div style="margin-top: 24px;">
+            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px;">Preview (first 5 rows)</div>
+            <div style="overflow-x: auto; border-radius: 12px; border: 1px solid #E5E7EB;">
+                <table class="preview-table"><thead id="previewHead"></thead><tbody id="previewBody"></tbody></table>
+            </div>
+        </div>
+    </div>
+    
+    <div id="optionsCard" class="step-card hidden">
+        <div class="step-header"><div class="step-number">3</div><div class="step-title">Import Options</div></div>
+        <label class="option-item"><input type="checkbox" id="optSkipDuplicates" checked><span>Skip duplicate email addresses</span></label>
+        <label class="option-item"><input type="checkbox" id="optValidateEmails" checked><span>Validate email format</span></label>
+        <div class="action-buttons">
+            <button class="btn-import" id="btnImport" onclick="startImport()"><i class="fas fa-upload"></i> Import <span id="importCount">0</span> Contacts</button>
+            <button class="btn-cancel" onclick="resetUpload()">Cancel</button>
+        </div>
+    </div>
+    
+    <div id="resultCard" class="result-card hidden">
+        <div class="result-icon"><i class="fas fa-check"></i></div>
+        <div class="result-title">Import Complete!</div>
+        <div class="result-stats">
+            <div class="result-stat"><div class="result-stat-value" id="resultImported">0</div><div class="result-stat-label">Imported</div></div>
+            <div class="result-stat"><div class="result-stat-value" id="resultSkipped">0</div><div class="result-stat-label">Skipped</div></div>
+            <div class="result-stat"><div class="result-stat-value" id="resultDuplicates">0</div><div class="result-stat-label">Duplicates</div></div>
+        </div>
+        <a href="/dashboard/contacts" class="btn-import" style="display: inline-flex; text-decoration: none;"><i class="fas fa-users"></i> View Contacts</a>
+    </div>
+</div>
+
+<script>
+let uploadedFile = null;
+let serverData = null;
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('dragover'); });
+uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); if(e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]); });
+
+function handleFileSelect(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.csv')) { alert('Please select a CSV file'); return; }
+    if (file.size > 100 * 1024 * 1024) { alert('File size exceeds 100MB limit'); return; }
+    
+    uploadedFile = file;
+    document.getElementById('uploadZone').classList.add('hidden');
+    document.getElementById('fileInfo').classList.remove('hidden');
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileMeta').textContent = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+    document.getElementById('progressContainer').classList.remove('hidden');
+    
+    // Upload to server for parsing
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 50);
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressPercent').textContent = pct + '%';
+            document.getElementById('progressLabel').textContent = 'Uploading...';
+        }
+    };
+    
+    xhr.onload = function() {
+        document.getElementById('progressBar').style.width = '75%';
+        document.getElementById('progressPercent').textContent = '75%';
+        document.getElementById('progressLabel').textContent = 'Processing...';
+        
+        try {
+            const data = JSON.parse(xhr.responseText);
+            if (data.success) {
+                serverData = data;
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressPercent').textContent = '100%';
+                setTimeout(() => {
+                    document.getElementById('progressContainer').classList.add('hidden');
+                    showMapping(data);
+                }, 300);
+            } else {
+                alert('Error: ' + data.error);
+                resetUpload();
+            }
+        } catch (e) {
+            alert('Error parsing response');
+            resetUpload();
+        }
+    };
+    
+    xhr.onerror = function() { alert('Upload failed'); resetUpload(); };
+    xhr.open('POST', '/dashboard/contacts/api/parse');
+    xhr.send(formData);
+}
+
+function showMapping(data) {
+    document.getElementById('mappingCard').classList.remove('hidden');
+    document.getElementById('optionsCard').classList.remove('hidden');
+    
+    const selects = ['mapEmail', 'mapFirstName', 'mapLastName', 'mapCompany', 'mapPhone'];
+    const fields = ['email', 'first_name', 'last_name', 'company', 'phone'];
+    
+    selects.forEach((id, idx) => {
+        const select = document.getElementById(id);
+        select.innerHTML = '<option value="">-- Select --</option>';
+        data.headers.forEach(h => { select.innerHTML += '<option value="' + h + '">' + h + '</option>'; });
+        if (data.suggestions && data.suggestions[fields[idx]]) {
+            select.value = data.suggestions[fields[idx]];
+        }
+    });
+    
+    document.getElementById('previewHead').innerHTML = '<tr>' + data.headers.slice(0,6).map(h => '<th>' + h + '</th>').join('') + '</tr>';
+    document.getElementById('previewBody').innerHTML = data.preview.slice(0,5).map(row => '<tr>' + data.headers.slice(0,6).map(h => '<td>' + (row[h] || '-') + '</td>').join('') + '</tr>').join('');
+    document.getElementById('importCount').textContent = data.total_rows.toLocaleString();
+}
+
+function resetUpload() {
+    uploadedFile = null; serverData = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadZone').classList.remove('hidden');
+    document.getElementById('fileInfo').classList.add('hidden');
+    document.getElementById('progressContainer').classList.add('hidden');
+    document.getElementById('mappingCard').classList.add('hidden');
+    document.getElementById('optionsCard').classList.add('hidden');
+    document.getElementById('resultCard').classList.add('hidden');
+}
+
+function startImport() {
+    const emailCol = document.getElementById('mapEmail').value;
+    if (!emailCol) { alert('Please select the email column'); return; }
+    
+    const btn = document.getElementById('btnImport');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+    
+    document.getElementById('mappingCard').classList.add('hidden');
+    document.getElementById('optionsCard').classList.add('hidden');
+    document.getElementById('progressContainer').classList.remove('hidden');
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressPercent').textContent = '0%';
+    document.getElementById('progressLabel').textContent = 'Importing contacts...';
+    
+    const formData = new FormData();
+    formData.append('file', uploadedFile);
+    formData.append('mapping', JSON.stringify({
+        email: emailCol,
+        first_name: document.getElementById('mapFirstName').value,
+        last_name: document.getElementById('mapLastName').value,
+        company: document.getElementById('mapCompany').value,
+        phone: document.getElementById('mapPhone').value
+    }));
+    formData.append('options', JSON.stringify({
+        skip_duplicates: document.getElementById('optSkipDuplicates').checked,
+        validate_emails: document.getElementById('optValidateEmails').checked
+    }));
+    
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 50);
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressPercent').textContent = pct + '%';
+        }
+    };
+    
+    xhr.onload = function() {
+        document.getElementById('progressBar').style.width = '100%';
+        document.getElementById('progressPercent').textContent = '100%';
+        
+        try {
+            const data = JSON.parse(xhr.responseText);
+            setTimeout(() => {
+                document.getElementById('progressContainer').classList.add('hidden');
+                document.getElementById('resultCard').classList.remove('hidden');
+                document.getElementById('resultImported').textContent = (data.imported || 0).toLocaleString();
+                document.getElementById('resultSkipped').textContent = (data.skipped || 0).toLocaleString();
+                document.getElementById('resultDuplicates').textContent = (data.duplicates || 0).toLocaleString();
+            }, 300);
+        } catch (e) {
+            alert('Error processing import');
+            resetUpload();
+        }
+    };
+    
+    xhr.onerror = function() { alert('Import failed'); resetUpload(); };
+    xhr.open('POST', '/dashboard/contacts/api/import');
+    xhr.send(formData);
+}
+</script>
+{% endblock %}

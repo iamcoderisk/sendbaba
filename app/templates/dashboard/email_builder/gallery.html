@@ -1,0 +1,49 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Template Gallery - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6">
+    <div class="mb-6">
+        <a href="/dashboard/email-builder" class="text-purple-600 mb-2 inline-block"><i class="fas fa-arrow-left mr-2"></i>Back</a>
+        <h1 class="text-2xl font-bold">Template Gallery</h1>
+        <p class="text-gray-600">Start with a pre-designed template</p>
+    </div>
+
+    <div id="galleryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+</div>
+
+<script>
+async function loadGallery() {
+    const response = await fetch('/dashboard/email-builder/api/gallery');
+    const data = await response.json();
+    
+    document.getElementById('galleryGrid').innerHTML = data.templates.map(t => `
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="aspect-[4/3] bg-gray-100 flex items-center justify-center">
+                <i class="fas fa-envelope text-4xl text-gray-300"></i>
+            </div>
+            <div class="p-4">
+                <h3 class="font-medium mb-1">${t.name}</h3>
+                <p class="text-sm text-gray-500 mb-3">${t.description || t.category}</p>
+                <button onclick="useTemplate('${t.id}')" class="w-full py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                    Use Template
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function useTemplate(id) {
+    const response = await fetch(`/dashboard/email-builder/api/gallery/${id}/use`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    });
+    const data = await response.json();
+    if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+    }
+}
+
+loadGallery();
+</script>
+{% endblock %}

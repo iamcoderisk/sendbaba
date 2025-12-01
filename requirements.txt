@@ -1,0 +1,90 @@
+# Flask Framework
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.2
+Flask-Migrate==4.0.5
+Flask-WTF==1.1.1
+Werkzeug==2.3.7
+
+# Email & SMTP
+aiosmtpd==1.4.4.post2
+dnspython==2.4.2
+email-validator==2.0.0
+dkimpy==1.1.5
+
+# Database
+psycopg2-binary==2.9.7
+SQLAlchemy==2.0.20
+
+# Redis
+redis==5.0.0
+hiredis==2.2.3
+
+# Cryptography & Security
+cryptography==41.0.4
+bcrypt==4.0.1
+
+# Document Processing
+python-docx==0.8.11
+openpyxl==3.1.2
+PyPDF2==3.0.1
+reportlab==4.0.5
+
+# CSV Processing
+pandas==2.1.1
+
+# HTTP & Requests
+requests==2.31.0
+urllib3==2.0.5
+
+# Async
+asyncio==3.4.3
+aiofiles==23.2.1
+
+# Utilities
+python-dotenv==1.0.0
+gunicorn==21.2.0
+python-dateutil==2.8.2
+pytz==2023.3
+
+# API & Validation
+marshmallow==3.20.1
+WTForms==3.0.1
+
+# Rate Limiting
+limits==3.6.0
+Flask-Limiter==3.5.0
+
+# Background Jobs
+apscheduler==3.10.4
+
+# Monitoring
+prometheus-client==0.17.1
+
+# HTML/Text Processing
+beautifulsoup4==4.12.2
+html2text==2020.1.16
+lxml==4.9.3
+
+# Markdown
+markdown==3.4.4
+
+# Image Processing
+Pillow==10.0.1
+
+# MIME & Email
+python-magic==0.4.27
+
+# Logging
+colorlog==6.7.0
+
+# Testing
+pytest==7.4.2
+pytest-flask==1.2.0
+pytest-cov==4.1.0
+
+# Click (CLI)
+Click==8.1.7
+
+# WSGI Server
+uWSGI==2.0.22

@@ -1,0 +1,1081 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Dashboard - SendBaba{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Welcome back! Here's your email performance overview{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ============================================
+       WORLD-CLASS DASHBOARD STYLES
+       ============================================ */
+    
+    /* Stat Cards - Glass Morphism Effect */
+    .stat-card {
+        background: white;
+        border-radius: 24px;
+        padding: 28px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 1px solid rgba(229, 231, 235, 0.8);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--card-accent, linear-gradient(135deg, #F97316, #FB923C));
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+        border-color: transparent;
+    }
+    
+    .stat-card:hover::before {
+        transform: scaleX(1);
+    }
+    
+    .stat-card .bg-pattern {
+        position: absolute;
+        top: -50%;
+        right: -30%;
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        opacity: 0.05;
+        transition: all 0.4s;
+    }
+    
+    .stat-card:hover .bg-pattern {
+        transform: scale(1.2);
+        opacity: 0.1;
+    }
+    
+    .stat-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        position: relative;
+        z-index: 1;
+    }
+    
+    .stat-card:hover .stat-icon {
+        transform: scale(1.1) rotate(8deg);
+    }
+    
+    .stat-icon.orange { 
+        background: linear-gradient(135deg, #FFF7ED, #FFEDD5); 
+        color: #EA580C;
+        box-shadow: 0 8px 24px rgba(234, 88, 12, 0.15);
+    }
+    .stat-icon.green { 
+        background: linear-gradient(135deg, #F0FDF4, #DCFCE7); 
+        color: #16A34A;
+        box-shadow: 0 8px 24px rgba(22, 163, 74, 0.15);
+    }
+    .stat-icon.purple { 
+        background: linear-gradient(135deg, #FAF5FF, #F3E8FF); 
+        color: #9333EA;
+        box-shadow: 0 8px 24px rgba(147, 51, 234, 0.15);
+    }
+    .stat-icon.blue { 
+        background: linear-gradient(135deg, #EFF6FF, #DBEAFE); 
+        color: #2563EB;
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.15);
+    }
+    
+    .stat-value {
+        font-size: 42px;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1;
+        margin: 20px 0 10px;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -1px;
+    }
+    
+    .stat-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #6B7280;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+    
+    .stat-change {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 50px;
+        transition: all 0.3s;
+    }
+    
+    .stat-change.up { 
+        background: linear-gradient(135deg, #D1FAE5, #A7F3D0); 
+        color: #047857; 
+    }
+    .stat-change.down { 
+        background: linear-gradient(135deg, #FEE2E2, #FECACA); 
+        color: #B91C1C; 
+    }
+    
+    /* Dashboard Cards */
+    .dashboard-card {
+        background: white;
+        border-radius: 24px;
+        border: 1px solid rgba(229, 231, 235, 0.8);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    }
+    
+    .dashboard-card:hover {
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    }
+    
+    .card-header {
+        padding: 24px 28px;
+        border-bottom: 1px solid #F3F4F6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(180deg, #FAFAFA 0%, white 100%);
+    }
+    
+    .card-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #111827;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .card-title i {
+        width: 36px;
+        height: 36px;
+        background: linear-gradient(135deg, #FFF7ED, #FFEDD5);
+        color: #EA580C;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+    
+    .card-body {
+        padding: 28px;
+    }
+    
+    .card-link {
+        font-size: 14px;
+        font-weight: 600;
+        color: #F97316;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 50px;
+        background: #FFF7ED;
+    }
+    
+    .card-link:hover {
+        background: #FFEDD5;
+        gap: 12px;
+    }
+    
+    /* Chart Container */
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    
+    /* Campaign Items */
+    .campaign-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 20px;
+        border-radius: 16px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid transparent;
+        margin-bottom: 12px;
+        background: #FAFAFA;
+    }
+    
+    .campaign-item:hover {
+        background: white;
+        border-color: #E5E7EB;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+        transform: translateX(4px);
+    }
+    
+    .campaign-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        transition: all 0.3s;
+    }
+    
+    .campaign-item:hover .campaign-icon {
+        transform: scale(1.1);
+    }
+    
+    .campaign-icon.sent { 
+        background: linear-gradient(135deg, #D1FAE5, #A7F3D0); 
+        color: #059669; 
+    }
+    .campaign-icon.sending { 
+        background: linear-gradient(135deg, #FEF3C7, #FDE68A); 
+        color: #D97706; 
+    }
+    .campaign-icon.draft { 
+        background: linear-gradient(135deg, #E0E7FF, #C7D2FE); 
+        color: #4F46E5; 
+    }
+    .campaign-icon.failed { 
+        background: linear-gradient(135deg, #FEE2E2, #FECACA); 
+        color: #DC2626; 
+    }
+    .campaign-icon.scheduled { 
+        background: linear-gradient(135deg, #DBEAFE, #BFDBFE); 
+        color: #2563EB; 
+    }
+    
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 50px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-badge.sent { background: #D1FAE5; color: #047857; }
+    .status-badge.sending { background: #FEF3C7; color: #B45309; }
+    .status-badge.draft { background: #E0E7FF; color: #4338CA; }
+    .status-badge.failed { background: #FEE2E2; color: #B91C1C; }
+    .status-badge.scheduled { background: #DBEAFE; color: #1D4ED8; }
+    
+    /* Quick Actions */
+    .quick-action {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 20px;
+        border-radius: 16px;
+        border: 2px solid #F3F4F6;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-decoration: none;
+        background: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .quick-action::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--action-color, #F97316);
+        transform: scaleY(0);
+        transition: transform 0.3s;
+    }
+    
+    .quick-action:hover {
+        border-color: var(--action-color, #F97316);
+        background: var(--action-bg, #FFF7ED);
+        transform: translateX(6px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+    }
+    
+    .quick-action:hover::after {
+        transform: scaleY(1);
+    }
+    
+    .quick-action-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        transition: all 0.3s;
+    }
+    
+    .quick-action:hover .quick-action-icon {
+        transform: rotate(8deg) scale(1.1);
+    }
+    
+    .quick-action h4 {
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 4px;
+        font-size: 15px;
+    }
+    
+    .quick-action p {
+        font-size: 13px;
+        color: #6B7280;
+    }
+    
+    /* Performance Ring */
+    .performance-ring-container {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        margin-bottom: 24px;
+    }
+    
+    .progress-ring {
+        transform: rotate(-90deg);
+    }
+    
+    .progress-ring__bg {
+        fill: none;
+        stroke: #F3F4F6;
+    }
+    
+    .progress-ring__circle {
+        fill: none;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .ring-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+    
+    .ring-value {
+        font-size: 36px;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1;
+    }
+    
+    .ring-label {
+        font-size: 12px;
+        color: #6B7280;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+    }
+    
+    /* Mini Stats Grid */
+    .mini-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .mini-stat {
+        text-align: center;
+        padding: 20px 16px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #F9FAFB, #F3F4F6);
+        transition: all 0.3s;
+        border: 1px solid transparent;
+    }
+    
+    .mini-stat:hover {
+        transform: scale(1.03);
+        border-color: #E5E7EB;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+    }
+    
+    .mini-stat-value {
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 6px;
+    }
+    
+    .mini-stat-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #6B7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 32px;
+    }
+    
+    .empty-state-icon {
+        width: 100px;
+        height: 100px;
+        background: linear-gradient(135deg, #FFF7ED, #FFEDD5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 44px;
+        margin: 0 auto 24px;
+        animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    
+    /* Animations */
+    @keyframes countUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-in {
+        animation: countUp 0.6s ease-out forwards;
+    }
+    
+    /* Gradient backgrounds for stat cards */
+    .stat-card.orange-theme { --card-accent: linear-gradient(135deg, #F97316, #FB923C); }
+    .stat-card.green-theme { --card-accent: linear-gradient(135deg, #10B981, #34D399); }
+    .stat-card.purple-theme { --card-accent: linear-gradient(135deg, #8B5CF6, #A78BFA); }
+    .stat-card.blue-theme { --card-accent: linear-gradient(135deg, #3B82F6, #60A5FA); }
+    
+    /* Responsive improvements */
+    @media (max-width: 768px) {
+        .stat-value { font-size: 32px; }
+        .stat-card { padding: 20px; }
+        .chart-container { height: 250px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Stats Cards Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Total Emails Sent -->
+    <div class="stat-card orange-theme animate-in" style="animation-delay: 0.1s">
+        <div class="bg-pattern" style="background: #F97316;"></div>
+        <div class="flex items-center justify-between">
+            <div class="stat-label">Total Emails Sent</div>
+            <div class="stat-icon orange">
+                <i class="fas fa-paper-plane"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="statEmailsSent">{{ "{:,}".format(stats.emails_sent or 0) }}</div>
+        <div class="flex items-center gap-3 mt-2">
+            {% set growth = stats.email_growth|default(0)|float %}
+            {% if growth >= 0 %}
+            <span class="stat-change up">
+                <i class="fas fa-trending-up"></i> +{{ growth }}%
+            </span>
+            {% else %}
+            <span class="stat-change down">
+                <i class="fas fa-trending-down"></i> {{ growth }}%
+            </span>
+            {% endif %}
+            <span class="text-xs text-gray-500 font-medium">vs last 30 days</span>
+        </div>
+    </div>
+    
+    <!-- Active Contacts -->
+    <div class="stat-card green-theme animate-in" style="animation-delay: 0.2s">
+        <div class="bg-pattern" style="background: #10B981;"></div>
+        <div class="flex items-center justify-between">
+            <div class="stat-label">Active Contacts</div>
+            <div class="stat-icon green">
+                <i class="fas fa-users"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="statContacts">{{ "{:,}".format(stats.contacts_active or stats.contacts_total or 0) }}</div>
+        <div class="text-sm text-gray-500 mt-2">
+            <span class="font-bold text-gray-700">{{ "{:,}".format(stats.contacts_total or 0) }}</span> total subscribers
+        </div>
+    </div>
+    
+    <!-- Delivery Rate -->
+    <div class="stat-card purple-theme animate-in" style="animation-delay: 0.3s">
+        <div class="bg-pattern" style="background: #8B5CF6;"></div>
+        <div class="flex items-center justify-between">
+            <div class="stat-label">Delivery Rate</div>
+            <div class="stat-icon purple">
+                <i class="fas fa-check-double"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="statDeliveryRate">{{ stats.delivery_rate|default(98.5) }}%</div>
+        <div class="text-sm text-gray-500 mt-2">
+            <span class="font-bold text-red-500">{{ "{:,}".format(stats.emails_failed or 0) }}</span> failed deliveries
+        </div>
+    </div>
+    
+    <!-- Total Campaigns -->
+    <div class="stat-card blue-theme animate-in" style="animation-delay: 0.4s">
+        <div class="bg-pattern" style="background: #3B82F6;"></div>
+        <div class="flex items-center justify-between">
+            <div class="stat-label">Total Campaigns</div>
+            <div class="stat-icon blue">
+                <i class="fas fa-bullhorn"></i>
+            </div>
+        </div>
+        <div class="stat-value" id="statCampaigns">{{ stats.campaigns_total or 0 }}</div>
+        <div class="text-sm text-gray-500 mt-2">
+            <span class="font-bold text-green-600">{{ stats.campaigns_sent or 0 }}</span> sent · 
+            <span class="font-bold text-yellow-600">{{ stats.campaigns_drafts or 0 }}</span> drafts
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Email Activity Chart - Takes 2 columns -->
+    <div class="lg:col-span-2 dashboard-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-chart-bar"></i>
+                <span>Email Activity</span>
+            </h3>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-6 text-sm">
+                    <span class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full" style="background: linear-gradient(135deg, #F97316, #FB923C);"></span>
+                        <span class="text-gray-600 font-medium">Sent</span>
+                    </span>
+                    <span class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full" style="background: linear-gradient(135deg, #10B981, #34D399);"></span>
+                        <span class="text-gray-600 font-medium">Delivered</span>
+                    </span>
+                </div>
+                <select id="chartPeriod" onchange="updateEmailChart(this.value)" class="text-sm border-2 border-gray-200 rounded-xl px-4 py-2 font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 cursor-pointer">
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                </select>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="emailActivityChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance Summary -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-trophy"></i>
+                <span>Performance</span>
+            </h3>
+        </div>
+        <div class="card-body">
+            <!-- Delivery Rate Ring -->
+            <div class="performance-ring-container">
+                <svg class="progress-ring" width="160" height="160">
+                    <circle class="progress-ring__bg" stroke-width="12" r="68" cx="80" cy="80"/>
+                    <circle id="deliveryRing" class="progress-ring__circle" stroke="url(#ringGradient)" stroke-width="12" r="68" cx="80" cy="80"
+                        stroke-dasharray="427" stroke-dashoffset="427"/>
+                    <defs>
+                        <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#F97316"/>
+                            <stop offset="100%" stop-color="#FB923C"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="ring-content">
+                    <div class="ring-value" id="ringValue">{{ stats.delivery_rate|default(98.5) }}%</div>
+                    <div class="ring-label">Delivery Rate</div>
+                </div>
+            </div>
+            
+            <!-- Mini Stats -->
+            <div class="mini-stats-grid">
+                <div class="mini-stat">
+                    <div class="mini-stat-value text-green-600">{{ stats.campaigns_sent or 0 }}</div>
+                    <div class="mini-stat-label">Campaigns Sent</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-value text-amber-500">{{ stats.campaigns_drafts or 0 }}</div>
+                    <div class="mini-stat-label">Drafts</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-value text-blue-600">{{ stats.domains_verified or 0 }}</div>
+                    <div class="mini-stat-label">Domains</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-stat-value text-purple-600">{{ "{:,}".format(stats.contacts_total or 0) }}</div>
+                    <div class="mini-stat-label">Contacts</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campaign Performance & Quick Actions -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Campaign Performance Chart -->
+    <div class="lg:col-span-2 dashboard-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-chart-line"></i>
+                <span>Campaign Performance</span>
+            </h3>
+            <a href="/dashboard/campaigns" class="card-link">
+                View All <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="campaignPerformanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-bolt"></i>
+                <span>Quick Actions</span>
+            </h3>
+        </div>
+        <div class="card-body space-y-4">
+            <a href="/dashboard/campaigns/create" class="quick-action" style="--action-color: #F97316; --action-bg: #FFF7ED;">
+                <div class="quick-action-icon" style="background: linear-gradient(135deg, #FFF7ED, #FFEDD5); color: #EA580C;">
+                    <i class="fas fa-plus"></i>
+                </div>
+                <div class="flex-1">
+                    <h4>New Campaign</h4>
+                    <p>Create & send emails</p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+            </a>
+            
+            <a href="/dashboard/contacts" class="quick-action" style="--action-color: #10B981; --action-bg: #F0FDF4;">
+                <div class="quick-action-icon" style="background: linear-gradient(135deg, #F0FDF4, #DCFCE7); color: #16A34A;">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="flex-1">
+                    <h4>Add Contacts</h4>
+                    <p>Import subscribers</p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+            </a>
+            
+            <a href="/dashboard/domains" class="quick-action" style="--action-color: #3B82F6; --action-bg: #EFF6FF;">
+                <div class="quick-action-icon" style="background: linear-gradient(135deg, #EFF6FF, #DBEAFE); color: #2563EB;">
+                    <i class="fas fa-globe"></i>
+                </div>
+                <div class="flex-1">
+                    <h4>Add Domain</h4>
+                    <p>Verify sending domain</p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+            </a>
+            
+            <a href="/dashboard/analytics" class="quick-action" style="--action-color: #8B5CF6; --action-bg: #FAF5FF;">
+                <div class="quick-action-icon" style="background: linear-gradient(135deg, #FAF5FF, #F3E8FF); color: #9333EA;">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div class="flex-1">
+                    <h4>View Analytics</h4>
+                    <p>Detailed insights</p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Campaigns -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-history"></i>
+            <span>Recent Campaigns</span>
+        </h3>
+        <a href="/dashboard/campaigns" class="card-link">
+            View All <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    <div class="card-body">
+        {% if campaign_performance and campaign_performance|length > 0 %}
+        <div class="space-y-3">
+            {% for campaign in campaign_performance %}
+            {% set status = campaign.status|default('draft') %}
+            {% if status == 'completed' %}{% set status = 'sent' %}{% endif %}
+            {% if status == 'in_progress' or status == 'processing' %}{% set status = 'sending' %}{% endif %}
+            <div class="campaign-item">
+                <div class="flex items-center gap-4">
+                    <div class="campaign-icon {{ status }}">
+                        {% if status == 'sent' %}
+                        <i class="fas fa-check"></i>
+                        {% elif status == 'sending' %}
+                        <i class="fas fa-sync fa-spin"></i>
+                        {% elif status == 'failed' %}
+                        <i class="fas fa-times"></i>
+                        {% elif status == 'scheduled' %}
+                        <i class="fas fa-clock"></i>
+                        {% else %}
+                        <i class="fas fa-file-alt"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="font-bold text-gray-900 text-base">{{ campaign.name|default('Untitled Campaign') }}</div>
+                        <div class="text-sm text-gray-500">
+                            <span class="font-semibold text-gray-700">{{ "{:,}".format(campaign.sent or 0) }}</span> sent
+                            {% if campaign.recipients %}
+                            · <span class="font-semibold text-gray-700">{{ "{:,}".format(campaign.recipients) }}</span> recipients
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="status-badge {{ status }}">
+                        {{ status }}
+                    </span>
+                    <a href="/dashboard/campaigns" class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-orange-100 hover:text-orange-600 transition-all duration-300">
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-paper-plane text-orange-500"></i>
+            </div>
+            <h4 class="text-xl font-bold text-gray-900 mb-2">No campaigns yet</h4>
+            <p class="text-gray-500 mb-8 max-w-sm mx-auto">Create your first email campaign to start connecting with your audience</p>
+            <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl font-bold hover:shadow-xl hover:shadow-orange-500/30 transition-all duration-300 transform hover:-translate-y-1">
+                <i class="fas fa-plus"></i> Create Campaign
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// ============================================
+// WORLD-CLASS DASHBOARD JAVASCRIPT
+// ============================================
+
+// Chart.js Global Configuration
+Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, sans-serif";
+Chart.defaults.font.weight = '500';
+Chart.defaults.plugins.tooltip.backgroundColor = '#1F2937';
+Chart.defaults.plugins.tooltip.titleFont = { weight: '700', size: 13 };
+Chart.defaults.plugins.tooltip.bodyFont = { size: 12, weight: '500' };
+Chart.defaults.plugins.tooltip.padding = 14;
+Chart.defaults.plugins.tooltip.cornerRadius = 12;
+Chart.defaults.plugins.tooltip.displayColors = true;
+Chart.defaults.plugins.tooltip.boxPadding = 6;
+
+// Data from server
+const emailTrendsData = {{ email_trends|tojson if email_trends else '[]' }};
+const campaignData = {{ campaign_performance|tojson if campaign_performance else '[]' }};
+const deliveryRate = {{ stats.delivery_rate|default(98.5) }};
+const totalEmailsSent = {{ stats.emails_sent or 0 }};
+
+// Generate sample data if empty
+function generateSampleData(days) {
+    const data = [];
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        data.push({
+            date: date.toISOString().split('T')[0],
+            sent: Math.floor(Math.random() * 1000) + 100,
+            delivered: Math.floor(Math.random() * 950) + 100
+        });
+    }
+    return data;
+}
+
+// Email Activity Chart
+let emailActivityChart;
+const emailCtx = document.getElementById('emailActivityChart').getContext('2d');
+
+function createEmailChart(days = 30) {
+    const chartData = emailTrendsData.length > 0 ? emailTrendsData.slice(-days) : generateSampleData(days);
+    
+    // Create gradient
+    const sentGradient = emailCtx.createLinearGradient(0, 0, 0, 300);
+    sentGradient.addColorStop(0, 'rgba(249, 115, 22, 0.9)');
+    sentGradient.addColorStop(1, 'rgba(251, 146, 60, 0.9)');
+    
+    const deliveredGradient = emailCtx.createLinearGradient(0, 0, 0, 300);
+    deliveredGradient.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
+    deliveredGradient.addColorStop(1, 'rgba(52, 211, 153, 0.9)');
+    
+    if (emailActivityChart) {
+        emailActivityChart.destroy();
+    }
+    
+    emailActivityChart = new Chart(emailCtx, {
+        type: 'bar',
+        data: {
+            labels: chartData.map(d => {
+                const date = new Date(d.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }),
+            datasets: [
+                {
+                    label: 'Sent',
+                    data: chartData.map(d => d.sent || d.total || 0),
+                    backgroundColor: sentGradient,
+                    borderRadius: { topLeft: 8, topRight: 8 },
+                    borderSkipped: false,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                },
+                {
+                    label: 'Delivered',
+                    data: chartData.map(d => d.delivered || Math.round((d.sent || d.total || 0) * 0.97)),
+                    backgroundColor: deliveredGradient,
+                    borderRadius: { topLeft: 8, topRight: 8 },
+                    borderSkipped: false,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} emails`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#F3F4F6', drawBorder: false },
+                    ticks: {
+                        color: '#6B7280',
+                        font: { size: 11, weight: '600' },
+                        callback: (value) => value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#6B7280', font: { size: 11, weight: '500' } }
+                }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeOutQuart'
+            }
+        }
+    });
+}
+
+function updateEmailChart(days) {
+    createEmailChart(parseInt(days));
+}
+
+// Campaign Performance Chart
+const campaignCtx = document.getElementById('campaignPerformanceChart').getContext('2d');
+
+// Prepare campaign data
+const campaignNames = campaignData.length > 0 
+    ? campaignData.slice(0, 6).map(c => c.name ? (c.name.length > 15 ? c.name.substring(0, 15) + '...' : c.name) : 'Campaign')
+    : ['Campaign 1', 'Campaign 2', 'Campaign 3', 'Campaign 4', 'Campaign 5'];
+
+const campaignSent = campaignData.length > 0 
+    ? campaignData.slice(0, 6).map(c => c.sent || 0)
+    : [1200, 900, 750, 500, 300];
+
+const campaignRecipients = campaignData.length > 0 
+    ? campaignData.slice(0, 6).map(c => c.recipients || c.sent || 0)
+    : [1300, 1000, 800, 600, 400];
+
+// Create gradient for campaign chart
+const campaignGradient = campaignCtx.createLinearGradient(0, 0, 400, 0);
+campaignGradient.addColorStop(0, '#F97316');
+campaignGradient.addColorStop(1, '#FB923C');
+
+const campaignPerformanceChart = new Chart(campaignCtx, {
+    type: 'bar',
+    data: {
+        labels: campaignNames,
+        datasets: [
+            {
+                label: 'Recipients',
+                data: campaignRecipients,
+                backgroundColor: 'rgba(229, 231, 235, 0.8)',
+                borderRadius: 8,
+                borderSkipped: false,
+                barPercentage: 0.8,
+                order: 2
+            },
+            {
+                label: 'Sent',
+                data: campaignSent,
+                backgroundColor: campaignGradient,
+                borderRadius: 8,
+                borderSkipped: false,
+                barPercentage: 0.8,
+                order: 1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                align: 'end',
+                labels: {
+                    boxWidth: 14,
+                    boxHeight: 14,
+                    borderRadius: 4,
+                    useBorderRadius: true,
+                    padding: 20,
+                    font: { size: 12, weight: '600' }
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x.toLocaleString()}`
+                }
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                grid: { color: '#F3F4F6', drawBorder: false },
+                ticks: {
+                    color: '#6B7280',
+                    font: { size: 11, weight: '600' },
+                    callback: (value) => value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value
+                }
+            },
+            y: {
+                grid: { display: false },
+                ticks: { color: '#374151', font: { size: 12, weight: '600' } }
+            }
+        },
+        animation: {
+            duration: 1200,
+            easing: 'easeOutQuart'
+        }
+    }
+});
+
+// Animate Delivery Rate Ring
+function animateDeliveryRing() {
+    const circle = document.getElementById('deliveryRing');
+    const circumference = 2 * Math.PI * 68;
+    const offset = circumference - (deliveryRate / 100 * circumference);
+    
+    setTimeout(() => {
+        circle.style.strokeDashoffset = offset;
+    }, 500);
+}
+
+// Animate Numbers
+function animateNumber(elementId, targetValue, duration = 1500) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const startValue = 0;
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        const current = Math.floor(startValue + (targetValue - startValue) * easeOutQuart);
+        
+        element.textContent = current.toLocaleString() + (elementId.includes('Rate') || elementId.includes('ring') ? '%' : '');
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// Initialize everything on DOM load
+document.addEventListener('DOMContentLoaded', function() {
+    // Create initial chart
+    createEmailChart(30);
+    
+    // Animate delivery ring
+    animateDeliveryRing();
+    
+    // Animate numbers (optional - uncomment if you want counting animation)
+    // animateNumber('statEmailsSent', totalEmailsSent);
+    // animateNumber('statDeliveryRate', deliveryRate);
+});
+
+// Auto-refresh stats every 60 seconds
+setInterval(async () => {
+    try {
+        const response = await fetch('/dashboard/api/stats');
+        const data = await response.json();
+        if (data.success && data.data) {
+            // Update stats with smooth transitions
+            const emailsEl = document.getElementById('statEmailsSent');
+            const contactsEl = document.getElementById('statContacts');
+            const campaignsEl = document.getElementById('statCampaigns');
+            
+            if (emailsEl) emailsEl.textContent = (data.data.emails_sent || 0).toLocaleString();
+            if (contactsEl) contactsEl.textContent = (data.data.contacts_active || data.data.contacts_total || 0).toLocaleString();
+            if (campaignsEl) campaignsEl.textContent = data.data.campaigns_total || 0;
+            
+            console.log('📊 Dashboard refreshed', new Date().toLocaleTimeString());
+        }
+    } catch (error) {
+        console.error('Stats refresh failed', error);
+    }
+}, 60000);
+</script>
+{% endblock %}

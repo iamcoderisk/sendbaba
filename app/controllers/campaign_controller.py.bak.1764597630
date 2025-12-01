@@ -1,0 +1,396 @@
+"""
+SendBaba Campaign Controller
+Production-grade with Celery queue
+"""
+from flask import Blueprint, render_template, request, jsonify, session
+from flask_login import login_required, current_user
+from sqlalchemy import text
+from app import db
+from datetime import datetime
+import uuid
+
+campaign_bp = Blueprint('campaigns', __name__, url_prefix='/campaigns')
+
+
+def get_org_id():
+    """Get current user's organization ID"""
+    return getattr(current_user, 'organization_id', None) or session.get('organization_id')
+
+
+# ============================================
+# PAGES
+# ============================================
+
+@campaign_bp.route('/')
+@login_required
+def campaigns_list():
+    return render_template('campaigns/index.html')
+
+
+@campaign_bp.route('/new')
+@login_required
+def new_campaign():
+    return render_template('campaigns/new.html')
+
+
+@campaign_bp.route('/<campaign_id>')
+@login_required
+def view_campaign(campaign_id):
+    return render_template('campaigns/view.html', campaign_id=campaign_id)
+
+
+@campaign_bp.route('/<campaign_id>/edit')
+@login_required
+def edit_campaign(campaign_id):
+    return render_template('campaigns/edit.html', campaign_id=campaign_id)
+
+
+# ============================================
+# API - LIST & CRUD
+# ============================================
+
+@campaign_bp.route('/api/list', methods=['GET'])
+@login_required
+def api_list_campaigns():
+    """Get all campaigns"""
+    try:
+        org_id = get_org_id()
+        if not org_id:
+            return jsonify({'error': 'No organization'}), 400
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        status = request.args.get('status', '')
+        
+        offset = (page - 1) * per_page
+        
+        query = """
+            SELECT id, name, status, subject, from_name, from_email,
+                   total_recipients, emails_sent, opens, clicks, bounces,
+                   created_at, sent_at
+            FROM campaigns WHERE organization_id = :org_id
+        """
+        params = {'org_id': org_id}
+        
+        if status:
+            query += " AND status = :status"
+            params['status'] = status
+        
+        query += " ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+        params['limit'] = per_page
+        params['offset'] = offset
+        
+        result = db.session.execute(text(query), params)
+        campaigns = []
+        
+        for row in result:
+            total = row[6] or 1
+            sent = row[7] or 0
+            campaigns.append({
+                'id': row[0],
+                'name': row[1],
+                'status': row[2],
+                'subject': row[3],
+                'from_name': row[4],
+                'from_email': row[5],
+                'total_recipients': row[6] or 0,
+                'emails_sent': sent,
+                'opens': row[8] or 0,
+                'clicks': row[9] or 0,
+                'bounces': row[10] or 0,
+                'progress': round(sent / total * 100, 1) if total > 0 else 0,
+                'created_at': row[11].isoformat() if row[11] else None,
+                'sent_at': row[12].isoformat() if row[12] else None
+            })
+        
+        # Get total
+        count_result = db.session.execute(text(
+            "SELECT COUNT(*) FROM campaigns WHERE organization_id = :org_id"
+        ), {'org_id': org_id})
+        total = count_result.scalar()
+        
+        return jsonify({
+            'campaigns': campaigns,
+            'total': total,
+            'page': page,
+            'pages': (total + per_page - 1) // per_page
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@campaign_bp.route('/api/create', methods=['POST'])
+@login_required
+def api_create_campaign():
+    """Create campaign"""
+    try:
+        org_id = get_org_id()
+        data = request.get_json() or request.form.to_dict()
+        
+        campaign_id = str(uuid.uuid4())
+        
+        db.session.execute(text("""
+            INSERT INTO campaigns (
+                id, organization_id, created_by_user_id, name, status,
+                from_name, from_email, reply_to, subject, preview_text,
+                html_body, text_body, created_at
+            ) VALUES (
+                :id, :org_id, :user_id, :name, 'draft',
+                :from_name, :from_email, :reply_to, :subject, :preview_text,
+                :html_body, :text_body, NOW()
+            )
+        """), {
+            'id': campaign_id,
+            'org_id': org_id,
+            'user_id': current_user.id,
+            'name': data.get('name', 'Untitled'),
+            'from_name': data.get('from_name'),
+            'from_email': data.get('from_email'),
+            'reply_to': data.get('reply_to'),
+            'subject': data.get('subject'),
+            'preview_text': data.get('preview_text'),
+            'html_body': data.get('html_body'),
+            'text_body': data.get('text_body')
+        })
+        db.session.commit()
+        
+        return jsonify({'success': True, 'campaign_id': campaign_id})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@campaign_bp.route('/api/<campaign_id>', methods=['GET'])
+@login_required
+def api_get_campaign(campaign_id):
+    """Get single campaign"""
+    try:
+        org_id = get_org_id()
+        
+        result = db.session.execute(text("""
+            SELECT id, name, status, from_name, from_email, reply_to,
+                   subject, preview_text, html_body, text_body,
+                   total_recipients, emails_sent, opens, clicks, bounces,
+                   created_at, sent_at
+            FROM campaigns WHERE id = :id AND organization_id = :org_id
+        """), {'id': campaign_id, 'org_id': org_id})
+        
+        row = result.fetchone()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        
+        return jsonify({
+            'id': row[0],
+            'name': row[1],
+            'status': row[2],
+            'from_name': row[3],
+            'from_email': row[4],
+            'reply_to': row[5],
+            'subject': row[6],
+            'preview_text': row[7],
+            'html_body': row[8],
+            'text_body': row[9],
+            'total_recipients': row[10] or 0,
+            'emails_sent': row[11] or 0,
+            'opens': row[12] or 0,
+            'clicks': row[13] or 0,
+            'bounces': row[14] or 0,
+            'created_at': row[15].isoformat() if row[15] else None,
+            'sent_at': row[16].isoformat() if row[16] else None
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@campaign_bp.route('/api/<campaign_id>', methods=['PUT'])
+@login_required
+def api_update_campaign(campaign_id):
+    """Update campaign"""
+    try:
+        org_id = get_org_id()
+        data = request.get_json() or request.form.to_dict()
+        
+        updates = []
+        params = {'id': campaign_id, 'org_id': org_id}
+        
+        for field in ['name', 'from_name', 'from_email', 'reply_to', 'subject', 
+                      'preview_text', 'html_body', 'text_body', 'status']:
+            if field in data:
+                updates.append(f"{field} = :{field}")
+                params[field] = data[field]
+        
+        if updates:
+            updates.append("updated_at = NOW()")
+            db.session.execute(text(f"""
+                UPDATE campaigns SET {', '.join(updates)}
+                WHERE id = :id AND organization_id = :org_id
+            """), params)
+            db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@campaign_bp.route('/api/<campaign_id>', methods=['DELETE'])
+@login_required
+def api_delete_campaign(campaign_id):
+    """Delete campaign"""
+    try:
+        org_id = get_org_id()
+        
+        db.session.execute(text("""
+            DELETE FROM campaigns WHERE id = :id AND organization_id = :org_id
+        """), {'id': campaign_id, 'org_id': org_id})
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================
+# SEND CAMPAIGN - CELERY QUEUE
+# ============================================
+
+@campaign_bp.route('/api/<campaign_id>/send', methods=['POST'])
+@login_required
+def api_send_campaign(campaign_id):
+    """
+    Send campaign via Celery queue
+    Handles unlimited recipients
+    """
+    try:
+        org_id = get_org_id()
+        if not org_id:
+            return jsonify({'error': 'No organization'}), 400
+        
+        # Verify campaign
+        result = db.session.execute(text("""
+            SELECT id, status, from_email, subject
+            FROM campaigns WHERE id = :id AND organization_id = :org_id
+        """), {'id': campaign_id, 'org_id': org_id})
+        
+        campaign = result.fetchone()
+        if not campaign:
+            return jsonify({'error': 'Campaign not found'}), 404
+        
+        if campaign[1] in ['sent', 'sending']:
+            return jsonify({'error': f'Campaign already {campaign[1]}'}), 400
+        
+        if not campaign[2]:
+            return jsonify({'error': 'From email required'}), 400
+        if not campaign[3]:
+            return jsonify({'error': 'Subject required'}), 400
+        
+        # Get contact count
+        count_result = db.session.execute(text("""
+            SELECT COUNT(*) FROM contacts 
+            WHERE organization_id = :org_id AND status = 'active'
+        """), {'org_id': org_id})
+        total_contacts = count_result.scalar()
+        
+        if total_contacts == 0:
+            return jsonify({'error': 'No contacts to send to'}), 400
+        
+        # Update campaign status
+        db.session.execute(text("""
+            UPDATE campaigns 
+            SET status = 'queuing', total_recipients = :total, emails_sent = 0, updated_at = NOW()
+            WHERE id = :id
+        """), {'id': campaign_id, 'total': total_contacts})
+        db.session.commit()
+        
+        # Queue campaign via Celery
+        from app.tasks.email_tasks import send_campaign
+        send_campaign.apply_async(args=[campaign_id], queue='bulk')
+        
+        return jsonify({
+            'success': True,
+            'message': f'Campaign queued for {total_contacts:,} recipients',
+            'campaign_id': campaign_id,
+            'total_recipients': total_contacts
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@campaign_bp.route('/api/<campaign_id>/status', methods=['GET'])
+@login_required
+def api_campaign_status(campaign_id):
+    """Get campaign send status"""
+    try:
+        org_id = get_org_id()
+        
+        result = db.session.execute(text("""
+            SELECT 
+                c.id, c.name, c.status, c.total_recipients, c.emails_sent,
+                c.opens, c.clicks, c.bounces, c.sent_at,
+                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status = 'sent') as actual_sent,
+                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status = 'bounced') as actual_bounced,
+                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status IN ('queued', 'retrying')) as pending
+            FROM campaigns c
+            WHERE c.id = :id AND c.organization_id = :org_id
+        """), {'id': campaign_id, 'org_id': org_id})
+        
+        row = result.fetchone()
+        if not row:
+            return jsonify({'error': 'Not found'}), 404
+        
+        total = row[3] or 1
+        sent = row[9] or 0
+        
+        return jsonify({
+            'id': row[0],
+            'name': row[1],
+            'status': row[2],
+            'total_recipients': row[3] or 0,
+            'emails_sent': sent,
+            'emails_bounced': row[10] or 0,
+            'emails_pending': row[11] or 0,
+            'opens': row[5] or 0,
+            'clicks': row[6] or 0,
+            'progress': round(sent / total * 100, 1),
+            'sent_at': row[8].isoformat() if row[8] else None
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@campaign_bp.route('/api/queue-status', methods=['GET'])
+@login_required
+def api_queue_status():
+    """Get Celery queue status"""
+    try:
+        from app.celery_config import celery_app
+        
+        # Get queue lengths
+        inspect = celery_app.control.inspect()
+        
+        active = inspect.active() or {}
+        reserved = inspect.reserved() or {}
+        scheduled = inspect.scheduled() or {}
+        
+        total_active = sum(len(tasks) for tasks in active.values())
+        total_reserved = sum(len(tasks) for tasks in reserved.values())
+        total_scheduled = sum(len(tasks) for tasks in scheduled.values())
+        
+        return jsonify({
+            'active_tasks': total_active,
+            'reserved_tasks': total_reserved,
+            'scheduled_tasks': total_scheduled,
+            'workers': list(active.keys())
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

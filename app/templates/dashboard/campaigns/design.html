@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block title %}Design Campaign - SendBaba{% endblock %}
+{% block content %}
+<style>
+.editor-wrapper { display: flex; height: calc(100vh - 70px); }
+.editor-sidebar { width: 340px; background: #1e293b; border-right: 1px solid #334155; overflow-y: auto; flex-shrink: 0; }
+.editor-canvas { flex: 1; background: #0f172a; overflow-y: auto; padding: 30px; }
+.editor-properties { width: 300px; background: #1e293b; border-left: 1px solid #334155; overflow-y: auto; flex-shrink: 0; display: none; }
+.editor-properties.active { display: block; }
+.email-canvas { max-width: 650px; margin: 0 auto; background: white; min-height: 600px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border-radius: 8px; overflow: hidden; }
+.save-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: all 0.3s ease; }
+.save-indicator.saving { background: #fef3c7; color: #92400e; }
+.save-indicator.saved { background: #d1fae5; color: #065f46; }
+.save-indicator.unsaved { background: #fef3c7; color: #92400e; }
+.save-indicator.error { background: #fee2e2; color: #991b1b; }
+.tab-btn { padding: 12px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; color: #94a3b8; cursor: pointer; transition: all 0.2s; font-weight: 500; font-size: 13px; }
+.tab-btn.active { color: #10b981; border-bottom-color: #10b981; }
+.tab-btn:hover { color: #cbd5e1; }
+.tab-content { display: none; padding: 16px; }
+.tab-content.active { display: block; }
+.block-item { background: #334155; padding: 14px; margin-bottom: 10px; border-radius: 8px; cursor: grab; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+.block-item:hover { background: #475569; transform: translateY(-2px); }
+.block-item:active { cursor: grabbing; }
+.block-icon { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 16px; }
+.editable-section { position: relative; cursor: text; transition: all 0.2s; min-height: 20px; }
+.editable-section:hover { outline: 2px dashed #10b981; outline-offset: 2px; }
+.editable-section.selected { outline: 2px solid #10b981; outline-offset: 2px; background: rgba(16,185,129,0.05); }
+.drop-zone { min-height: 150px; border: 2px dashed #475569; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; margin: 20px; padding: 40px; transition: all 0.2s; }
+.drop-zone.drag-over { border-color: #10b981; background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.format-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; background: #0f172a; border-radius: 8px; margin-bottom: 16px; }
+.format-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #334155; border: none; border-radius: 6px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+.format-btn:hover { background: #475569; color: white; }
+.format-btn.active { background: #10b981; color: white; }
+.format-separator { width: 1px; height: 28px; background: #475569; margin: 4px 8px; }
+.source-editor { width: 100%; min-height: 400px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+.color-picker-wrapper { display: flex; align-items: center; gap: 8px; }
+.color-picker { width: 40px; height: 40px; border: none; border-radius: 8px; cursor: pointer; padding: 0; }
+.color-input { flex: 1; padding: 8px 12px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; font-size: 13px; }
+.property-group { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #334155; }
+.property-label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.property-input { width: 100%; padding: 10px 12px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; font-size: 14px; }
+.property-input:focus { border-color: #10b981; outline: none; }
+.block-delete { position: absolute; top: -10px; right: -10px; width: 24px; height: 24px; background: #ef4444; border: none; border-radius: 50%; color: white; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 12px; z-index: 10; }
+.email-block:hover .block-delete { display: flex; }
+.email-block { position: relative; transition: all 0.2s; }
+.email-block:hover { outline: 1px dashed #64748b; }
+.email-block.selected { outline: 2px solid #10b981; }
+</style>
+
+<div class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+        <a href="/dashboard/campaigns" class="text-white hover:text-gray-300 transition"><i class="fas fa-arrow-left text-xl"></i></a>
+        <div>
+            <h1 class="text-white font-bold text-lg" id="campaignNameDisplay">{{ campaign_name }}</h1>
+            <p class="text-gray-400 text-sm">Campaign Designer</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-3">
+        <div id="saveIndicator" class="save-indicator saved"><i class="fas fa-check-circle"></i><span id="saveIndicatorText">All changes saved</span></div>
+        <button onclick="previewEmail()" class="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition font-medium flex items-center gap-2"><i class="fas fa-eye"></i> Preview</button>
+        <button onclick="saveDraft()" id="saveDraftBtn" class="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition font-medium flex items-center gap-2"><i class="fas fa-save"></i> Save now</button>
+        <button onclick="showSendModal()" class="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition font-bold shadow-lg flex items-center gap-2"><i class="fas fa-paper-plane"></i> Send</button>
+    </div>
+</div>
+
+<div class="editor-wrapper">
+    <div class="editor-sidebar">
+        <div class="p-4">
+            <div class="flex border-b border-slate-700 mb-4">
+                <button class="tab-btn active" onclick="switchTab('blocks')">Blocks</button>
+                <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
+                <button class="tab-btn" onclick="switchTab('design')">Design</button>
+                <button class="tab-btn" onclick="switchTab('code')">Code</button>
+            </div>
+
+            <div id="blocks-tab" class="tab-content active">
+                <h3 class="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Content Blocks</h3>
+                <div class="space-y-2">
+                    <div class="block-item" draggable="true" data-block="heading"><div class="block-icon bg-green-500"><i class="fas fa-heading text-white"></i></div><div><div class="text-white font-medium text-sm">Heading</div><div class="text-gray-400 text-xs">Add a title</div></div></div>
+                    <div class="block-item" draggable="true" data-block="text"><div class="block-icon bg-blue-500"><i class="fas fa-align-left text-white"></i></div><div><div class="text-white font-medium text-sm">Text</div><div class="text-gray-400 text-xs">Paragraph content</div></div></div>
+                    <div class="block-item" draggable="true" data-block="button"><div class="block-icon bg-purple-500"><i class="fas fa-hand-pointer text-white"></i></div><div><div class="text-white font-medium text-sm">Button</div><div class="text-gray-400 text-xs">Call to action</div></div></div>
+                    <div class="block-item" draggable="true" data-block="image"><div class="block-icon bg-yellow-500"><i class="fas fa-image text-white"></i></div><div><div class="text-white font-medium text-sm">Image</div><div class="text-gray-400 text-xs">Add photo/graphic</div></div></div>
+                    <div class="block-item" draggable="true" data-block="divider"><div class="block-icon bg-gray-500"><i class="fas fa-minus text-white"></i></div><div><div class="text-white font-medium text-sm">Divider</div><div class="text-gray-400 text-xs">Horizontal line</div></div></div>
+                    <div class="block-item" draggable="true" data-block="spacer"><div class="block-icon bg-indigo-500"><i class="fas fa-arrows-alt-v text-white"></i></div><div><div class="text-white font-medium text-sm">Spacer</div><div class="text-gray-400 text-xs">Add vertical space</div></div></div>
+                </div>
+                <h3 class="text-white font-semibold mb-3 mt-6 text-sm uppercase tracking-wide">Layout Blocks</h3>
+                <div class="space-y-2">
+                    <div class="block-item" draggable="true" data-block="columns2"><div class="block-icon bg-cyan-500"><i class="fas fa-columns text-white"></i></div><div><div class="text-white font-medium text-sm">2 Columns</div><div class="text-gray-400 text-xs">Side by side</div></div></div>
+                    <div class="block-item" draggable="true" data-block="columns3"><div class="block-icon bg-teal-500"><i class="fas fa-th text-white"></i></div><div><div class="text-white font-medium text-sm">3 Columns</div><div class="text-gray-400 text-xs">Triple layout</div></div></div>
+                    <div class="block-item" draggable="true" data-block="imagetext"><div class="block-icon bg-orange-500"><i class="fas fa-newspaper text-white"></i></div><div><div class="text-white font-medium text-sm">Image + Text</div><div class="text-gray-400 text-xs">Side by side</div></div></div>
+                </div>
+                <h3 class="text-white font-semibold mb-3 mt-6 text-sm uppercase tracking-wide">Social & Media</h3>
+                <div class="space-y-2">
+                    <div class="block-item" draggable="true" data-block="social"><div class="block-icon bg-pink-500"><i class="fas fa-share-alt text-white"></i></div><div><div class="text-white font-medium text-sm">Social Links</div><div class="text-gray-400 text-xs">Social media icons</div></div></div>
+                    <div class="block-item" draggable="true" data-block="video"><div class="block-icon bg-red-500"><i class="fas fa-play text-white"></i></div><div><div class="text-white font-medium text-sm">Video</div><div class="text-gray-400 text-xs">YouTube thumbnail</div></div></div>
+                    <div class="block-item" draggable="true" data-block="html"><div class="block-icon bg-slate-500"><i class="fas fa-code text-white"></i></div><div><div class="text-white font-medium text-sm">Custom HTML</div><div class="text-gray-400 text-xs">Raw HTML code</div></div></div>
+                </div>
+            </div>
+
+            <div id="settings-tab" class="tab-content">
+                <div class="space-y-4">
+                    <div><label class="property-label">Campaign Name</label><input type="text" id="campaignName" value="{{ campaign_name }}" class="property-input" placeholder="Enter campaign name"></div>
+                    <div class="pt-3 border-t border-slate-600"><h4 class="text-xs font-bold text-green-400 uppercase tracking-wider mb-3"><i class="fas fa-user-circle mr-1"></i> Sender Info</h4></div>
+                    <div><label class="property-label">From Name <span class="text-red-400">*</span></label><input type="text" id="fromName" value="{{ campaign_from_name or '' }}" placeholder="Your Company Name" class="property-input"></div>
+                    <div><label class="property-label">From Email <span class="text-red-400">*</span></label><input type="text" id="fromEmail" value="{{ campaign_from_email or '' }}" placeholder="hello@yourdomain.com" class="property-input"></div>
+                    <div><label class="property-label">Reply-To Email</label><input type="email" id="replyTo" value="{{ campaign_reply_to or '' }}" placeholder="replies@yourdomain.com" class="property-input"></div>
+                    <div class="pt-3 border-t border-slate-600"><h4 class="text-xs font-bold text-green-400 uppercase tracking-wider mb-3"><i class="fas fa-envelope mr-1"></i> Email Content</h4></div>
+                    <div><label class="property-label">Subject Line <span class="text-red-400">*</span></label><input type="text" id="emailSubject" value="{{ campaign_subject }}" placeholder="Your email subject" class="property-input"></div>
+                    <div><label class="property-label">Preview Text</label><textarea id="previewText" rows="2" placeholder="Shows after subject in inbox..." class="property-input">{{ campaign_preview_text or '' }}</textarea></div>
+                </div>
+            </div>
+
+            <div id="design-tab" class="tab-content">
+                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wide">Email Styling</h3>
+                <div class="space-y-5">
+                    <div><label class="property-label">Background Color</label><div class="color-picker-wrapper"><input type="color" id="emailBgColor" value="#ffffff" class="color-picker" onchange="updateEmailStyle()"><input type="text" id="emailBgColorText" value="#ffffff" class="color-input" onchange="syncBgColor()"></div></div>
+                    <div><label class="property-label">Content Background</label><div class="color-picker-wrapper"><input type="color" id="contentBgColor" value="#ffffff" class="color-picker" onchange="updateEmailStyle()"><input type="text" id="contentBgColorText" value="#ffffff" class="color-input"></div></div>
+                    <div><label class="property-label">Text Color</label><div class="color-picker-wrapper"><input type="color" id="textColor" value="#333333" class="color-picker" onchange="updateTextColor()"><input type="text" id="textColorText" value="#333333" class="color-input"></div></div>
+                    <div><label class="property-label">Link Color</label><div class="color-picker-wrapper"><input type="color" id="linkColor" value="#10b981" class="color-picker" onchange="updateLinkColor()"><input type="text" id="linkColorText" value="#10b981" class="color-input"></div></div>
+                    <div><label class="property-label">Content Width</label><select id="contentWidth" class="property-input" onchange="updateContentWidth()"><option value="500">Narrow (500px)</option><option value="600" selected>Standard (600px)</option><option value="700">Wide (700px)</option><option value="100%">Full Width</option></select></div>
+                    <div><label class="property-label">Font Family</label><select id="fontFamily" class="property-input" onchange="updateFontFamily()"><option value="Arial, sans-serif">Arial</option><option value="Helvetica, sans-serif">Helvetica</option><option value="Georgia, serif">Georgia</option><option value="Verdana, sans-serif">Verdana</option></select></div>
+                    <div><label class="property-label">Base Font Size</label><select id="baseFontSize" class="property-input" onchange="updateBaseFontSize()"><option value="14px">Small (14px)</option><option value="16px" selected>Medium (16px)</option><option value="18px">Large (18px)</option></select></div>
+                </div>
+            </div>
+
+            <div id="code-tab" class="tab-content">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-white font-semibold text-sm uppercase tracking-wide">HTML Source</h3>
+                    <button onclick="applySourceCode()" class="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium"><i class="fas fa-check mr-1"></i> Apply</button>
+                </div>
+                <textarea id="sourceCode" class="source-editor" placeholder="Edit HTML source code here..."></textarea>
+                <p class="text-gray-400 text-xs mt-2"><i class="fas fa-info-circle mr-1"></i> Edit HTML directly. Click "Apply" to update.</p>
+                <div class="mt-4 space-y-2">
+                    <button onclick="copySourceCode()" class="w-full px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium"><i class="fas fa-copy mr-2"></i> Copy to Clipboard</button>
+                    <button onclick="formatSourceCode()" class="w-full px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium"><i class="fas fa-indent mr-2"></i> Format Code</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="editor-canvas">
+        <div class="format-toolbar max-w-[650px] mx-auto mb-4">
+            <button class="format-btn" onclick="formatText('bold')" title="Bold"><i class="fas fa-bold"></i></button>
+            <button class="format-btn" onclick="formatText('italic')" title="Italic"><i class="fas fa-italic"></i></button>
+            <button class="format-btn" onclick="formatText('underline')" title="Underline"><i class="fas fa-underline"></i></button>
+            <button class="format-btn" onclick="formatText('strikethrough')" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+            <div class="format-separator"></div>
+            <button class="format-btn" onclick="formatText('justifyLeft')" title="Align Left"><i class="fas fa-align-left"></i></button>
+            <button class="format-btn" onclick="formatText('justifyCenter')" title="Align Center"><i class="fas fa-align-center"></i></button>
+            <button class="format-btn" onclick="formatText('justifyRight')" title="Align Right"><i class="fas fa-align-right"></i></button>
+            <button class="format-btn" onclick="formatText('justifyFull')" title="Justify"><i class="fas fa-align-justify"></i></button>
+            <div class="format-separator"></div>
+            <button class="format-btn" onclick="formatText('insertUnorderedList')" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+            <button class="format-btn" onclick="formatText('insertOrderedList')" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+            <div class="format-separator"></div>
+            <button class="format-btn" onclick="insertLink()" title="Insert Link"><i class="fas fa-link"></i></button>
+            <button class="format-btn" onclick="removeFormat()" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+            <div class="format-separator"></div>
+            <select id="fontSizeSelect" onchange="changeFontSize()" class="bg-slate-700 text-white text-sm rounded px-2 py-1.5 border-none"><option value="">Size</option><option value="1">Small</option><option value="3">Normal</option><option value="4">Medium</option><option value="5">Large</option><option value="6">X-Large</option></select>
+            <input type="color" id="textColorPicker" onchange="changeTextColor()" class="w-8 h-8 rounded cursor-pointer" value="#333333" title="Text Color">
+            <input type="color" id="bgColorPicker" onchange="changeBlockBgColor()" class="w-8 h-8 rounded cursor-pointer" value="#ffffff" title="Block Background">
+        </div>
+        <div class="email-canvas" id="emailCanvas" style="background: #ffffff;">
+            {% if template_html %}{{ template_html|safe }}{% else %}
+            <div id="mainDropZone" class="drop-zone"><div class="text-center"><i class="fas fa-mouse-pointer text-4xl mb-3"></i><p class="font-semibold text-lg">Drag blocks here to start</p><p class="text-sm mt-1">Or choose a template</p></div></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="editor-properties" id="propertiesPanel">
+        <div class="p-4">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-white font-semibold">Element Properties</h3><button onclick="closePropertiesPanel()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div>
+            <div id="propertiesContent"><p class="text-gray-400 text-sm">Select an element to edit its properties</p></div>
+        </div>
+    </div>
+</div>
+
+<div id="sendModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <h3 class="text-2xl font-bold text-gray-900 mb-4">Ready to send?</h3>
+        <p class="text-gray-600 mb-6">This campaign will be sent to <span class="font-bold text-green-600">{{ contacts_count }}</span> contact.</p>
+        <div class="space-y-4 mb-6">
+            <button onclick="showTestModal()" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-bold transition flex items-center justify-center gap-2"><i class="fas fa-flask"></i> Send Test Email First</button>
+            <button onclick="sendCampaign()" id="sendCampaignBtn" class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-bold transition flex items-center justify-center gap-2"><i class="fas fa-paper-plane"></i> Send to All Contacts</button>
+        </div>
+        <button onclick="closeSendModal()" class="w-full text-gray-600 hover:text-gray-900 font-medium">Cancel</button>
+    </div>
+</div>
+
+<div id="testModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <h3 class="text-2xl font-bold text-gray-900 mb-2">Send Test Email</h3>
+        <p class="text-gray-600 mb-6">Preview before sending to all contacts</p>
+        <div class="mb-6"><label class="block text-sm font-semibold text-gray-700 mb-2">Test Email Address</label><input type="email" id="testEmail" placeholder="your@email.com" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+        <div class="flex gap-3">
+            <button onclick="closeTestModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+            <button onclick="sendTestEmail()" id="sendTestBtn" class="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-bold"><i class="fas fa-paper-plane mr-2"></i>Send</button>
+        </div>
+    </div>
+</div>
+
+<div id="htmlModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Custom HTML Block</h3>
+        <textarea id="customHtmlInput" rows="10" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm" placeholder="Enter your HTML code here..."></textarea>
+        <div class="flex gap-3 mt-4">
+            <button onclick="closeHtmlModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
+            <button onclick="insertCustomHtml()" class="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 font-bold">Insert HTML</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const CAMPAIGN_ID = '{{ campaign_id }}';
+let draggedBlock = null;
+let autoSaveInterval = null;
+let hasUnsavedChanges = false;
+let selectedElement = null;
+
+const blockTemplates = {
+    heading: '<div class="email-block" style="padding: 20px;"><h1 contenteditable="true" style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">Click to edit heading</h1><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    text: '<div class="email-block" style="padding: 20px;"><p contenteditable="true" style="margin: 0; font-size: 16px; line-height: 1.6; color: #475569;">Click to edit this paragraph. Add your content here.</p><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    button: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" contenteditable="true" style="display: inline-block; background: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Click Here</a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    image: '<div class="email-block" style="padding: 20px; text-align: center;"><img src="https://via.placeholder.com/560x280/10b981/FFFFFF?text=Click+to+Change+Image" style="max-width: 100%; height: auto; border-radius: 8px; cursor: pointer;" onclick="changeImage(this)"><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    divider: '<div class="email-block" style="padding: 20px;"><hr style="border: none; border-top: 2px solid #e2e8f0; margin: 0;"><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    spacer: '<div class="email-block" style="height: 40px;"><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    columns2: '<div class="email-block" style="padding: 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="50%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 1 content</p></td><td width="50%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 2 content</p></td></tr></table><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    columns3: '<div class="email-block" style="padding: 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="33%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 1</p></td><td width="33%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 2</p></td><td width="33%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 3</p></td></tr></table><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    imagetext: '<div class="email-block" style="padding: 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="40%" style="padding: 10px; vertical-align: top;"><img src="https://via.placeholder.com/200x150/10b981/FFFFFF?text=Image" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="changeImage(this)"></td><td width="60%" style="padding: 10px; vertical-align: top;"><h3 contenteditable="true" style="margin: 0 0 10px 0; font-size: 20px;">Heading Here</h3><p contenteditable="true" style="margin: 0; color: #64748b;">Add your description text here.</p></td></tr></table><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    social: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733547.png" width="32" height="32" alt="Facebook"></a><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733579.png" width="32" height="32" alt="Twitter"></a><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733558.png" width="32" height="32" alt="LinkedIn"></a><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733561.png" width="32" height="32" alt="Instagram"></a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    video: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" onclick="editVideoUrl(this); return false;" style="display: block; position: relative;"><img src="https://via.placeholder.com/560x315/1e293b/FFFFFF?text=Click+to+Add+Video+URL" style="max-width: 100%; border-radius: 8px;"><div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-play" style="color: #ef4444; font-size: 24px; margin-left: 4px;"></i></div></a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    html: 'custom'
+};
+
+document.addEventListener('DOMContentLoaded', () => { initDragAndDrop(); startAutoSave(); trackChanges(); updateSourceCode(); makeEditable(); });
+
+function initDragAndDrop() {
+    document.querySelectorAll('.block-item').forEach(item => {
+        item.addEventListener('dragstart', (e) => { draggedBlock = e.target.dataset.block; e.target.style.opacity = '0.5'; });
+        item.addEventListener('dragend', (e) => { e.target.style.opacity = '1'; });
+    });
+    const canvas = document.getElementById('emailCanvas');
+    canvas.addEventListener('dragover', (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); });
+    canvas.addEventListener('dragleave', (e) => { e.currentTarget.classList.remove('drag-over'); });
+    canvas.addEventListener('drop', handleDrop);
+}
+
+function handleDrop(e) {
+    e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+    const mainDropZone = document.getElementById('mainDropZone'); if (mainDropZone) mainDropZone.remove();
+    if (draggedBlock === 'html') { document.getElementById('htmlModal').classList.remove('hidden'); } else { addBlock(draggedBlock); }
+    markUnsaved();
+}
+
+function addBlock(type) {
+    const canvas = document.getElementById('emailCanvas');
+    const template = blockTemplates[type];
+    if (template && template !== 'custom') {
+        const wrapper = document.createElement('div'); wrapper.innerHTML = template;
+        canvas.appendChild(wrapper.firstChild); makeEditable(); updateSourceCode();
+    }
+}
+
+function deleteBlock(btn) { const block = btn.closest('.email-block'); if (block && confirm('Delete this block?')) { block.remove(); markUnsaved(); updateSourceCode(); } }
+function changeImage(img) { const url = prompt('Enter image URL:', img.src); if (url) { img.src = url; markUnsaved(); updateSourceCode(); } }
+function editVideoUrl(el) { const url = prompt('Enter YouTube URL:'); if (url) { const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/); if (match) { el.querySelector('img').src = 'https://img.youtube.com/vi/' + match[1] + '/maxresdefault.jpg'; el.href = url; markUnsaved(); } } }
+
+function formatText(cmd) { document.execCommand(cmd, false, null); markUnsaved(); updateSourceCode(); }
+function insertLink() { const url = prompt('Enter URL:'); if (url) { document.execCommand('createLink', false, url); markUnsaved(); updateSourceCode(); } }
+function removeFormat() { document.execCommand('removeFormat', false, null); markUnsaved(); updateSourceCode(); }
+function changeFontSize() { const size = document.getElementById('fontSizeSelect').value; if (size) { document.execCommand('fontSize', false, size); markUnsaved(); updateSourceCode(); } }
+function changeTextColor() { document.execCommand('foreColor', false, document.getElementById('textColorPicker').value); markUnsaved(); updateSourceCode(); }
+function changeBlockBgColor() { const sel = window.getSelection(); if (sel.rangeCount > 0) { const block = sel.getRangeAt(0).startContainer.parentElement.closest('.email-block'); if (block) { block.style.backgroundColor = document.getElementById('bgColorPicker').value; markUnsaved(); updateSourceCode(); } } }
+
+function updateEmailStyle() { const canvas = document.getElementById('emailCanvas'); const bgColor = document.getElementById('emailBgColor').value; document.getElementById('emailBgColorText').value = bgColor; canvas.style.backgroundColor = bgColor; markUnsaved(); updateSourceCode(); }
+function syncBgColor() { document.getElementById('emailBgColor').value = document.getElementById('emailBgColorText').value; updateEmailStyle(); }
+function updateTextColor() { document.getElementById('textColorText').value = document.getElementById('textColor').value; markUnsaved(); }
+function updateLinkColor() { const color = document.getElementById('linkColor').value; document.getElementById('linkColorText').value = color; document.getElementById('emailCanvas').querySelectorAll('a').forEach(a => { if (!a.style.backgroundColor) a.style.color = color; }); markUnsaved(); updateSourceCode(); }
+function updateContentWidth() { document.getElementById('emailCanvas').style.maxWidth = document.getElementById('contentWidth').value; markUnsaved(); }
+function updateFontFamily() { document.getElementById('emailCanvas').style.fontFamily = document.getElementById('fontFamily').value; markUnsaved(); updateSourceCode(); }
+function updateBaseFontSize() { document.getElementById('emailCanvas').style.fontSize = document.getElementById('baseFontSize').value; markUnsaved(); updateSourceCode(); }
+
+function updateSourceCode() { const canvas = document.getElementById('emailCanvas'); const clone = canvas.cloneNode(true); clone.querySelectorAll('.block-delete, .drop-zone').forEach(el => el.remove()); document.getElementById('sourceCode').value = clone.innerHTML; }
+function applySourceCode() { document.getElementById('emailCanvas').innerHTML = document.getElementById('sourceCode').value; makeEditable(); markUnsaved(); alert('HTML applied!'); }
+function copySourceCode() { const s = document.getElementById('sourceCode'); s.select(); document.execCommand('copy'); alert('Copied!'); }
+function formatSourceCode() { document.getElementById('sourceCode').value = document.getElementById('sourceCode').value.replace(/></g, '>\n<'); }
+
+function closeHtmlModal() { document.getElementById('htmlModal').classList.add('hidden'); }
+function insertCustomHtml() { const html = document.getElementById('customHtmlInput').value; if (html) { const canvas = document.getElementById('emailCanvas'); const wrapper = document.createElement('div'); wrapper.className = 'email-block'; wrapper.style.padding = '20px'; wrapper.innerHTML = html + '<button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button>'; canvas.appendChild(wrapper); document.getElementById('customHtmlInput').value = ''; closeHtmlModal(); markUnsaved(); updateSourceCode(); } }
+
+function makeEditable() { document.getElementById('emailCanvas').querySelectorAll('.email-block').forEach(block => { block.addEventListener('click', (e) => { if (!e.target.classList.contains('block-delete')) selectBlock(block); }); }); }
+function selectBlock(block) { document.querySelectorAll('.email-block.selected').forEach(b => b.classList.remove('selected')); block.classList.add('selected'); selectedElement = block; showProperties(block); }
+function showProperties(block) { document.getElementById('propertiesPanel').classList.add('active'); document.getElementById('propertiesContent').innerHTML = '<div class="property-group"><label class="property-label">Padding</label><input type="text" class="property-input" value="' + (block.style.padding || '20px') + '" onchange="selectedElement.style.padding = this.value; markUnsaved(); updateSourceCode();"></div><div class="property-group"><label class="property-label">Background</label><input type="color" class="color-picker" value="' + (rgbToHex(block.style.backgroundColor) || '#ffffff') + '" onchange="selectedElement.style.backgroundColor = this.value; markUnsaved(); updateSourceCode();"></div><div class="property-group"><label class="property-label">Text Align</label><select class="property-input" onchange="selectedElement.style.textAlign = this.value; markUnsaved(); updateSourceCode();"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div><button onclick="deleteBlock(selectedElement.querySelector(\'.block-delete\'))" class="w-full mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium"><i class="fas fa-trash mr-2"></i>Delete Block</button>'; }
+function closePropertiesPanel() { document.getElementById('propertiesPanel').classList.remove('active'); document.querySelectorAll('.email-block.selected').forEach(b => b.classList.remove('selected')); selectedElement = null; }
+function rgbToHex(rgb) { if (!rgb || rgb === 'transparent') return '#ffffff'; if (rgb.startsWith('#')) return rgb; const m = rgb.match(/\d+/g); return m ? '#' + m.slice(0,3).map(x => parseInt(x).toString(16).padStart(2,'0')).join('') : '#ffffff'; }
+
+function switchTab(tab) { document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); event.target.classList.add('active'); document.getElementById(tab + '-tab').classList.add('active'); if (tab === 'code') updateSourceCode(); }
+
+function startAutoSave() { autoSaveInterval = setInterval(() => { if (hasUnsavedChanges) autoSaveDraft(); }, 10000); }
+function trackChanges() { ['campaignName', 'emailSubject', 'previewText', 'fromName', 'fromEmail', 'replyTo'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('input', () => { markUnsaved(); if (id === 'campaignName') document.getElementById('campaignNameDisplay').textContent = el.value; }); }); document.getElementById('emailCanvas').addEventListener('input', markUnsaved); }
+function markUnsaved() { hasUnsavedChanges = true; showSaveIndicator('unsaved'); }
+function showSaveIndicator(status) { const indicator = document.getElementById('saveIndicator'); indicator.className = 'save-indicator ' + status; const msgs = { saving: '<i class="fas fa-spinner fa-spin"></i> Saving...', saved: '<i class="fas fa-check-circle"></i> All changes saved', error: '<i class="fas fa-exclamation-circle"></i> Save failed', unsaved: '<i class="fas fa-circle"></i> Unsaved changes' }; document.getElementById('saveIndicatorText').innerHTML = msgs[status] || msgs.saved; }
+
+async function autoSaveDraft() {
+    showSaveIndicator('saving');
+    try {
+        const canvas = document.getElementById('emailCanvas'); const clone = canvas.cloneNode(true); clone.querySelectorAll('.block-delete, .drop-zone').forEach(el => el.remove());
+        const response = await fetch('/dashboard/campaigns/api/save-draft', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ campaign_id: CAMPAIGN_ID, name: document.getElementById('campaignName').value, subject: document.getElementById('emailSubject').value, from_name: document.getElementById('fromName').value, from_email: document.getElementById('fromEmail').value, reply_to: document.getElementById('replyTo').value, preview_text: document.getElementById('previewText').value, html: clone.innerHTML }) });
+        const data = await response.json();
+        if (data.success) { hasUnsavedChanges = false; showSaveIndicator('saved'); } else { showSaveIndicator('error'); }
+    } catch (e) { showSaveIndicator('error'); }
+}
+
+async function saveDraft() { const btn = document.getElementById('saveDraftBtn'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; await autoSaveDraft(); btn.innerHTML = '<i class="fas fa-check"></i> Saved!'; setTimeout(() => { btn.innerHTML = '<i class="fas fa-save"></i> Save now'; btn.disabled = false; }, 2000); }
+
+function previewEmail() { updateSourceCode(); const html = document.getElementById('sourceCode').value; const win = window.open('', 'Preview', 'width=700,height=600'); win.document.write('<!DOCTYPE html><html><head><title>Preview</title></head><body style="margin:0;padding:20px;background:#f1f5f9;"><div style="max-width:650px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">' + html + '</div></body></html>'); win.document.close(); }
+
+function showSendModal() { if (hasUnsavedChanges) { saveDraft().then(() => { document.getElementById('sendModal').classList.remove('hidden'); }); } else { document.getElementById('sendModal').classList.remove('hidden'); } }
+function closeSendModal() { document.getElementById('sendModal').classList.add('hidden'); }
+function showTestModal() { closeSendModal(); document.getElementById('testModal').classList.remove('hidden'); }
+function closeTestModal() { document.getElementById('testModal').classList.add('hidden'); }
+
+async function sendTestEmail() {
+    const btn = document.getElementById('sendTestBtn'); const testEmail = document.getElementById('testEmail').value.trim();
+    if (!testEmail || !testEmail.includes('@')) { alert('Please enter a valid email'); return; }
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    try {
+        updateSourceCode();
+        const response = await fetch('/dashboard/campaigns/api/send-test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ test_email: testEmail, subject: document.getElementById('emailSubject').value || 'Test', from_name: document.getElementById('fromName').value, from_email: document.getElementById('fromEmail').value, html: document.getElementById('sourceCode').value }) });
+        const data = await response.json();
+        if (data.success) { btn.innerHTML = '<i class="fas fa-check mr-2"></i>Sent!'; setTimeout(() => { closeTestModal(); btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send'; btn.disabled = false; alert('Test email sent to ' + testEmail); }, 1000); }
+        else { alert('Error: ' + data.error); btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send'; btn.disabled = false; }
+    } catch (e) { alert('Network error'); btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send'; btn.disabled = false; }
+}
+
+async function sendCampaign() {
+    const btn = document.getElementById('sendCampaignBtn');
+    const fromName = document.getElementById('fromName').value.trim(); const fromEmail = document.getElementById('fromEmail').value.trim(); const subject = document.getElementById('emailSubject').value.trim();
+    if (!fromName) { alert('Please enter From Name'); closeSendModal(); switchTab('settings'); return; }
+    if (!fromEmail) { alert('Please enter From Email'); closeSendModal(); switchTab('settings'); return; }
+    if (!subject) { alert('Please enter Subject Line'); closeSendModal(); switchTab('settings'); return; }
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    await saveDraft();
+    try {
+        const response = await fetch('/dashboard/campaigns/api/send', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({campaign_id: CAMPAIGN_ID}) });
+        const data = await response.json();
+        if (data.success) { btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Sent!'; setTimeout(() => { alert('Campaign sent! Delivered: ' + (data.sent || 0) + ' emails'); window.location.href = '/dashboard/campaigns'; }, 500); }
+        else { alert('Error: ' + data.error); btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send to All Contacts'; btn.disabled = false; }
+    } catch (e) { alert('Network error'); btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send to All Contacts'; btn.disabled = false; }
+}
+
+window.addEventListener('beforeunload', (e) => { if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = 'Unsaved changes'; return e.returnValue; } });
+window.addEventListener('unload', () => { if (autoSaveInterval) clearInterval(autoSaveInterval); });
+</script>
+{% endblock %}

@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+{% block title %}{% if workflow %}Edit Workflow{% else %}Create Workflow{% endif %} - SendBaba{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-80px)]" id="workflowApp">
+    <!-- Left Sidebar -->
+    <div class="w-80 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
+        <!-- Workflow Name -->
+        <div class="p-4 border-b border-gray-200">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Workflow Name</label>
+            <input type="text" id="workflowName" placeholder="Enter workflow name..." 
+                   class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-medium"
+                   value="{{ workflow.name if workflow else 'Untitled Workflow' }}">
+        </div>
+        
+        <!-- Trigger Selection -->
+        <div class="p-4 border-b border-gray-200">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Trigger</label>
+            <select id="triggerType" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500">
+                <option value="contact_added" {% if not workflow or workflow.trigger_type == 'contact_added' %}selected{% endif %}>Contact Added</option>
+                <option value="tag_added" {% if workflow and workflow.trigger_type == 'tag_added' %}selected{% endif %}>Tag Added</option>
+                <option value="form_submitted" {% if workflow and workflow.trigger_type == 'form_submitted' %}selected{% endif %}>Form Submitted</option>
+                <option value="date_based" {% if workflow and workflow.trigger_type == 'date_based' %}selected{% endif %}>Date Based</option>
+                <option value="api_trigger" {% if workflow and workflow.trigger_type == 'api_trigger' %}selected{% endif %}>API Trigger</option>
+            </select>
+        </div>
+        
+        <!-- Add Step Buttons -->
+        <div class="p-4 flex-1 overflow-y-auto">
+            <label class="block text-xs font-medium text-gray-500 mb-3">Click to Add Step</label>
+            <div class="space-y-2">
+                <button type="button" onclick="addStep('send_email')" class="w-full p-3 border border-gray-200 rounded-lg text-left hover:bg-purple-50 hover:border-purple-300 transition-all flex items-center gap-3">
+                    <span class="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center">📧</span>
+                    <div>
+                        <div class="font-medium text-gray-900">Send Email</div>
+                        <div class="text-xs text-gray-500">Send an email to contact</div>
+                    </div>
+                </button>
+                
+                <button type="button" onclick="addStep('wait')" class="w-full p-3 border border-gray-200 rounded-lg text-left hover:bg-blue-50 hover:border-blue-300 transition-all flex items-center gap-3">
+                    <span class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">⏱️</span>
+                    <div>
+                        <div class="font-medium text-gray-900">Wait / Delay</div>
+                        <div class="text-xs text-gray-500">Wait before next step</div>
+                    </div>
+                </button>
+                
+                <button type="button" onclick="addStep('condition')" class="w-full p-3 border border-gray-200 rounded-lg text-left hover:bg-yellow-50 hover:border-yellow-300 transition-all flex items-center gap-3">
+                    <span class="w-9 h-9 bg-yellow-100 rounded-lg flex items-center justify-center">🔀</span>
+                    <div>
+                        <div class="font-medium text-gray-900">Condition</div>
+                        <div class="text-xs text-gray-500">Branch based on condition</div>
+                    </div>
+                </button>
+                
+                <button type="button" onclick="addStep('add_tag')" class="w-full p-3 border border-gray-200 rounded-lg text-left hover:bg-green-50 hover:border-green-300 transition-all flex items-center gap-3">
+                    <span class="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">🏷️</span>
+                    <div>
+                        <div class="font-medium text-gray-900">Add Tag</div>
+                        <div class="text-xs text-gray-500">Add tag to contact</div>
+                    </div>
+                </button>
+                
+                <button type="button" onclick="addStep('webhook')" class="w-full p-3 border border-gray-200 rounded-lg text-left hover:bg-orange-50 hover:border-orange-300 transition-all flex items-center gap-3">
+                    <span class="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center">🔗</span>
+                    <div>
+                        <div class="font-medium text-gray-900">Webhook</div>
+                        <div class="text-xs text-gray-500">Send data to URL</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Back Button -->
+        <div class="p-4 border-t border-gray-200">
+            <a href="/dashboard/workflows" class="block w-full px-4 py-2 text-center border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 font-medium">
+                ← Back to Workflows
+            </a>
+        </div>
+    </div>
+    
+    <!-- Main Canvas -->
+    <div class="flex-1 bg-gray-50 overflow-auto">
+        <!-- Top Bar -->
+        <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+            <div class="flex items-center gap-4">
+                <span class="text-sm text-gray-500"><span id="stepCount">0</span> step(s)</span>
+                <span id="savedIndicator" class="text-sm text-green-600 hidden">✓ Saved</span>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="saveWorkflow('draft')" id="saveDraftBtn"
+                        class="px-5 py-2 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50">
+                    Save Draft
+                </button>
+                <button type="button" onclick="saveWorkflow('active')" id="activateBtn"
+                        class="px-5 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
+                    Activate
+                </button>
+            </div>
+        </div>
+        
+        <!-- Workflow Canvas -->
+        <div class="p-8">
+            <div class="max-w-xl mx-auto">
+                <!-- Trigger Node -->
+                <div class="bg-gradient-to-r from-purple-600 to-purple-700 text-white p-5 rounded-xl shadow-lg">
+                    <div class="flex items-center gap-4">
+                        <span class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">▶️</span>
+                        <div>
+                            <div class="font-semibold text-lg">Trigger</div>
+                            <div class="text-purple-200 text-sm" id="triggerLabel">When a contact is added</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Steps Container -->
+                <div id="stepsContainer"></div>
+                
+                <!-- End Node -->
+                <div class="mt-4">
+                    <div class="w-0.5 h-8 bg-gray-300 mx-auto"></div>
+                    <div class="bg-gray-600 text-white p-5 rounded-xl shadow">
+                        <div class="flex items-center gap-4">
+                            <span class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl">🏁</span>
+                            <div>
+                                <div class="font-semibold text-lg">End</div>
+                                <div class="text-gray-300 text-sm">Workflow complete</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Workflow state
+let workflowId = '{{ workflow.id if workflow else "" }}';
+let steps = [];
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Workflow builder loaded');
+    
+    // Load existing steps if editing
+    {% if workflow and workflow.steps %}
+    try {
+        steps = {{ workflow.steps | tojson | safe }};
+        console.log('Loaded existing steps:', steps);
+        renderSteps();
+    } catch(e) {
+        console.error('Failed to load steps:', e);
+        steps = [];
+    }
+    {% endif %}
+    
+    // Update trigger label on change
+    document.getElementById('triggerType').addEventListener('change', updateTriggerLabel);
+    updateTriggerLabel();
+});
+
+function updateTriggerLabel() {
+    const type = document.getElementById('triggerType').value;
+    const labels = {
+        'contact_added': 'When a contact is added',
+        'tag_added': 'When a tag is added to contact',
+        'form_submitted': 'When a form is submitted',
+        'date_based': 'On a specific date',
+        'api_trigger': 'When triggered via API'
+    };
+    document.getElementById('triggerLabel').textContent = labels[type] || type;
+}
+
+function addStep(type) {
+    console.log('Adding step:', type);
+    
+    const stepNames = {
+        'send_email': 'Send Email',
+        'wait': 'Wait / Delay',
+        'condition': 'Condition',
+        'add_tag': 'Add Tag',
+        'remove_tag': 'Remove Tag',
+        'webhook': 'Webhook'
+    };
+    
+    const defaultConfigs = {
+        'send_email': { subject: '', template_id: '' },
+        'wait': { delay_value: 1, delay_unit: 'days' },
+        'condition': { condition_type: 'email_opened', condition_value: '' },
+        'add_tag': { tag: '' },
+        'remove_tag': { tag: '' },
+        'webhook': { url: '', method: 'POST' }
+    };
+    
+    const step = {
+        id: 'step_' + Date.now(),
+        type: type,
+        name: stepNames[type] || type,
+        config: JSON.parse(JSON.stringify(defaultConfigs[type] || {}))
+    };
+    
+    steps.push(step);
+    console.log('Steps now:', steps);
+    renderSteps();
+}
+
+function removeStep(index) {
+    console.log('Removing step:', index);
+    steps.splice(index, 1);
+    renderSteps();
+}
+
+function renderSteps() {
+    const container = document.getElementById('stepsContainer');
+    document.getElementById('stepCount').textContent = steps.length;
+    
+    if (steps.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const stepIcons = { send_email: '📧', wait: '⏱️', condition: '🔀', add_tag: '🏷️', remove_tag: '🗑️', webhook: '🔗' };
+    const stepColors = { send_email: 'purple', wait: 'blue', condition: 'yellow', add_tag: 'green', remove_tag: 'red', webhook: 'orange' };
+    
+    let html = '';
+    
+    steps.forEach((step, index) => {
+        const color = stepColors[step.type] || 'gray';
+        const icon = stepIcons[step.type] || '⚙️';
+        
+        html += `
+            <div class="mt-4">
+                <div class="w-0.5 h-8 bg-gray-300 mx-auto"></div>
+                <div class="bg-white rounded-xl shadow border-l-4 border-l-${color}-500 overflow-hidden">
+                    <div class="p-4">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <span class="w-10 h-10 bg-${color}-100 rounded-lg flex items-center justify-center text-xl">${icon}</span>
+                                <div>
+                                    <div class="font-semibold text-gray-900">${step.name}</div>
+                                    <div class="text-xs text-gray-500">Step ${index + 1}</div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="removeStep(${index})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            ${getStepConfigHTML(step, index)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function getStepConfigHTML(step, index) {
+    switch(step.type) {
+        case 'send_email':
+            return `
+                <div class="space-y-2">
+                    <input type="text" placeholder="Email subject line..." 
+                           value="${step.config.subject || ''}"
+                           onchange="updateStepConfig(${index}, 'subject', this.value)"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500">
+                    <select onchange="updateStepConfig(${index}, 'template_id', this.value)"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                        <option value="">Select email template...</option>
+                        <option value="welcome" ${step.config.template_id === 'welcome' ? 'selected' : ''}>Welcome Email</option>
+                        <option value="follow_up" ${step.config.template_id === 'follow_up' ? 'selected' : ''}>Follow Up Email</option>
+                        <option value="promotional" ${step.config.template_id === 'promotional' ? 'selected' : ''}>Promotional Email</option>
+                    </select>
+                </div>
+            `;
+        case 'wait':
+            return `
+                <div class="flex gap-2">
+                    <input type="number" min="1" value="${step.config.delay_value || 1}"
+                           onchange="updateStepConfig(${index}, 'delay_value', parseInt(this.value))"
+                           class="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm text-center">
+                    <select onchange="updateStepConfig(${index}, 'delay_unit', this.value)"
+                            class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                        <option value="minutes" ${step.config.delay_unit === 'minutes' ? 'selected' : ''}>Minutes</option>
+                        <option value="hours" ${step.config.delay_unit === 'hours' ? 'selected' : ''}>Hours</option>
+                        <option value="days" ${step.config.delay_unit === 'days' ? 'selected' : ''}>Days</option>
+                        <option value="weeks" ${step.config.delay_unit === 'weeks' ? 'selected' : ''}>Weeks</option>
+                    </select>
+                </div>
+            `;
+        case 'condition':
+            return `
+                <div class="space-y-2">
+                    <select onchange="updateStepConfig(${index}, 'condition_type', this.value)"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                        <option value="email_opened" ${step.config.condition_type === 'email_opened' ? 'selected' : ''}>Previous email was opened</option>
+                        <option value="email_clicked" ${step.config.condition_type === 'email_clicked' ? 'selected' : ''}>Previous email was clicked</option>
+                        <option value="has_tag" ${step.config.condition_type === 'has_tag' ? 'selected' : ''}>Contact has tag</option>
+                    </select>
+                    <input type="text" placeholder="Value (if needed)..." 
+                           value="${step.config.condition_value || ''}"
+                           onchange="updateStepConfig(${index}, 'condition_value', this.value)"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                </div>
+            `;
+        case 'add_tag':
+        case 'remove_tag':
+            return `
+                <input type="text" placeholder="Enter tag name..." 
+                       value="${step.config.tag || ''}"
+                       onchange="updateStepConfig(${index}, 'tag', this.value)"
+                       class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500">
+            `;
+        case 'webhook':
+            return `
+                <div class="space-y-2">
+                    <input type="url" placeholder="https://your-webhook-url.com" 
+                           value="${step.config.url || ''}"
+                           onchange="updateStepConfig(${index}, 'url', this.value)"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                    <select onchange="updateStepConfig(${index}, 'method', this.value)"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                        <option value="POST" ${step.config.method === 'POST' ? 'selected' : ''}>POST</option>
+                        <option value="GET" ${step.config.method === 'GET' ? 'selected' : ''}>GET</option>
+                    </select>
+                </div>
+            `;
+        default:
+            return '<p class="text-sm text-gray-500">Configure this step...</p>';
+    }
+}
+
+function updateStepConfig(index, key, value) {
+    console.log('Updating step', index, key, value);
+    if (steps[index]) {
+        steps[index].config[key] = value;
+    }
+}
+
+async function saveWorkflow(status) {
+    const name = document.getElementById('workflowName').value || 'Untitled Workflow';
+    const triggerType = document.getElementById('triggerType').value;
+    
+    console.log('Saving workflow:', { name, triggerType, steps, status });
+    
+    // Disable buttons
+    document.getElementById('saveDraftBtn').disabled = true;
+    document.getElementById('activateBtn').disabled = true;
+    document.getElementById('saveDraftBtn').textContent = 'Saving...';
+    
+    const isNew = !workflowId;
+    const url = isNew ? '/dashboard/workflows/api/create' : '/dashboard/workflows/api/' + workflowId;
+    const method = isNew ? 'POST' : 'PUT';
+    
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                trigger_type: triggerType,
+                trigger_config: {},
+                steps: steps,
+                status: status
+            })
+        });
+        
+        const result = await response.json();
+        console.log('Save result:', result);
+        
+        if (result.success) {
+            // Show saved indicator
+            document.getElementById('savedIndicator').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('savedIndicator').classList.add('hidden');
+            }, 3000);
+            
+            if (isNew && result.workflow && result.workflow.id) {
+                workflowId = result.workflow.id;
+                // Update URL without reload
+                history.pushState({}, '', '/dashboard/workflows/' + workflowId + '/edit');
+            }
+            
+            if (status === 'active') {
+                alert('Workflow activated successfully!');
+                window.location.href = '/dashboard/workflows';
+            }
+        } else {
+            alert(result.error || 'Failed to save workflow');
+        }
+    } catch (e) {
+        console.error('Save error:', e);
+        alert('Failed to save. Please try again.');
+    }
+    
+    // Re-enable buttons
+    document.getElementById('saveDraftBtn').disabled = false;
+    document.getElementById('activateBtn').disabled = false;
+    document.getElementById('saveDraftBtn').textContent = 'Save Draft';
+}
+</script>
+
+<style>
+.border-l-purple-500 { border-left-color: #a855f7; }
+.border-l-blue-500 { border-left-color: #3b82f6; }
+.border-l-yellow-500 { border-left-color: #eab308; }
+.border-l-green-500 { border-left-color: #22c55e; }
+.border-l-red-500 { border-left-color: #ef4444; }
+.border-l-orange-500 { border-left-color: #f97316; }
+.bg-purple-100 { background-color: #f3e8ff; }
+.bg-blue-100 { background-color: #dbeafe; }
+.bg-yellow-100 { background-color: #fef9c3; }
+.bg-green-100 { background-color: #dcfce7; }
+.bg-red-100 { background-color: #fee2e2; }
+.bg-orange-100 { background-color: #ffedd5; }
+</style>
+{% endblock %}

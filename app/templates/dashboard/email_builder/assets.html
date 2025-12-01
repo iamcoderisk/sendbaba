@@ -1,0 +1,81 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Assets - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <a href="/dashboard/email-builder" class="text-purple-600 mb-2 inline-block"><i class="fas fa-arrow-left mr-2"></i>Back</a>
+            <h1 class="text-2xl font-bold">Asset Library</h1>
+            <p class="text-gray-600">Manage images for your email templates</p>
+        </div>
+        <label class="px-4 py-2 bg-purple-600 text-white rounded-lg cursor-pointer hover:bg-purple-700">
+            <i class="fas fa-upload mr-2"></i>Upload
+            <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+        </label>
+    </div>
+
+    <div id="assetGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div>
+    
+    <div id="emptyState" class="hidden text-center py-12 bg-white rounded-lg">
+        <i class="fas fa-images text-4xl text-gray-300 mb-4"></i>
+        <h3 class="font-medium mb-2">No assets yet</h3>
+        <p class="text-gray-600">Upload images to use in your emails</p>
+    </div>
+</div>
+
+<script>
+async function loadAssets() {
+    const response = await fetch('/dashboard/email-builder/api/assets');
+    const data = await response.json();
+    
+    const grid = document.getElementById('assetGrid');
+    const empty = document.getElementById('emptyState');
+    
+    if (!data.data || data.data.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    
+    empty.classList.add('hidden');
+    grid.innerHTML = data.data.map(a => `
+        <div class="bg-white rounded-lg shadow overflow-hidden group relative">
+            <div class="aspect-square bg-gray-100">
+                <img src="${a.url}" class="w-full h-full object-cover">
+            </div>
+            <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                <button onclick="copyUrl('${a.url}')" class="p-2 bg-white rounded"><i class="fas fa-copy"></i></button>
+                <button onclick="deleteAsset('${a.id}')" class="p-2 bg-white rounded text-red-600"><i class="fas fa-trash"></i></button>
+            </div>
+            <div class="p-2 text-xs text-gray-500 truncate">${a.original_filename || a.filename}</div>
+        </div>
+    `).join('');
+}
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    for (const file of e.target.files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        await fetch('/dashboard/email-builder/api/assets/upload', {
+            method: 'POST',
+            body: formData
+        });
+    }
+    loadAssets();
+});
+
+function copyUrl(url) {
+    navigator.clipboard.writeText(url);
+    alert('URL copied!');
+}
+
+async function deleteAsset(id) {
+    if (!confirm('Delete this asset?')) return;
+    await fetch(`/dashboard/email-builder/api/assets/${id}`, { method: 'DELETE' });
+    loadAssets();
+}
+
+loadAssets();
+</script>
+{% endblock %}

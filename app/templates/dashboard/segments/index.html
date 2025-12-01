@@ -1,0 +1,96 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Segments - SendBaba{% endblock %}
+{% block content %}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Segments</h1>
+            <p class="text-gray-600">Create dynamic segments to target specific contacts</p>
+        </div>
+        <a href="/dashboard/segments/create" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+            <i class="fas fa-plus mr-2"></i>Create Segment
+        </a>
+    </div>
+
+    <!-- Segments Grid -->
+    <div id="segmentsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    
+    <div id="emptyState" class="hidden text-center py-12 bg-white rounded-lg">
+        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-users text-2xl text-purple-600"></i>
+        </div>
+        <h3 class="text-lg font-medium mb-2">No segments yet</h3>
+        <p class="text-gray-600 mb-4">Create segments to organize your contacts</p>
+        <a href="/dashboard/segments/create" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg">
+            <i class="fas fa-plus mr-2"></i>Create Segment
+        </a>
+    </div>
+</div>
+
+<script>
+async function loadSegments() {
+    const response = await fetch('/dashboard/segments/api/list');
+    const data = await response.json();
+    
+    const segments = data.segments;
+    const container = document.getElementById('segmentsList');
+    const empty = document.getElementById('emptyState');
+    
+    if (segments.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    
+    empty.classList.add('hidden');
+    container.innerHTML = segments.map(s => `
+        <div class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+            <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-${s.color}-100 rounded-lg flex items-center justify-center">
+                        <i class="fas ${s.icon} text-${s.color}-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-medium">${s.name}</h3>
+                        <p class="text-sm text-gray-500">${s.description || 'No description'}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="text-2xl font-bold text-purple-600">${s.cached_count.toLocaleString()}</div>
+                <div class="flex gap-2">
+                    <button onclick="refreshSegment('${s.id}')" class="p-2 text-gray-400 hover:text-purple-600" title="Refresh">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                    <a href="/dashboard/segments/${s.id}/contacts" class="p-2 text-gray-400 hover:text-purple-600" title="View Contacts">
+                        <i class="fas fa-users"></i>
+                    </a>
+                    <a href="/dashboard/segments/${s.id}/edit" class="p-2 text-gray-400 hover:text-purple-600" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button onclick="deleteSegment('${s.id}')" class="p-2 text-gray-400 hover:text-red-600" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-2 text-xs text-gray-400">
+                Last updated: ${s.last_calculated_at ? new Date(s.last_calculated_at).toLocaleString() : 'Never'}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function refreshSegment(id) {
+    await fetch(`/dashboard/segments/api/${id}/refresh`, { method: 'POST' });
+    loadSegments();
+}
+
+async function deleteSegment(id) {
+    if (!confirm('Delete this segment?')) return;
+    await fetch(`/dashboard/segments/api/${id}`, { method: 'DELETE' });
+    loadSegments();
+}
+
+loadSegments();
+</script>
+{% endblock %}

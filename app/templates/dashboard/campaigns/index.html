@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Campaigns - SendBaba{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-50 p-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900">Campaigns</h1>
+                <p class="text-gray-600 mt-2">Create and manage your email campaigns</p>
+            </div>
+            <a href="/dashboard/campaigns/create" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-4 rounded-xl hover:from-green-600 hover:to-green-700 transition font-semibold shadow-lg flex items-center gap-2">
+                <i class="fas fa-plus-circle"></i> Create campaign
+            </a>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
+            <div class="flex border-b border-gray-200">
+                <button onclick="showTab('sent')" id="tab-sent" class="tab-btn flex-1 px-6 py-4 font-semibold text-green-600 border-b-2 border-green-600">
+                    Sent <span class="ml-2 bg-green-100 text-green-600 px-2 py-1 rounded-full text-sm">{{ campaigns.sent|length }}</span>
+                </button>
+                <button onclick="showTab('drafts')" id="tab-drafts" class="tab-btn flex-1 px-6 py-4 font-semibold text-gray-700 hover:text-green-600 border-b-2 border-transparent">
+                    Drafts <span class="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">{{ campaigns.drafts|length }}</span>
+                </button>
+                <button onclick="showTab('pending')" id="tab-pending" class="tab-btn flex-1 px-6 py-4 font-semibold text-gray-700 hover:text-green-600 border-b-2 border-transparent">
+                    Pending <span class="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">{{ campaigns.pending|length }}</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="content-sent" class="tab-content">
+            {% if campaigns.sent %}
+            <div class="grid gap-4">
+                {% for campaign in campaigns.sent %}
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-gray-900">{{ campaign.name or 'Untitled' }}</h3>
+                            <p class="text-gray-600 text-sm mt-1">{{ campaign.subject or 'No subject' }}</p>
+                            <div class="flex gap-4 mt-3 text-sm text-gray-500">
+                                <span><i class="fas fa-calendar mr-1"></i>{{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
+                                <span><i class="fas fa-users mr-1"></i>Recipients: {{ "{:,}".format(campaign.recipients|default(0, true)|int) }}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-6">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-green-600">{{ "{:,}".format(campaign.emails_sent|default(0, true)|int) }}</div>
+                                <div class="text-xs text-gray-500">Delivered</div>
+                            </div>
+                            <a href="/dashboard/campaigns/view/{{ campaign.id }}" class="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition text-sm font-medium">View report</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+                <i class="fas fa-paper-plane text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No sent campaigns yet</h3>
+                <p class="text-gray-500">Your sent campaigns will appear here</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div id="content-drafts" class="tab-content hidden">
+            {% if campaigns.drafts %}
+            <div class="grid gap-4">
+                {% for campaign in campaigns.drafts %}
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition" data-draft-id="{{ campaign.id }}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-gray-900">{{ campaign.name or 'Untitled' }}</h3>
+                            <p class="text-gray-600 text-sm mt-1">{{ campaign.subject if campaign.subject else 'No subject yet' }}</p>
+                            <div class="flex gap-3 mt-2">
+                                <span class="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">Draft</span>
+                                <span class="text-xs text-gray-500"><i class="far fa-clock mr-1"></i>{{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="/dashboard/campaigns/design/blank?campaign_id={{ campaign.id }}" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition font-medium inline-flex items-center gap-2">
+                                <i class="fas fa-edit"></i> Continue editing
+                            </a>
+                            <button onclick="deleteDraft('{{ campaign.id }}')" class="text-gray-400 hover:text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+                <i class="fas fa-file-alt text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No drafts</h3>
+                <p class="text-gray-500">Start creating a campaign to save drafts</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div id="content-pending" class="tab-content hidden">
+            {% if campaigns.pending %}
+            <div class="grid gap-4">
+                {% for campaign in campaigns.pending %}
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-bold">{{ campaign.name or 'Untitled' }}</h3>
+                    <span class="inline-block mt-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-semibold">{{ campaign.status|title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+                <i class="fas fa-clock text-6xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">No pending campaigns</h3>
+                <p class="text-gray-500">Scheduled campaigns will appear here</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function showTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('border-green-600', 'text-green-600');
+        el.classList.add('border-transparent', 'text-gray-700');
+    });
+    document.getElementById('content-' + tab).classList.remove('hidden');
+    const btn = document.getElementById('tab-' + tab);
+    btn.classList.remove('border-transparent', 'text-gray-700');
+    btn.classList.add('border-green-600', 'text-green-600');
+}
+
+function deleteDraft(campaignId) {
+    if (!confirm('Delete this draft?')) return;
+    fetch('/dashboard/campaigns/api/delete-draft/' + campaignId, {method: 'DELETE'})
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) location.reload();
+            else alert('Error: ' + data.error);
+        });
+}
+</script>
+{% endblock %}

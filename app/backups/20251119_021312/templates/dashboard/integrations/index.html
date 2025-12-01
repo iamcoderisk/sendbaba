@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Integrations - SendBaba{% endblock %}
+
+{% block page_title %}Integrations{% endblock %}
+{% block page_subtitle %}Connect your favorite tools and platforms{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    
+    <!-- Header Section -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">🛒 E-commerce Integrations</h1>
+        <p class="text-gray-600">Connect your store to SendBaba and sync customer data automatically</p>
+    </div>
+    
+    <!-- Integration Cards Grid -->
+    <div class="grid md:grid-cols-3 gap-6 mb-8">
+        
+        <!-- Shopify -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition">
+            <div class="flex items-start mb-4">
+                <div class="bg-green-100 p-4 rounded-xl mr-4">
+                    <i class="fas fa-shopping-bag text-3xl text-green-600"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg text-gray-900">Shopify</h3>
+                    <span class="inline-block mt-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Not Connected</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Sync customers and orders from your Shopify store</p>
+            <button onclick="connectShopify()" class="w-full bg-purple-600 text-white py-2.5 rounded-lg hover:bg-purple-700 transition font-semibold">
+                Connect Shopify
+            </button>
+        </div>
+        
+        <!-- WooCommerce -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition">
+            <div class="flex items-start mb-4">
+                <div class="bg-purple-100 p-4 rounded-xl mr-4">
+                    <i class="fas fa-shopping-cart text-3xl text-purple-600"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg text-gray-900">WooCommerce</h3>
+                    <span class="inline-block mt-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">Not Connected</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Connect your WordPress/WooCommerce site</p>
+            <button onclick="connectWooCommerce()" class="w-full bg-purple-600 text-white py-2.5 rounded-lg hover:bg-purple-700 transition font-semibold">
+                Connect WooCommerce
+            </button>
+        </div>
+        
+        <!-- Stripe -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition opacity-60">
+            <div class="flex items-start mb-4">
+                <div class="bg-blue-100 p-4 rounded-xl mr-4">
+                    <i class="fas fa-credit-card text-3xl text-blue-600"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg text-gray-900">Stripe</h3>
+                    <span class="inline-block mt-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Coming Soon</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Sync customer data from Stripe payments</p>
+            <button disabled class="w-full bg-gray-300 text-gray-500 py-2.5 rounded-lg cursor-not-allowed font-semibold">
+                Coming Soon
+            </button>
+        </div>
+        
+    </div>
+    
+    <!-- Empty State -->
+    <div class="bg-white rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
+        <div class="text-6xl mb-4">🔌</div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">No integrations connected</h3>
+        <p class="text-gray-600 mb-6">Connect your first integration to automatically sync customer data</p>
+        <button onclick="connectShopify()" class="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
+            <i class="fas fa-plug"></i>
+            Connect Integration
+        </button>
+    </div>
+    
+    <!-- More Integrations Coming Soon -->
+    <div class="mt-8 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
+        <div class="flex items-center gap-4">
+            <div class="text-4xl">🚀</div>
+            <div class="flex-1">
+                <h3 class="font-bold text-lg text-gray-900 mb-1">More integrations coming soon!</h3>
+                <p class="text-sm text-gray-600">We're working on Mailchimp, HubSpot, Salesforce, and more.</p>
+            </div>
+            <a href="#" class="text-purple-600 hover:text-purple-700 font-semibold text-sm">
+                Request Integration →
+            </a>
+        </div>
+    </div>
+    
+</div>
+
+<!-- Shopify Connection Modal -->
+<div id="shopifyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <div class="text-center mb-6">
+            <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-shopping-bag text-3xl text-green-600"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">Connect Shopify</h3>
+            <p class="text-gray-600">Enter your Shopify store URL</p>
+        </div>
+        
+        <div class="mb-6">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Store URL</label>
+            <div class="flex gap-2">
+                <input type="text" id="shopifyStore" placeholder="your-store" 
+                       class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                <span class="flex items-center text-gray-600">.myshopify.com</span>
+            </div>
+        </div>
+        
+        <div class="flex gap-3">
+            <button onclick="closeShopifyModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition">
+                Cancel
+            </button>
+            <button onclick="authorizeShopify()" class="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold transition">
+                Connect
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- WooCommerce Connection Modal -->
+<div id="wooModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+        <div class="text-center mb-6">
+            <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-shopping-cart text-3xl text-purple-600"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">Connect WooCommerce</h3>
+            <p class="text-gray-600">Enter your WooCommerce credentials</p>
+        </div>
+        
+        <div class="space-y-4 mb-6">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Store URL</label>
+                <input type="text" id="wooUrl" placeholder="https://your-store.com" 
+                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Consumer Key</label>
+                <input type="text" id="wooKey" placeholder="ck_..." 
+                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Consumer Secret</label>
+                <input type="password" id="wooSecret" placeholder="cs_..." 
+                       class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+            </div>
+        </div>
+        
+        <div class="flex gap-3">
+            <button onclick="closeWooModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition">
+                Cancel
+            </button>
+            <button onclick="authorizeWoo()" class="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold transition">
+                Connect
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function connectShopify() {
+    document.getElementById('shopifyModal').classList.remove('hidden');
+}
+
+function closeShopifyModal() {
+    document.getElementById('shopifyModal').classList.add('hidden');
+}
+
+function authorizeShopify() {
+    const store = document.getElementById('shopifyStore').value.trim();
+    if (!store) {
+        alert('Please enter your store name');
+        return;
+    }
+    
+    // TODO: Implement Shopify OAuth flow
+    alert(`Connecting to ${store}.myshopify.com...\n\nThis feature is coming soon!`);
+    closeShopifyModal();
+}
+
+function connectWooCommerce() {
+    document.getElementById('wooModal').classList.remove('hidden');
+}
+
+function closeWooModal() {
+    document.getElementById('wooModal').classList.add('hidden');
+}
+
+function authorizeWoo() {
+    const url = document.getElementById('wooUrl').value.trim();
+    const key = document.getElementById('wooKey').value.trim();
+    const secret = document.getElementById('wooSecret').value.trim();
+    
+    if (!url || !key || !secret) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    // TODO: Implement WooCommerce connection
+    alert(`Connecting to ${url}...\n\nThis feature is coming soon!`);
+    closeWooModal();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,262 @@
+"""
+SendBaba Contact Controller
+"""
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
+from flask_login import login_required, current_user
+from app import db
+from sqlalchemy import text
+import logging
+import csv
+import io
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+# Create single blueprint - export both names pointing to same object
+contact_bp = Blueprint('contacts', __name__, url_prefix='/dashboard')
+contacts_bp = contact_bp  # Alias - both point to same blueprint
+
+
+@contact_bp.route('/contacts')
+@login_required
+def list_contacts():
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        offset = (page - 1) * per_page
+        
+        count_result = db.session.execute(
+            text("SELECT COUNT(*) FROM contacts WHERE organization_id = :org_id"),
+            {'org_id': current_user.organization_id}
+        )
+        total = count_result.scalar() or 0
+        
+        result = db.session.execute(
+            text("""
+                SELECT id, email, first_name, last_name, status, created_at, unsubscribed_at
+                FROM contacts 
+                WHERE organization_id = :org_id 
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """),
+            {'org_id': current_user.organization_id, 'limit': per_page, 'offset': offset}
+        )
+        
+        contacts = []
+        for row in result:
+            contacts.append({
+                'id': row[0],
+                'email': row[1],
+                'first_name': row[2],
+                'last_name': row[3],
+                'status': row[4] or 'active',
+                'created_at': row[5],
+                'unsubscribed_at': row[6]
+            })
+        
+        total_pages = (total + per_page - 1) // per_page
+        
+        return render_template('dashboard/contacts/index.html',
+            contacts=contacts,
+            total=total,
+            page=page,
+            total_pages=total_pages,
+            per_page=per_page
+        )
+    except Exception as e:
+        logger.error(f"List contacts error: {e}", exc_info=True)
+        return render_template('dashboard/contacts/index.html',
+            contacts=[],
+            total=0,
+            page=1,
+            total_pages=1,
+            per_page=50
+        )
+
+
+@contact_bp.route('/contacts/add', methods=['GET', 'POST'])
+@login_required
+def add_contact():
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip().lower()
+            first_name = request.form.get('first_name', '').strip()
+            last_name = request.form.get('last_name', '').strip()
+            
+            if not email or '@' not in email:
+                flash('Valid email is required', 'error')
+                return redirect(url_for('contacts.add_contact'))
+            
+            existing = db.session.execute(
+                text("SELECT id FROM contacts WHERE email = :email AND organization_id = :org_id"),
+                {'email': email, 'org_id': current_user.organization_id}
+            ).fetchone()
+            
+            if existing:
+                flash('Contact already exists', 'error')
+                return redirect(url_for('contacts.add_contact'))
+            
+            db.session.execute(
+                text("""
+                    INSERT INTO contacts (organization_id, email, first_name, last_name, status, created_at)
+                    VALUES (:org_id, :email, :first_name, :last_name, 'active', NOW())
+                """),
+                {
+                    'org_id': current_user.organization_id,
+                    'email': email,
+                    'first_name': first_name,
+                    'last_name': last_name
+                }
+            )
+            db.session.commit()
+            flash('Contact added successfully!', 'success')
+            return redirect(url_for('contacts.list_contacts'))
+            
+        except Exception as e:
+            logger.error(f"Add contact error: {e}", exc_info=True)
+            db.session.rollback()
+            flash(f'Error adding contact: {str(e)}', 'error')
+    
+    return render_template('dashboard/contacts/add.html')
+
+
+@contact_bp.route('/contacts/import', methods=['GET', 'POST'])
+@login_required
+def import_contacts():
+    if request.method == 'POST':
+        try:
+            file = request.files.get('file')
+            if not file:
+                flash('Please select a CSV file', 'error')
+                return redirect(url_for('contacts.import_contacts'))
+            
+            stream = io.StringIO(file.stream.read().decode('utf-8'))
+            reader = csv.DictReader(stream)
+            
+            imported = 0
+            skipped = 0
+            
+            for row in reader:
+                email = row.get('email', row.get('Email', '')).strip().lower()
+                if not email or '@' not in email:
+                    skipped += 1
+                    continue
+                
+                first_name = row.get('first_name', row.get('First Name', row.get('firstname', ''))).strip()
+                last_name = row.get('last_name', row.get('Last Name', row.get('lastname', ''))).strip()
+                
+                try:
+                    db.session.execute(
+                        text("""
+                            INSERT INTO contacts (organization_id, email, first_name, last_name, status, created_at)
+                            VALUES (:org_id, :email, :first_name, :last_name, 'active', NOW())
+                            ON CONFLICT (organization_id, email) DO UPDATE SET
+                                first_name = EXCLUDED.first_name,
+                                last_name = EXCLUDED.last_name,
+                                updated_at = NOW()
+                        """),
+                        {
+                            'org_id': current_user.organization_id,
+                            'email': email,
+                            'first_name': first_name,
+                            'last_name': last_name
+                        }
+                    )
+                    imported += 1
+                except Exception as e:
+                    logger.warning(f"Skipping {email}: {e}")
+                    skipped += 1
+            
+            db.session.commit()
+            flash(f'Imported {imported} contacts ({skipped} skipped)', 'success')
+            return redirect(url_for('contacts.list_contacts'))
+            
+        except Exception as e:
+            logger.error(f"Import contacts error: {e}", exc_info=True)
+            db.session.rollback()
+            flash(f'Error importing contacts: {str(e)}', 'error')
+    
+    return render_template('dashboard/contacts/import.html')
+
+
+@contact_bp.route('/contacts/export')
+@login_required
+def export_contacts():
+    try:
+        result = db.session.execute(
+            text("""
+                SELECT email, first_name, last_name, status, created_at
+                FROM contacts 
+                WHERE organization_id = :org_id
+                ORDER BY created_at DESC
+            """),
+            {'org_id': current_user.organization_id}
+        )
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['email', 'first_name', 'last_name', 'status', 'created_at'])
+        
+        for row in result:
+            writer.writerow([row[0], row[1] or '', row[2] or '', row[3] or 'active', row[4]])
+        
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=contacts.csv'}
+        )
+        
+    except Exception as e:
+        logger.error(f"Export contacts error: {e}", exc_info=True)
+        flash('Error exporting contacts', 'error')
+        return redirect(url_for('contacts.list_contacts'))
+
+
+@contact_bp.route('/contacts/<int:contact_id>/delete', methods=['POST'])
+@login_required
+def delete_contact(contact_id):
+    try:
+        db.session.execute(
+            text("DELETE FROM contacts WHERE id = :id AND organization_id = :org_id"),
+            {'id': contact_id, 'org_id': current_user.organization_id}
+        )
+        db.session.commit()
+        flash('Contact deleted', 'success')
+    except Exception as e:
+        logger.error(f"Delete contact error: {e}", exc_info=True)
+        db.session.rollback()
+        flash('Error deleting contact', 'error')
+    
+    return redirect(url_for('contacts.list_contacts'))
+
+
+@contact_bp.route('/contacts/api/delete', methods=['POST'])
+@login_required
+def api_delete_contact():
+    try:
+        data = request.get_json()
+        contact_id = data.get('contact_id')
+        
+        db.session.execute(
+            text("DELETE FROM contacts WHERE id = :id AND organization_id = :org_id"),
+            {'id': contact_id, 'org_id': current_user.organization_id}
+        )
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"API delete contact error: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@contact_bp.route('/contacts/api/count')
+@login_required
+def api_contacts_count():
+    try:
+        result = db.session.execute(
+            text("SELECT COUNT(*) FROM contacts WHERE organization_id = :org_id"),
+            {'org_id': current_user.organization_id}
+        )
+        return jsonify({'success': True, 'count': result.scalar() or 0})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

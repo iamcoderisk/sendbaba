@@ -1,0 +1,223 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Billing - SendBaba{% endblock %}
+{% block page_title %}Billing{% endblock %}
+{% block page_subtitle %}Manage your subscription and billing{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    {% if success %}
+    <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-check text-green-600"></i>
+        </div>
+        <div>
+            <h4 class="font-semibold text-green-800">Payment Successful!</h4>
+            <p class="text-green-600 text-sm">Your subscription has been activated.</p>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if expired %}
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
+            <div>
+                <h4 class="font-semibold text-red-800">Subscription Expired</h4>
+                <p class="text-red-600 text-sm">{{ reason or 'Please upgrade to continue.' }}</p>
+            </div>
+        </div>
+        <a href="/dashboard/billing/plans" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Upgrade Now</a>
+    </div>
+    {% endif %}
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Current Plan -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900">Current Plan</h3>
+                    {% if subscription.status == 'trial' or subscription.is_trial %}
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"><i class="fas fa-clock mr-1"></i> Trial</span>
+                    {% elif subscription.status == 'active' %}
+                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium"><i class="fas fa-check-circle mr-1"></i> Active</span>
+                    {% else %}
+                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">{{ subscription.status|capitalize }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-crown text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-bold text-gray-900">{{ subscription.plan_name }}</h4>
+                        {% if subscription.current_price > 0 %}
+                        <p class="text-gray-500">${{ "%.2f"|format(subscription.current_price) }} / {{ subscription.billing_cycle }}</p>
+                        {% else %}
+                        <p class="text-gray-500">Free</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if subscription.is_trial and subscription.trial_ends_at %}
+                <div class="mb-6 p-4 bg-blue-50 rounded-xl">
+                    <div class="flex items-center gap-2 text-blue-700">
+                        <i class="fas fa-info-circle"></i>
+                        <span class="font-medium">Trial ends {{ subscription.trial_ends_at.strftime('%B %d, %Y') }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="text-center p-3 bg-gray-50 rounded-xl">
+                        <p class="text-2xl font-bold text-gray-900">{{ "{:,}".format(subscription.email_limit_daily) }}</p>
+                        <p class="text-sm text-gray-500">Emails/Day</p>
+                    </div>
+                    <div class="text-center p-3 bg-gray-50 rounded-xl">
+                        <p class="text-2xl font-bold text-gray-900">{{ "{:,}".format(subscription.email_limit_monthly) }}</p>
+                        <p class="text-sm text-gray-500">Emails/Month</p>
+                    </div>
+                    <div class="text-center p-3 bg-gray-50 rounded-xl">
+                        <p class="text-2xl font-bold text-gray-900">{{ "{:,}".format(subscription.contact_limit) }}</p>
+                        <p class="text-sm text-gray-500">Contacts</p>
+                    </div>
+                    <div class="text-center p-3 bg-gray-50 rounded-xl">
+                        <p class="text-2xl font-bold text-gray-900">{{ subscription.team_member_limit }}</p>
+                        <p class="text-sm text-gray-500">Team Members</p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3">
+                    <a href="/dashboard/billing/plans" class="flex-1 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold text-center hover:shadow-lg transition">
+                        {% if subscription.status == 'trial' or subscription.is_trial %}Upgrade Plan{% else %}Change Plan{% endif %}
+                    </a>
+                    {% if subscription.status == 'active' and subscription.current_price > 0 %}
+                    <button onclick="cancelSubscription()" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50">Cancel</button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Current Usage -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-6">Current Usage</h3>
+                
+                {% set daily_pct = (usage.daily_emails / usage.daily_limit * 100) if usage.daily_limit > 0 else 0 %}
+                {% set daily_width = daily_pct if daily_pct <= 100 else 100 %}
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Daily Emails</span>
+                        <span class="font-medium">{{ "{:,}".format(usage.daily_emails) }} / {{ "{:,}".format(usage.daily_limit) }}</span>
+                    </div>
+                    <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full {% if daily_pct > 90 %}bg-red-500{% elif daily_pct > 70 %}bg-yellow-500{% else %}bg-orange-500{% endif %}" style="width: {{ daily_width }}%"></div>
+                    </div>
+                </div>
+                
+                {% set monthly_pct = (usage.monthly_emails / usage.monthly_limit * 100) if usage.monthly_limit > 0 else 0 %}
+                {% set monthly_width = monthly_pct if monthly_pct <= 100 else 100 %}
+                <div class="mb-6">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Monthly Emails</span>
+                        <span class="font-medium">{{ "{:,}".format(usage.monthly_emails) }} / {{ "{:,}".format(usage.monthly_limit) }}</span>
+                    </div>
+                    <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full {% if monthly_pct > 90 %}bg-red-500{% elif monthly_pct > 70 %}bg-yellow-500{% else %}bg-green-500{% endif %}" style="width: {{ monthly_width }}%"></div>
+                    </div>
+                </div>
+                
+                {% set contact_pct = (usage.total_contacts / usage.contact_limit * 100) if usage.contact_limit > 0 else 0 %}
+                {% set contact_width = contact_pct if contact_pct <= 100 else 100 %}
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-600">Contacts</span>
+                        <span class="font-medium">{{ "{:,}".format(usage.total_contacts) }} / {{ "{:,}".format(usage.contact_limit) }}</span>
+                    </div>
+                    <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500 rounded-full" style="width: {{ contact_width }}%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Invoices -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900">Recent Invoices</h3>
+                    <a href="/dashboard/billing/invoices" class="text-orange-600 hover:text-orange-700 font-medium text-sm">View All →</a>
+                </div>
+                
+                {% if invoices %}
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-100">
+                            <th class="text-left py-3 text-sm font-medium text-gray-500">Invoice</th>
+                            <th class="text-left py-3 text-sm font-medium text-gray-500">Date</th>
+                            <th class="text-left py-3 text-sm font-medium text-gray-500">Amount</th>
+                            <th class="text-left py-3 text-sm font-medium text-gray-500">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr class="border-b border-gray-50">
+                            <td class="py-3 font-medium">{{ inv.invoice_number }}</td>
+                            <td class="py-3 text-gray-600">{{ inv.invoice_date.strftime('%b %d, %Y') if inv.invoice_date else 'N/A' }}</td>
+                            <td class="py-3 font-semibold">${{ "%.2f"|format(inv.total) }}</td>
+                            <td class="py-3"><span class="px-2 py-1 {% if inv.status == 'paid' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-700{% endif %} rounded-full text-xs">{{ inv.status|capitalize }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-file-invoice text-gray-400 text-2xl"></i>
+                    </div>
+                    <p class="text-gray-500">No invoices yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                <div class="space-y-3">
+                    <a href="/dashboard/billing/plans" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
+                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center"><i class="fas fa-arrow-up text-orange-600"></i></div>
+                        <span class="font-medium">Upgrade Plan</span>
+                    </a>
+                    <a href="/dashboard/billing/invoices" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-invoice text-blue-600"></i></div>
+                        <span class="font-medium">View Invoices</span>
+                    </a>
+                    <a href="/dashboard/billing/plans?type=team" class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center"><i class="fas fa-users text-green-600"></i></div>
+                        <span class="font-medium">Team Plans</span>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white">
+                <h3 class="font-semibold mb-2">Need Help?</h3>
+                <p class="text-orange-100 text-sm mb-4">Our support team is here to help.</p>
+                <a href="mailto:support@sendbaba.com" class="inline-block px-4 py-2 bg-white text-orange-600 rounded-lg font-medium hover:bg-orange-50">Contact Support</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cancelSubscription() {
+    if (confirm('Are you sure you want to cancel your subscription?')) {
+        fetch('/dashboard/billing/api/cancel', {method: 'POST'})
+            .then(r => r.json())
+            .then(d => {
+                alert(d.message || 'Subscription canceled');
+                location.reload();
+            });
+    }
+}
+</script>
+{% endblock %}
