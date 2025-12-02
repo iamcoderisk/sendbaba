@@ -3,10 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#F7601F">
     <title>Sign Up - SendBaba</title>
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="https://sendbaba.sirv.com/Images/favicon-96x96.png" sizes="96x96">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
     <script>
         tailwind.config = {
             theme: {
@@ -19,29 +27,28 @@
             }
         }
     </script>
-    <script src="https://scripts.sirv.com/sirvjs/v3/sirv.js"></script>
 </head>
 <body class="bg-gray-50">
     <!-- Simple Top Bar -->
     <div class="bg-white shadow-sm">
         <div class="max-w-7xl mx-auto px-4 py-4">
             <a href="/" class="flex items-center space-x-2">
-                <div class="w-10 h-10 bg-gradient-to-br from-brand-orange to-brand-light rounded-xl flex items-center justify-center">
-                    <i class="fas fa-paper-plane text-white"></i>
-                </div>
-                <span class="text-2xl font-bold text-gray-900">SendBaba</span>
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SendBaba" class="h-10 w-auto">
             </a>
         </div>
     </div>
 
-    <!-- Register Form -->
+    <!-- Signup Form -->
     <div class="min-h-screen flex items-center justify-center py-12 px-4">
         <div class="max-w-md w-full">
             <!-- Card -->
             <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-10 border border-gray-100">
                 <!-- Header -->
                 <div class="text-center mb-8">
-                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Create Account</h2>
+                    <div class="inline-block bg-gradient-to-r from-brand-orange/10 to-brand-light/10 rounded-full px-6 py-2 mb-4">
+                        <span class="text-brand-orange font-semibold text-sm">🎉 14-Day Free Trial</span>
+                    </div>
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Create your account</h2>
                     <p class="text-gray-600">Start sending emails in minutes</p>
                 </div>
 
@@ -67,47 +74,41 @@
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-user text-gray-400"></i>
                             </div>
-                            <input type="text" 
-                                   name="name" 
-                                   required 
-                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
-                                   placeholder="John Doe">
+                            <input type="text" name="name" required class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition" placeholder="John Doe">
                         </div>
                     </div>
-
+                    
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email Address *</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-envelope text-gray-400"></i>
                             </div>
-                            <input type="email" 
-                                   name="email" 
-                                   required 
-                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
-                                   placeholder="you@example.com">
+                            <input type="email" name="email" required class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition" placeholder="you@example.com">
                         </div>
                     </div>
                     
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Password *</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-lock text-gray-400"></i>
                             </div>
-                            <input type="password" 
-                                   name="password" 
-                                   required 
-                                   minlength="8"
-                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
-                                   placeholder="••••••••">
+                            <input type="password" name="password" required minlength="8" class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition" placeholder="••••••••">
                         </div>
-                        <p class="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
+                        <p class="text-xs text-gray-500 mt-2 flex items-center">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            At least 8 characters
+                        </p>
                     </div>
                     
-                    <div class="flex items-start">
-                        <input type="checkbox" name="terms" required class="w-4 h-4 mt-1 text-brand-orange border-gray-300 rounded focus:ring-brand-orange">
-                        <span class="ml-2 text-sm text-gray-600">I agree to the <a href="/terms" class="text-brand-orange hover:underline">Terms of Service</a> and <a href="/privacy" class="text-brand-orange hover:underline">Privacy Policy</a></span>
+                    <div class="pt-2">
+                        <label class="flex items-start cursor-pointer">
+                            <input type="checkbox" required class="w-4 h-4 text-brand-orange border-gray-300 rounded focus:ring-brand-orange mt-1">
+                            <span class="ml-3 text-sm text-gray-700">
+                                I agree to the <a href="/terms" class="text-brand-orange hover:text-brand-light font-semibold">Terms of Service</a> and <a href="/privacy" class="text-brand-orange hover:text-brand-light font-semibold">Privacy Policy</a>
+                            </span>
+                        </label>
                     </div>
                     
                     <button type="submit" class="w-full bg-gradient-to-r from-brand-orange to-brand-light text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg transform hover:-translate-y-0.5 transition">
@@ -115,7 +116,7 @@
                     </button>
                 </form>
                 
-                <!-- Social Login -->
+                <!-- Social Signup -->
                 <div class="mt-8">
                     <div class="relative">
                         <div class="absolute inset-0 flex items-center">
@@ -136,6 +137,29 @@
                             <span class="font-semibold text-gray-700">GitHub</span>
                         </button>
                     </div>
+                </div>
+
+                <!-- Features List -->
+                <div class="mt-8 pt-8 border-t border-gray-200">
+                    <p class="text-sm font-semibold text-gray-900 mb-4">What you'll get:</p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-green-500 mr-3 mt-0.5"></i>
+                            <span>14-day free trial, no credit card required</span>
+                        </li>
+                        <li class="flex items-start text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-green-500 mr-3 mt-0.5"></i>
+                            <span>Send up to 1,000 emails per month</span>
+                        </li>
+                        <li class="flex items-start text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-green-500 mr-3 mt-0.5"></i>
+                            <span>Access to all email templates</span>
+                        </li>
+                        <li class="flex items-start text-sm text-gray-600">
+                            <i class="fas fa-check-circle text-green-500 mr-3 mt-0.5"></i>
+                            <span>Real-time analytics dashboard</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
 

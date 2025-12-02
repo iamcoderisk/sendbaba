@@ -3,10 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#F7601F">
     <title>Login - SendBaba</title>
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon-96x96.png') }}" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}" />
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="https://sendbaba.sirv.com/Images/favicon-96x96.png" sizes="96x96">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
     <script>
         tailwind.config = {
             theme: {
@@ -19,17 +27,13 @@
             }
         }
     </script>
-    <script src="https://scripts.sirv.com/sirvjs/v3/sirv.js"></script>
 </head>
 <body class="bg-gray-50">
     <!-- Simple Top Bar -->
     <div class="bg-white shadow-sm">
         <div class="max-w-7xl mx-auto px-4 py-4">
             <a href="/" class="flex items-center space-x-2">
-                <div class="w-10 h-10 bg-gradient-to-br from-brand-orange to-brand-light rounded-xl flex items-center justify-center">
-                    <i class="fas fa-paper-plane text-white"></i>
-                </div>
-                <span class="text-2xl font-bold text-gray-900">SendBaba</span>
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SendBaba" class="h-10 w-auto">
             </a>
         </div>
     </div>
@@ -49,9 +53,9 @@
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
-                            <div class="mb-6 p-4 rounded-xl {% if category == 'error' %}bg-red-50 text-red-700 border border-red-200{% elif category == 'warning' %}bg-yellow-50 text-yellow-700 border border-yellow-200{% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+                            <div class="mb-6 p-4 rounded-xl {% if category == 'error' %}bg-red-50 text-red-700 border border-red-200{% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
                                 <div class="flex items-start">
-                                    <i class="fas fa-{% if category == 'error' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}check-circle{% endif %} mt-0.5 mr-3"></i>
+                                    <i class="fas fa-{% if category == 'error' %}exclamation-circle{% else %}check-circle{% endif %} mt-0.5 mr-3"></i>
                                     <span class="text-sm">{{ message }}</span>
                                 </div>
                             </div>
@@ -67,11 +71,7 @@
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-envelope text-gray-400"></i>
                             </div>
-                            <input type="email" 
-                                   name="email" 
-                                   required 
-                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
-                                   placeholder="you@example.com">
+                            <input type="email" name="email" required class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition" placeholder="you@example.com">
                         </div>
                     </div>
                     
@@ -81,11 +81,7 @@
                             <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                 <i class="fas fa-lock text-gray-400"></i>
                             </div>
-                            <input type="password" 
-                                   name="password" 
-                                   required 
-                                   class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition"
-                                   placeholder="••••••••">
+                            <input type="password" name="password" required class="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-brand-orange transition" placeholder="••••••••">
                         </div>
                     </div>
                     
@@ -102,7 +98,7 @@
                     </button>
                 </form>
                 
-                <!-- Social Login (Optional) -->
+                <!-- Social Login -->
                 <div class="mt-8">
                     <div class="relative">
                         <div class="absolute inset-0 flex items-center">

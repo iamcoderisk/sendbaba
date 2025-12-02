@@ -1,34 +1,40 @@
-from flask import Blueprint, render_template
+"""
+SendBaba Web Controller - Landing Pages
+"""
+from flask import Blueprint, render_template, request, flash, redirect, url_for
 
 web_bp = Blueprint('web', __name__)
 
 @web_bp.route('/')
 def index():
-    """Home page"""
     return render_template('index.html')
 
 @web_bp.route('/pricing')
 def pricing():
-    """Pricing page"""
-    from app.models.pricing import PricingPlan
-    try:
-        plans = PricingPlan.query.filter_by(is_active=True).order_by(PricingPlan.display_order).all()
-    except Exception as e:
-        print(f"Error loading plans: {e}")
-        plans = []
-    return render_template('pricing.html', plans=plans)
+    return render_template('pricing.html')
 
 @web_bp.route('/features')
 def features():
-    """Features page"""
     return render_template('features.html')
 
 @web_bp.route('/docs')
 def docs():
-    """Documentation page"""
     return render_template('docs.html')
 
 @web_bp.route('/about')
 def about():
-    """About page"""
     return render_template('about.html')
+
+@web_bp.route('/contact')
+def contact():
+    return render_template('contact.html')
+
+@web_bp.route('/contact/submit', methods=['POST'])
+def contact_submit():
+    name = request.form.get('name')
+    email = request.form.get('email')
+    subject = request.form.get('subject')
+    message = request.form.get('message')
+    # TODO: Send email or save to database
+    flash('Thank you for your message! We will get back to you soon.', 'success')
+    return redirect(url_for('web.contact'))

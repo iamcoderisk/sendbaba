@@ -1,25 +1,41 @@
-<footer class="bg-gray-50 border-t border-gray-200 py-16 px-4">
+<footer class="bg-gray-900 text-white py-16 px-4">
     <div class="max-w-7xl mx-auto">
-        <div class="grid md:grid-cols-5 gap-12 mb-12">
-            <div class="md:col-span-1">
-                <a href="/" class="block mb-6">
-                    <img class="Sirv" data-src="https://sendbaba.sirv.com/Images/SENDBABA%20LOGO%20EKEMINI%20LANDSCAPE.png" alt="SendBaba" style="height: 32px; width: auto;">
-                </a>
-                <p class="text-gray-600 text-sm mb-6">Email marketing platform trusted by 10,000+ businesses worldwide.</p>
-                <div class="flex space-x-3">
-                    <a href="#" class="w-9 h-9 bg-gray-200 rounded-lg flex items-center justify-center hover:bg-brand-orange hover:text-white transition"><i class="fab fa-twitter text-sm"></i></a>
-                    <a href="#" class="w-9 h-9 bg-gray-200 rounded-lg flex items-center justify-center hover:bg-brand-orange hover:text-white transition"><i class="fab fa-linkedin text-sm"></i></a>
-                    <a href="#" class="w-9 h-9 bg-gray-200 rounded-lg flex items-center justify-center hover:bg-brand-orange hover:text-white transition"><i class="fab fa-github text-sm"></i></a>
-                </div>
+        <div class="grid md:grid-cols-4 gap-12 mb-12">
+            <div>
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SendBaba" class="h-8 mb-4 brightness-0 invert">
+                <p class="text-gray-400">AI-powered email marketing platform for modern businesses.</p>
             </div>
-            <div><h4 class="text-gray-900 font-bold mb-4 text-sm">Platform</h4><ul class="space-y-3"><li><a href="/features" class="text-gray-600 hover:text-brand-orange transition text-sm">Overview</a></li><li><a href="/features#ai" class="text-gray-600 hover:text-brand-orange transition text-sm">AI Features</a></li><li><a href="/features#automation" class="text-gray-600 hover:text-brand-orange transition text-sm">Automation</a></li><li><a href="/features#analytics" class="text-gray-600 hover:text-brand-orange transition text-sm">Analytics</a></li></ul></div>
-            <div><h4 class="text-gray-900 font-bold mb-4 text-sm">Solutions</h4><ul class="space-y-3"><li><a href="/features" class="text-gray-600 hover:text-brand-orange transition text-sm">Email Marketing</a></li><li><a href="/features#automation" class="text-gray-600 hover:text-brand-orange transition text-sm">Automation</a></li><li><a href="/features#validation" class="text-gray-600 hover:text-brand-orange transition text-sm">Email Validation</a></li><li><a href="/docs" class="text-gray-600 hover:text-brand-orange transition text-sm">API Integration</a></li></ul></div>
-            <div><h4 class="text-gray-900 font-bold mb-4 text-sm">Resources</h4><ul class="space-y-3"><li><a href="/docs" class="text-gray-600 hover:text-brand-orange transition text-sm">Documentation</a></li><li><a href="/pricing" class="text-gray-600 hover:text-brand-orange transition text-sm">Pricing</a></li><li><a href="/about" class="text-gray-600 hover:text-brand-orange transition text-sm">About Us</a></li><li><a href="/contact" class="text-gray-600 hover:text-brand-orange transition text-sm">Contact</a></li></ul></div>
-            <div><h4 class="text-gray-900 font-bold mb-4 text-sm">Legal</h4><ul class="space-y-3"><li><a href="/terms" class="text-gray-600 hover:text-brand-orange transition text-sm">Terms & Conditions</a></li><li><a href="/privacy" class="text-gray-600 hover:text-brand-orange transition text-sm">Privacy Policy</a></li><li><a href="/security" class="text-gray-600 hover:text-brand-orange transition text-sm">Security</a></li><li><a href="/cookies" class="text-gray-600 hover:text-brand-orange transition text-sm">Cookie Policy</a></li></ul></div>
+            <div>
+                <h4 class="font-bold text-lg mb-4">Product</h4>
+                <ul class="space-y-2 text-gray-400">
+                    <li><a href="/features" class="hover:text-white transition">Features</a></li>
+                    <li><a href="/pricing" class="hover:text-white transition">Pricing</a></li>
+                    <li><a href="/docs" class="hover:text-white transition">Documentation</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold text-lg mb-4">Company</h4>
+                <ul class="space-y-2 text-gray-400">
+                    <li><a href="/about" class="hover:text-white transition">About</a></li>
+                    <li><a href="/contact" class="hover:text-white transition">Contact</a></li>
+                    <li><a href="/careers" class="hover:text-white transition">Careers</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold text-lg mb-4">Legal</h4>
+                <ul class="space-y-2 text-gray-400">
+                    <li><a href="/privacy" class="hover:text-white transition">Privacy Policy</a></li>
+                    <li><a href="/terms" class="hover:text-white transition">Terms of Service</a></li>
+                </ul>
+            </div>
         </div>
-        <div class="border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p class="text-gray-600 text-sm">© 2025 SendBaba. All Rights Reserved.</p>
-            <a href="#top" class="text-gray-600 hover:text-brand-orange transition text-sm flex items-center gap-2 mt-4 md:mt-0"><i class="fas fa-arrow-up"></i>Back to Top</a>
+        <div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p class="text-gray-400">&copy; 2024 SendBaba. All rights reserved.</p>
+            <div class="flex space-x-4 mt-4 md:mt-0">
+                <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-linkedin"></i></a>
+                <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-github"></i></a>
+            </div>
         </div>
     </div>
 </footer>

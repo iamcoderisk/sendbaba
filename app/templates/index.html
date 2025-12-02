@@ -1,214 +1,170 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SendBaba - Email Marketing on Autopilot</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'brand-orange': '#F7601F',
-                        'brand-light': '#F87036',
-                    }
-                }
-            }
-        }
-    </script>
-    <script src="https://scripts.sirv.com/sirvjs/v3/sirv.js"></script>
-</head>
-<body class="bg-white overflow-x-hidden" id="top">
-    {% include 'components/navbar.html' %}
+{% extends 'univ.html' %}
 
-    <!-- Hero Section -->
-    <section class="pt-32 pb-20 px-4 relative overflow-hidden">
-        <div class="absolute top-20 right-10 w-64 h-64 bg-brand-yellow/30 blob"></div>
-        <div class="absolute bottom-20 left-10 w-48 h-48 bg-brand-soft/20 blob" style="animation-delay: 2s;"></div>
-        
-        <div class="max-w-7xl mx-auto relative z-10">
-            <div class="grid lg:grid-cols-2 gap-12 items-center">
-                <div>
-                    <div class="inline-block bg-gradient-to-r from-brand-orange/10 to-brand-light/10 rounded-full px-6 py-2 mb-6">
-                        <span class="text-brand-orange font-semibold flex items-center gap-2">
-                            <img src="https://cdn-icons-png.flaticon.com/128/3472/3472620.png" class="w-5 h-5" alt="AI">
-                            AI-Powered Email Marketing
-                        </span>
-                    </div>
-                    
-                    <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-                        Email Marketing
-                        <span class="gradient-text">on Autopilot</span>
-                    </h1>
-                    
-                    <p class="text-xl text-gray-600 mb-8 leading-relaxed">
-                        All-in-one platform for crafting, managing, and optimizing email campaigns smoothly on autopilot. Send 2+ billion emails per day with industry-leading deliverability.
-                    </p>
-                    
-                    <div class="flex flex-col sm:flex-row gap-4 mb-12">
-                        <a href="/register" class="btn-primary">
-                            <span>Explore Demo</span>
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
-                        <a href="/docs" class="btn-secondary">
-                            <img src="https://cdn-icons-png.flaticon.com/128/2702/2702134.png" class="w-5 h-5" alt="Docs">
-                            <span>Documentation</span>
-                        </a>
-                    </div>
+{% block title %}SendBaba - Email Marketing on Autopilot{% endblock %}
+{% block body_class %}bg-white overflow-x-hidden{% endblock %}
 
-                    <div class="grid grid-cols-3 gap-8">
-                        <div>
-                            <div class="stat-number text-brand-orange" data-value="14">0</div>
-                            <p class="text-gray-600 text-sm mt-1">K+ Active Users</p>
-                        </div>
-                        <div>
-                            <div class="stat-number text-brand-orange" data-value="99" data-suffix="%">0%</div>
-                            <p class="text-gray-600 text-sm mt-1">Delivery Rate</p>
-                        </div>
-                        <div>
-                            <div class="stat-number text-brand-orange" data-value="89" data-suffix="%">0%</div>
-                            <p class="text-gray-600 text-sm mt-1">Open Rate</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="relative hero-image">
-                    <img src="https://cdn.pixabay.com/photo/2020/08/09/14/25/business-5475661_1280.jpg" 
-                         alt="Email Marketing Dashboard" 
-                         class="w-full h-auto rounded-2xl shadow-2xl">
-                    
-                    <div class="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
-                        <div class="flex items-center space-x-2">
-                            <img src="https://cdn-icons-png.flaticon.com/128/5610/5610944.png" class="w-6 h-6" alt="Success">
-                            <span class="font-semibold text-gray-900">Email Delivered</span>
-                        </div>
-                    </div>
-
-                    <div class="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
-                        <div class="flex items-center space-x-2">
-                            <div class="flex -space-x-2">
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white"></div>
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white"></div>
-                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 border-2 border-white"></div>
-                            </div>
-                            <span class="font-semibold text-gray-900">+2.4K Users</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Features Section -->
-    <section class="py-20 px-4 bg-gray-50">
-        <div class="max-w-7xl mx-auto">
-            <div class="text-center mb-16">
-                <div class="inline-block bg-brand-orange/10 rounded-full px-6 py-2 mb-4">
-                    <span class="text-brand-orange font-semibold flex items-center gap-2 justify-center">
-                        <img src="https://cdn-icons-png.flaticon.com/128/2910/2910791.png" class="w-5 h-5" alt="Features">
-                        Features
+{% block content %}
+<!-- Hero Section -->
+<section class="pt-32 pb-20 px-4 relative overflow-hidden">
+    <div class="absolute top-20 right-10 w-64 h-64 bg-brand-yellow/30 blob"></div>
+    <div class="absolute bottom-20 left-10 w-48 h-48 bg-brand-soft/20 blob" style="animation-delay: 2s;"></div>
+    
+    <div class="max-w-7xl mx-auto relative z-10">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+                <div class="inline-block bg-gradient-to-r from-brand-orange/10 to-brand-light/10 rounded-full px-6 py-2 mb-6">
+                    <span class="text-brand-orange font-semibold flex items-center gap-2">
+                        <img src="https://cdn-icons-png.flaticon.com/128/3472/3472620.png" class="w-5 h-5" alt="AI">
+                        AI-Powered Email Marketing
                     </span>
                 </div>
-                <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                    Reach the right <span class="gradient-text">audience</span><br/>without headaches.
-                </h2>
-                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Everything you need to create, send, and track professional email campaigns
-                </p>
-            </div>
-
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                    <img src="https://cdn-icons-png.flaticon.com/128/4712/4712035.png" class="w-14 h-14 mb-6" alt="AI">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-3">AI-Powered</h3>
-                    <p class="text-gray-600 mb-4">Automated responses, sentiment analysis, and smart reply suggestions powered by advanced AI</p>
-                    <a href="/features#ai" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">
-                        Learn more <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
-
-                <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                    <img src="https://cdn-icons-png.flaticon.com/128/2920/2920277.png" class="w-14 h-14 mb-6" alt="Analytics">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-3">Real-Time Analytics</h3>
-                    <p class="text-gray-600 mb-4">Track opens, clicks, and conversions with beautiful dashboards and detailed reports</p>
-                    <a href="/features#analytics" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">
-                        Learn more <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
-
-                <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                    <img src="https://cdn-icons-png.flaticon.com/128/3209/3209265.png" class="w-14 h-14 mb-6" alt="Builder">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-3">Drag & Drop Builder</h3>
-                    <p class="text-gray-600 mb-4">Create stunning emails without code using our intuitive visual editor</p>
-                    <a href="/features#builder" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">
-                        Learn more <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
-
-                <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                    <img src="https://cdn-icons-png.flaticon.com/128/2920/2920349.png" class="w-14 h-14 mb-6" alt="Automation">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-3">Automation Workflows</h3>
-                    <p class="text-gray-600 mb-4">Set up trigger-based workflows for welcome series, drip campaigns, and more</p>
-                    <a href="/features#automation" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">
-                        Learn more <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
-
-                <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                    <img src="https://cdn-icons-png.flaticon.com/128/7595/7595571.png" class="w-14 h-14 mb-6" alt="Validation">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-3">Email Validation</h3>
-                    <p class="text-gray-600 mb-4">Advanced validation including syntax, domain, SMTP, and disposable email detection</p>
-                    <a href="/features#validation" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">
-                        Learn more <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
-
-                <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                    <img src="https://cdn-icons-png.flaticon.com/128/785/785116.png" class="w-14 h-14 mb-6" alt="Warmup">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-3">IP Warmup</h3>
-                    <p class="text-gray-600 mb-4">Automated 14-day warmup schedule to maximize deliverability and sender reputation</p>
-                    <a href="/features#warmup" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">
-                        Learn more <i class="fas fa-arrow-right ml-1"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="py-20 px-4">
-        <div class="max-w-4xl mx-auto">
-            <div class="bg-gradient-to-br from-brand-orange to-brand-light rounded-3xl p-12 text-center text-white relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
-                <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
                 
-                <div class="relative z-10">
-                    <h2 class="text-4xl md:text-5xl font-bold mb-6">
-                        Start sending smarter<br/>emails today
-                    </h2>
-                    <p class="text-xl mb-8 opacity-90">
-                        Begin your email marketing journey with industry-leading deliverability
-                    </p>
-                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                        <a href="/register" class="bg-white text-brand-orange px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transform hover:-translate-y-1 transition inline-flex items-center justify-center">
-                            <span>Get Started Free</span>
-                            <i class="fas fa-arrow-right ml-2"></i>
-                        </a>
-                        <a href="/docs" class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-brand-orange transition inline-flex items-center justify-center">
-                            <img src="https://cdn-icons-png.flaticon.com/128/2702/2702134.png" class="w-5 h-5 brightness-0 invert mr-2" alt="Docs">
-                            <span>View Documentation</span>
-                        </a>
+                <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+                    Email Marketing
+                    <span class="gradient-text">on Autopilot</span>
+                </h1>
+                
+                <p class="text-xl text-gray-600 mb-8 leading-relaxed">
+                    All-in-one platform for crafting, managing, and optimizing email campaigns smoothly on autopilot. Send 2+ billion emails per day with industry-leading deliverability.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 mb-12">
+                    <a href="/register" class="btn-primary">
+                        <span>Explore Demo</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    <a href="/docs" class="btn-secondary">
+                        <img src="https://cdn-icons-png.flaticon.com/128/2702/2702134.png" class="w-5 h-5" alt="Docs">
+                        <span>Documentation</span>
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-3 gap-8">
+                    <div>
+                        <div class="stat-number text-brand-orange" data-value="14">0</div>
+                        <p class="text-gray-600 text-sm mt-1">K+ Active Users</p>
+                    </div>
+                    <div>
+                        <div class="stat-number text-brand-orange" data-value="99" data-suffix="%">0%</div>
+                        <p class="text-gray-600 text-sm mt-1">Delivery Rate</p>
+                    </div>
+                    <div>
+                        <div class="stat-number text-brand-orange" data-value="89" data-suffix="%">0%</div>
+                        <p class="text-gray-600 text-sm mt-1">Open Rate</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative hero-image">
+                <img src="https://cdn.pixabay.com/photo/2020/08/09/14/25/business-5475661_1280.jpg" alt="Email Marketing Dashboard" class="w-full h-auto rounded-2xl shadow-2xl">
+                
+                <div class="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
+                    <div class="flex items-center space-x-2">
+                        <img src="https://cdn-icons-png.flaticon.com/128/5610/5610944.png" class="w-6 h-6" alt="Success">
+                        <span class="font-semibold text-gray-900">Email Delivered</span>
+                    </div>
+                </div>
+
+                <div class="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
+                    <div class="flex items-center space-x-2">
+                        <div class="flex -space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white"></div>
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white"></div>
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 border-2 border-white"></div>
+                        </div>
+                        <span class="font-semibold text-gray-900">+2.4K Users</span>
                     </div>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    {% include 'components/footer.html' %}
+<!-- Features Section -->
+<section class="py-20 px-4 bg-gray-50">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16">
+            <div class="inline-block bg-brand-orange/10 rounded-full px-6 py-2 mb-4">
+                <span class="text-brand-orange font-semibold flex items-center gap-2 justify-center">
+                    <img src="https://cdn-icons-png.flaticon.com/128/2910/2910791.png" class="w-5 h-5" alt="Features">
+                    Features
+                </span>
+            </div>
+            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+                Reach the right <span class="gradient-text">audience</span><br/>without headaches.
+            </h2>
+            <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                Everything you need to create, send, and track professional email campaigns
+            </p>
+        </div>
 
-    <script src="{{ url_for('static', filename='js/landing.js') }}"></script>
-</body>
-</html>
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
+                <img src="https://cdn-icons-png.flaticon.com/128/4712/4712035.png" class="w-14 h-14 mb-6" alt="AI">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">AI-Powered</h3>
+                <p class="text-gray-600 mb-4">Automated responses, sentiment analysis, and smart reply suggestions powered by advanced AI</p>
+                <a href="/features#ai" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+            </div>
+
+            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
+                <img src="https://cdn-icons-png.flaticon.com/128/2920/2920277.png" class="w-14 h-14 mb-6" alt="Analytics">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Real-Time Analytics</h3>
+                <p class="text-gray-600 mb-4">Track opens, clicks, and conversions with beautiful dashboards and detailed reports</p>
+                <a href="/features#analytics" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+            </div>
+
+            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
+                <img src="https://cdn-icons-png.flaticon.com/128/3209/3209265.png" class="w-14 h-14 mb-6" alt="Builder">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Drag & Drop Builder</h3>
+                <p class="text-gray-600 mb-4">Create stunning emails without code using our intuitive visual editor</p>
+                <a href="/features#builder" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+            </div>
+
+            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
+                <img src="https://cdn-icons-png.flaticon.com/128/2920/2920349.png" class="w-14 h-14 mb-6" alt="Automation">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Automation Workflows</h3>
+                <p class="text-gray-600 mb-4">Set up trigger-based workflows for welcome series, drip campaigns, and more</p>
+                <a href="/features#automation" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+            </div>
+
+            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
+                <img src="https://cdn-icons-png.flaticon.com/128/7595/7595571.png" class="w-14 h-14 mb-6" alt="Validation">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Email Validation</h3>
+                <p class="text-gray-600 mb-4">Advanced validation including syntax, domain, SMTP, and disposable email detection</p>
+                <a href="/features#validation" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+            </div>
+
+            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
+                <img src="https://cdn-icons-png.flaticon.com/128/785/785116.png" class="w-14 h-14 mb-6" alt="Warmup">
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">IP Warmup</h3>
+                <p class="text-gray-600 mb-4">Automated 14-day warmup schedule to maximize deliverability and sender reputation</p>
+                <a href="/features#warmup" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-20 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-gradient-to-br from-brand-orange to-brand-light rounded-3xl p-12 text-center text-white relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+            <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
+            
+            <div class="relative z-10">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Start sending smarter<br/>emails today</h2>
+                <p class="text-xl mb-8 opacity-90">Begin your email marketing journey with industry-leading deliverability</p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/register" class="bg-white text-brand-orange px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transform hover:-translate-y-1 transition inline-flex items-center justify-center">
+                        <span>Get Started Free</span>
+                        <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                    <a href="/docs" class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-brand-orange transition inline-flex items-center justify-center">
+                        <span>View Documentation</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

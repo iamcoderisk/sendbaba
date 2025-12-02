@@ -30,6 +30,7 @@ def create_app():
         blueprints = [
             ('auth_controller', 'auth_bp', 'Auth'),
             ('billing_controller', 'billing_bp', 'Billing'),
+            ('web_controller', 'web_bp', 'Web'),
             ('pricing_controller', 'pricing_bp', 'Pricing'),
             ('dashboard_controller', 'dashboard_bp', 'Dashboard'),
             ('campaign_controller', 'campaign_bp', 'Campaigns'),
@@ -143,6 +144,7 @@ try:
     from app.controllers.suppression_controller import suppression_bp
     from app.controllers.warmup_controller import warmup_bp
     from app.controllers.webhook_controller import webhook_bp
+    from app.controllers.web_controller import web_bp
     from app.controllers.metrics_controller import metrics_bp
     
     # These will be registered in create_app
