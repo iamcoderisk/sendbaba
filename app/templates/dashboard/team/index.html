@@ -1,0 +1,74 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Team - SendBaba{% endblock %}
+{% block page_title %}Team Management{% endblock %}
+{% block page_subtitle %}Manage your team members and departments{% endblock %}
+
+{% block extra_css %}
+<style>
+:root { --primary: #F97316; }
+.stat-card { background: white; border-radius: 16px; padding: 24px; border: 1px solid #E5E7EB; }
+.stat-value { font-size: 2.5rem; font-weight: 800; color: #111827; }
+.stat-label { font-size: 14px; color: #6B7280; margin-top: 4px; }
+.member-card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E5E7EB; transition: all 0.2s; }
+.member-card:hover { border-color: #FDBA74; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(249,115,22,0.1); }
+.avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #EA580C); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 18px; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-active { background: #DCFCE7; color: #166534; }
+.badge-pending { background: #FEF3C7; color: #92400E; }
+.badge-admin { background: #EDE9FE; color: #5B21B6; }
+.btn-primary { background: linear-gradient(135deg, var(--primary), #EA580C); color: white; padding: 12px 24px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(249,115,22,0.3); }
+.empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 20px; border: 2px dashed #E5E7EB; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <div></div>
+        <a href="{{ url_for('team.invite_member') }}" class="btn-primary"><i class="fas fa-plus"></i> Invite Member</a>
+    </div>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card"><div class="stat-value">{{ stats.total_members }}</div><div class="stat-label">Total Members</div></div>
+        <div class="stat-card"><div class="stat-value">{{ stats.active_members }}</div><div class="stat-label">Active</div></div>
+        <div class="stat-card"><div class="stat-value">{{ stats.pending_invitations }}</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-value">{{ stats.total_departments }}</div><div class="stat-label">Departments</div></div>
+    </div>
+    
+    <div class="flex gap-4 mb-6">
+        <a href="{{ url_for('team.members') }}" class="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-semibold">Members</a>
+        <a href="{{ url_for('team.departments') }}" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-semibold">Departments</a>
+    </div>
+    
+    {% if members %}
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for member in members %}
+        <div class="member-card">
+            <div class="flex items-center gap-4">
+                <div class="avatar">{{ member.email[0]|upper }}</div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-semibold text-gray-900 truncate">{{ member.full_name }}</h3>
+                    <p class="text-sm text-gray-500 truncate">{{ member.email }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4">
+                <span class="badge {% if member.role == 'admin' %}badge-admin{% elif member.invitation_accepted %}badge-active{% else %}badge-pending{% endif %}">
+                    {% if member.role == 'admin' %}Admin{% elif member.invitation_accepted %}Active{% else %}Pending{% endif %}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-users text-3xl text-orange-400"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">No team members yet</h3>
+        <p class="text-gray-500 mb-6">Invite your first team member to get started</p>
+        <a href="{{ url_for('team.invite_member') }}" class="btn-primary"><i class="fas fa-plus"></i> Invite Member</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

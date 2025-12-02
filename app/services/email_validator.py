@@ -175,3 +175,6 @@ def validate_email(email: str) -> Dict:
 def validate_emails(emails: List[str]) -> List[Dict]:
     """Convenience function to validate multiple emails"""
     return get_validator().validate_bulk(emails)
+
+# Create singleton instance for backward compatibility
+email_validator = EmailValidator()

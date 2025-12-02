@@ -12,7 +12,7 @@ celery_app = Celery(
     'sendbaba',
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=['tasks.email_tasks', 'tasks.warmup_tasks', 'tasks.webhook_tasks']
+    include=['app.tasks.email_tasks', 'tasks.warmup_tasks', 'tasks.webhook_tasks']
 )
 
 celery_app.conf.update(

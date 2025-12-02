@@ -20,6 +20,7 @@ class User(db.Model, UserMixin):
     organization_id = db.Column(db.String(36), index=True)
     role = db.Column(db.String(50), default='member')
     is_verified = db.Column(db.Boolean, default=False)
+    verification_token = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
     last_login = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

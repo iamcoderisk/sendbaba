@@ -316,12 +316,13 @@ def api_stats():
 @campaign_bp.route('/campaigns/api/send', methods=['POST'])
 @login_required
 def api_send_campaign():
-    """Send campaign"""
+    """Send campaign using Celery async queue"""
     try:
         data = request.get_json()
         campaign_id = data.get('campaign_id')
         html_col = get_html_column()
         
+        # Validate campaign exists and belongs to user
         result = db.session.execute(
             text(f"SELECT name, subject, {html_col}, from_name, from_email, reply_to, preview_text FROM campaigns WHERE id = :id AND organization_id = :org_id"),
             {'id': campaign_id, 'org_id': current_user.organization_id}
@@ -332,53 +333,93 @@ def api_send_campaign():
         
         name, subject, html_body, from_name, from_email, reply_to, preview_text = campaign
         
+        # Validate required fields
         if not subject: return jsonify({'success': False, 'error': 'Subject is required'}), 400
         if not html_body: return jsonify({'success': False, 'error': 'Email content is required'}), 400
         if not from_email: return jsonify({'success': False, 'error': 'From Email is required'}), 400
         if not from_name: return jsonify({'success': False, 'error': 'From Name is required'}), 400
         
+        # Count contacts
         contacts_result = db.session.execute(
-            text("SELECT id, email, first_name, last_name FROM contacts WHERE organization_id = :org_id AND status = 'active'"),
+            text("SELECT COUNT(*) FROM contacts WHERE organization_id = :org_id AND status = 'active'"),
             {'org_id': current_user.organization_id}
         )
-        contacts = contacts_result.fetchall()
-        total = len(contacts)
+        total = contacts_result.scalar() or 0
         
         if total == 0:
             return jsonify({'success': False, 'error': 'No contacts to send to'}), 400
         
+        # Update campaign status to queued
         db.session.execute(
-            text("UPDATE campaigns SET status = 'sending', total_recipients = :total, updated_at = NOW() WHERE id = :id"),
+            text("UPDATE campaigns SET status = 'queued', total_recipients = :total, updated_at = NOW() WHERE id = :id"),
             {'total': total, 'id': campaign_id}
         )
         db.session.commit()
         
-        sent = 0
+        # Queue the campaign for async processing via Celery
         try:
-            from app.smtp.relay_server import send_email_sync
-            for contact in contacts[:1000]:  # Limit to 1000 for sync
-                contact_id, email, first_name, last_name = contact
-                html = html_body.replace('{{first_name}}', first_name or '').replace('{{last_name}}', last_name or '').replace('{{email}}', email)
-                subj = subject.replace('{{first_name}}', first_name or '')
-                try:
-                    result = send_email_sync({'from': from_email, 'from_name': from_name, 'reply_to': reply_to, 'to': email, 'subject': subj, 'html_body': html})
-                    if result.get('success'): sent += 1
-                except Exception as e:
-                    logger.error(f"Send to {email} failed: {e}")
-        except ImportError:
-            sent = total
-        
-        db.session.execute(
-            text("UPDATE campaigns SET status = 'sent', emails_sent = :sent, sent_count = :sent, sent_at = NOW(), updated_at = NOW() WHERE id = :id"),
-            {'sent': sent, 'id': campaign_id}
-        )
-        db.session.commit()
-        
-        return jsonify({'success': True, 'sent': sent, 'total': total})
+            from app.tasks.email_tasks import send_campaign
+            send_campaign.apply_async(
+                args=[campaign_id],
+                queue='bulk',
+                priority=5
+            )
+            logger.info(f"Campaign {campaign_id} queued for {total} contacts")
+            
+            return jsonify({
+                'success': True, 
+                'queued': True,
+                'total': total,
+                'message': f'Campaign queued! Sending to {total:,} contacts in background.'
+            })
+        except ImportError as e:
+            logger.error(f"Celery import failed: {e}")
+            # Fallback to sync for small lists
+            if total <= 100:
+                return send_campaign_sync(campaign_id, campaign, total)
+            return jsonify({'success': False, 'error': 'Queue system unavailable'}), 500
+            
     except Exception as e:
         logger.error(f"Send error: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def send_campaign_sync(campaign_id, campaign, total):
+    """Fallback sync sending for small campaigns"""
+    name, subject, html_body, from_name, from_email, reply_to, preview_text = campaign
+    
+    db.session.execute(
+        text("UPDATE campaigns SET status = 'sending', updated_at = NOW() WHERE id = :id"),
+        {'id': campaign_id}
+    )
+    db.session.commit()
+    
+    contacts_result = db.session.execute(
+        text("SELECT id, email, first_name, last_name FROM contacts WHERE organization_id = :org_id AND status = 'active' LIMIT 100"),
+        {'org_id': current_user.organization_id}
+    )
+    contacts = contacts_result.fetchall()
+    
+    sent = 0
+    from app.smtp.relay_server import send_email_sync
+    for contact in contacts:
+        contact_id, email, first_name, last_name = contact
+        html = html_body.replace('{{first_name}}', first_name or '').replace('{{last_name}}', last_name or '').replace('{{email}}', email)
+        subj = subject.replace('{{first_name}}', first_name or '')
+        try:
+            result = send_email_sync({'from': from_email, 'from_name': from_name, 'reply_to': reply_to, 'to': email, 'subject': subj, 'html_body': html})
+            if result.get('success'): sent += 1
+        except Exception as e:
+            logger.error(f"Send to {email} failed: {e}")
+    
+    db.session.execute(
+        text("UPDATE campaigns SET status = 'sent', emails_sent = :sent, sent_count = :sent, sent_at = NOW(), updated_at = NOW() WHERE id = :id"),
+        {'sent': sent, 'id': campaign_id}
+    )
+    db.session.commit()
+    
+    return jsonify({'success': True, 'sent': sent, 'total': total})
 
 
 @campaign_bp.route('/campaigns/api/send-test', methods=['POST'])

@@ -99,23 +99,59 @@ function initUserMenu() {
         return;
     }
     
+    // Remove any existing listeners by cloning
+    var newProfile = profile.cloneNode(true);
+    profile.parentNode.replaceChild(newProfile, profile);
+    profile = newProfile;
+    
+    // Add click listener
     profile.addEventListener('click', function(e) {
+        e.preventDefault();
         e.stopPropagation();
-        menu.classList.toggle('show');
+        console.log('User profile clicked');
+        
+        var isOpen = menu.classList.contains('show');
+        
+        if (isOpen) {
+            menu.classList.remove('show');
+            profile.classList.remove('active');
+        } else {
+            menu.classList.add('show');
+            profile.classList.add('active');
+        }
     });
     
+    // Close when clicking outside
     document.addEventListener('click', function(e) {
         if (!menu.contains(e.target) && !profile.contains(e.target)) {
             menu.classList.remove('show');
+            profile.classList.remove('active');
+        }
+    });
+    
+    // Close on escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            menu.classList.remove('show');
+            profile.classList.remove('active');
         }
     });
     
     console.log('✅ User menu initialized');
 }
 
+// Global function for onclick attribute
 function toggleUserMenu() {
     var menu = document.getElementById('userMenu') || document.querySelector('.user-menu');
-    if (menu) menu.classList.toggle('show');
+    var profile = document.querySelector('.user-profile');
+    
+    if (menu) {
+        menu.classList.toggle('show');
+        console.log('User menu toggled:', menu.classList.contains('show'));
+    }
+    if (profile) {
+        profile.classList.toggle('active');
+    }
 }
 
 /* ==================== UPGRADE CARD PULSE ==================== */

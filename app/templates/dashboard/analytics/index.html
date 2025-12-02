@@ -1,384 +1,674 @@
-{% extends "base.html" %}
+{% extends "dashboard/base.html" %}
 {% block title %}Analytics - SendBaba{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+{% block page_subtitle %}Real-time email performance insights{% endblock %}
 
-{% block head %}
-<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
+{% block extra_css %}
 <style>
-    .analytics-container {
-        max-width: 1400px;
-        margin: 0 auto;
-    }
-    .stat-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        padding: 20px;
-        transition: all 0.3s ease;
-    }
-    .stat-card:hover {
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-        transform: translateY(-2px);
-    }
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        line-height: 1.2;
-    }
-    .chart-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        padding: 24px;
-    }
-    .period-btn {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 500;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .period-btn.active {
-        background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-        color: white;
-    }
-    .period-btn:not(.active) {
-        background: #f3f4f6;
-        color: #6b7280;
-    }
-    .period-btn:not(.active):hover {
-        background: #e5e7eb;
-    }
-    .pulse-dot {
-        width: 8px;
-        height: 8px;
-        background: #22c55e;
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(0.9); }
-    }
-    .funnel-bar {
-        height: 32px;
-        border-radius: 8px;
-        transition: width 1s ease-out;
-    }
-    .progress-bar {
-        height: 6px;
-        background: #e5e7eb;
-        border-radius: 3px;
-        overflow: hidden;
-    }
-    .progress-fill {
-        height: 100%;
-        border-radius: 3px;
-    }
-    .quick-stat {
-        padding: 12px 16px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    @media (max-width: 768px) {
-        .stat-value {
-            font-size: 1.5rem;
-        }
-        .stat-card {
-            padding: 16px;
-        }
-        .chart-card {
-            padding: 16px;
-        }
-    }
+:root {
+    --primary: #F97316;
+    --primary-dark: #EA580C;
+    --primary-light: #FDBA74;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #3b82f6;
+}
+.analytics-container { max-width: 1400px; margin: 0 auto; }
+.stat-card {
+    background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 24px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -12px rgba(249, 115, 22, 0.25);
+    border-color: var(--primary-light);
+}
+.stat-card:hover::before { opacity: 1; }
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.stat-value.counting { 
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+.chart-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 28px;
+    transition: all 0.3s;
+}
+.chart-card:hover {
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+}
+.period-selector {
+    display: flex;
+    background: #f3f4f6;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+}
+.period-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: #6b7280;
+}
+.period-btn.active {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+.period-btn:not(.active):hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+.live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #166534;
+}
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: livePulse 2s infinite;
+}
+@keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+    50% { opacity: 0.8; transform: scale(0.9); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+}
+.queue-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 20px;
+    padding: 24px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+.queue-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(249, 115, 22, 0.1) 0%, transparent 70%);
+}
+.queue-value {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.funnel-item { margin-bottom: 16px; }
+.funnel-bar-bg {
+    height: 12px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.funnel-bar {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+.funnel-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+.campaign-row {
+    transition: all 0.2s;
+    border-radius: 12px;
+}
+.campaign-row:hover {
+    background: #fff7ed;
+}
+.status-pill {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.status-pill.delivered, .status-pill.sent, .status-pill.completed { background: #dcfce7; color: #166534; }
+.status-pill.failed { background: #fee2e2; color: #991b1b; }
+.status-pill.opened { background: #dbeafe; color: #1e40af; }
+.status-pill.clicked { background: #f3e8ff; color: #7c3aed; }
+.status-pill.pending { background: #fef3c7; color: #92400e; }
+.status-pill.sending { background: #fff7ed; color: #c2410c; }
+.growth-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.growth-badge.positive { background: #dcfce7; color: #166534; }
+.growth-badge.negative { background: #fee2e2; color: #991b1b; }
+.growth-badge.neutral { background: #f3f4f6; color: #6b7280; }
+.quick-stat {
+    padding: 16px 20px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s;
+}
+.quick-stat:hover { transform: translateX(4px); }
+.domain-card {
+    background: #f9fafb;
+    border-radius: 16px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+.domain-card:hover {
+    background: #fff7ed;
+}
+.health-bar {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+}
+.health-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+}
+.btn-export {
+    padding: 12px 20px;
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-export:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #fff7ed;
+}
+.btn-refresh {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: white;
+    border: 2px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #6b7280;
+}
+.btn-refresh:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: #fff7ed;
+}
+.btn-refresh.spinning i { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 12px;
+}
+.toast {
+    background: white;
+    border-radius: 16px;
+    padding: 16px 20px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    min-width: 300px;
+}
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (max-width: 1024px) {
+    .stat-value { font-size: 2rem; }
+    .queue-value { font-size: 2.5rem; }
+}
+@media (max-width: 768px) {
+    .stat-card { padding: 16px; }
+    .chart-card { padding: 16px; }
+    .stat-value { font-size: 1.75rem; }
+    .stat-icon { width: 44px; height: 44px; font-size: 18px; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="analytics-container p-4 md:p-6 lg:p-8">
-    <!-- Header -->
-    <div class="mb-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
-                    <span class="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                    </span>
-                    Analytics Dashboard
-                </h1>
-                <p class="text-gray-500 mt-1 text-sm md:text-base">Real-time insights into your email performance</p>
+<div class="analytics-container">
+    <!-- Header Section -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+        <div class="flex items-center gap-4">
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>Live Updates</span>
+            </div>
+            <span class="text-sm text-gray-500">Last updated: <span id="lastUpdate">Just now</span></span>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="period-selector">
+                <button onclick="changePeriod('24h')" class="period-btn {{ 'active' if period == '24h' else '' }}" data-period="24h">24h</button>
+                <button onclick="changePeriod('7d')" class="period-btn {{ 'active' if period == '7d' else '' }}" data-period="7d">7 Days</button>
+                <button onclick="changePeriod('30d')" class="period-btn {{ 'active' if period == '30d' else '' }}" data-period="30d">30 Days</button>
+                <button onclick="changePeriod('90d')" class="period-btn {{ 'active' if period == '90d' else '' }}" data-period="90d">90 Days</button>
             </div>
             
-            <div class="flex items-center gap-3 flex-wrap">
-                <div class="flex items-center gap-2 text-sm text-gray-500">
-                    <span class="pulse-dot"></span>
-                    <span>Live</span>
+            <button onclick="refreshData()" id="refreshBtn" class="btn-refresh" title="Refresh Data">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            
+            <button onclick="exportData()" class="btn-export">
+                <i class="fas fa-download"></i>
+                Export CSV
+            </button>
+        </div>
+    </div>
+
+    <!-- Queue Status Section -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="queue-card">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-clock text-orange-400"></i>
                 </div>
-                
-                <div class="flex bg-gray-100 rounded-lg p-1">
-                    <button onclick="changePeriod('24h')" class="period-btn {{ 'active' if period == '24h' else '' }}">24h</button>
-                    <button onclick="changePeriod('7d')" class="period-btn {{ 'active' if period == '7d' else '' }}">7d</button>
-                    <button onclick="changePeriod('30d')" class="period-btn {{ 'active' if period == '30d' else '' }}">30d</button>
-                    <button onclick="changePeriod('90d')" class="period-btn {{ 'active' if period == '90d' else '' }}">90d</button>
-                </div>
-                
-                <button onclick="exportData()" class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                    </svg>
-                    Export
-                </button>
+                <span class="text-gray-400 text-sm font-medium">Queue Pending</span>
             </div>
+            <div class="queue-value" id="queuePending">{{ queue_stats.pending|default(0) }}</div>
+            <div class="text-gray-500 text-xs mt-2">Emails waiting to send</div>
+        </div>
+        
+        <div class="queue-card">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-paper-plane text-blue-400"></i>
+                </div>
+                <span class="text-gray-400 text-sm font-medium">Processing</span>
+            </div>
+            <div class="queue-value" id="queueProcessing">{{ queue_stats.processing|default(0) }}</div>
+            <div class="text-gray-500 text-xs mt-2">Currently sending</div>
+        </div>
+        
+        <div class="queue-card">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <span class="text-gray-400 text-sm font-medium">Completed Today</span>
+            </div>
+            <div class="queue-value" id="queueCompleted">{{ queue_stats.completed_today|default(0) }}</div>
+            <div class="text-gray-500 text-xs mt-2">Successfully sent</div>
+        </div>
+        
+        <div class="queue-card">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                </div>
+                <span class="text-gray-400 text-sm font-medium">Failed Today</span>
+            </div>
+            <div class="queue-value" id="queueFailed">{{ queue_stats.failed_today|default(0) }}</div>
+            <div class="text-gray-500 text-xs mt-2">Delivery failures</div>
         </div>
     </div>
 
     <!-- Main Stats Grid -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <!-- Delivery Rate -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
-                <div class="stat-icon bg-purple-100">
-                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                    </svg>
+            <div class="flex items-start justify-between mb-4">
+                <div class="stat-icon bg-gradient-to-br from-orange-100 to-orange-50">
+                    <i class="fas fa-paper-plane text-orange-500"></i>
                 </div>
-                {% if overview.delivery_growth != 0 %}
-                <span class="text-xs font-medium px-2 py-1 rounded-full {% if overview.delivery_growth >= 0 %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
-                    {% if overview.delivery_growth >= 0 %}↑{% else %}↓{% endif %} {{ overview.delivery_growth|abs }}%
+                {% if overview.total_growth != 0 %}
+                <span class="growth-badge {{ 'positive' if overview.total_growth >= 0 else 'negative' }}">
+                    <i class="fas fa-arrow-{{ 'up' if overview.total_growth >= 0 else 'down' }} text-xs"></i>
+                    {{ overview.total_growth|abs }}%
                 </span>
                 {% endif %}
             </div>
-            <div class="stat-value text-purple-600">{{ overview.delivery_rate }}%</div>
-            <div class="text-sm text-gray-500 mt-1">Delivery Rate</div>
-            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.delivered) }} delivered</div>
+            <div class="stat-value" data-count="{{ overview.total_sent }}">0</div>
+            <div class="text-gray-500 mt-2 font-medium">Total Sent</div>
+            <div class="text-xs text-gray-400 mt-1">{{ "{:,}".format(overview.avg_daily|int) }}/day average</div>
         </div>
 
-        <!-- Open Rate -->
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
-                <div class="stat-icon bg-green-100">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                    </svg>
+            <div class="flex items-start justify-between mb-4">
+                <div class="stat-icon bg-gradient-to-br from-green-100 to-green-50">
+                    <i class="fas fa-check-double text-green-500"></i>
+                </div>
+                <span class="growth-badge positive">{{ overview.delivery_rate }}%</span>
+            </div>
+            <div class="stat-value" data-count="{{ overview.delivered }}">0</div>
+            <div class="text-gray-500 mt-2 font-medium">Delivered</div>
+            <div class="text-xs text-gray-400 mt-1">Delivery Rate</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="flex items-start justify-between mb-4">
+                <div class="stat-icon bg-gradient-to-br from-blue-100 to-blue-50">
+                    <i class="fas fa-envelope-open text-blue-500"></i>
                 </div>
                 {% if overview.open_growth != 0 %}
-                <span class="text-xs font-medium px-2 py-1 rounded-full {% if overview.open_growth >= 0 %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
-                    {% if overview.open_growth >= 0 %}↑{% else %}↓{% endif %} {{ overview.open_growth|abs }}%
+                <span class="growth-badge {{ 'positive' if overview.open_growth >= 0 else 'negative' }}">
+                    <i class="fas fa-arrow-{{ 'up' if overview.open_growth >= 0 else 'down' }} text-xs"></i>
+                    {{ overview.open_growth|abs }}%
                 </span>
                 {% endif %}
             </div>
-            <div class="stat-value text-green-600">{{ overview.open_rate }}%</div>
-            <div class="text-sm text-gray-500 mt-1">Open Rate</div>
-            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.opened) }} opened</div>
+            <div class="stat-value" data-count="{{ overview.opened }}">0</div>
+            <div class="text-gray-500 mt-2 font-medium">Opened</div>
+            <div class="text-xs text-gray-400 mt-1">{{ overview.open_rate }}% open rate</div>
         </div>
 
-        <!-- Click Rate -->
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
-                <div class="stat-icon bg-blue-100">
-                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/>
-                    </svg>
+            <div class="flex items-start justify-between mb-4">
+                <div class="stat-icon bg-gradient-to-br from-purple-100 to-purple-50">
+                    <i class="fas fa-mouse-pointer text-purple-500"></i>
                 </div>
+                <span class="growth-badge neutral">{{ overview.click_rate }}%</span>
             </div>
-            <div class="stat-value text-blue-600">{{ overview.click_rate }}%</div>
-            <div class="text-sm text-gray-500 mt-1">Click Rate</div>
-            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.clicked) }} clicks</div>
-        </div>
-
-        <!-- Bounce Rate -->
-        <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
-                <div class="stat-icon bg-orange-100">
-                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                </div>
-            </div>
-            <div class="stat-value text-orange-600">{{ overview.bounce_rate }}%</div>
-            <div class="text-sm text-gray-500 mt-1">Bounce Rate</div>
-            <div class="text-xs text-gray-400 mt-2">{{ "{:,}".format(overview.bounced) }} bounced</div>
+            <div class="stat-value" data-count="{{ overview.clicked }}">0</div>
+            <div class="text-gray-500 mt-2 font-medium">Clicked</div>
+            <div class="text-xs text-gray-400 mt-1">Click-through rate</div>
         </div>
     </div>
 
-    <!-- Secondary Stats -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ "{:,}".format(overview.total_sent) }}</div>
-            <div class="text-xs md:text-sm text-gray-500">Total Sent</div>
+    <!-- Secondary Stats Row -->
+    <div class="grid grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
+            <div class="text-2xl font-bold text-gray-900" data-count="{{ overview.bounced }}">0</div>
+            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                <span class="w-2 h-2 bg-red-400 rounded-full"></span> Bounced
+            </div>
         </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ "{:,}".format(overview.avg_daily|int) }}</div>
-            <div class="text-xs md:text-sm text-gray-500">Daily Avg</div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
+            <div class="text-2xl font-bold text-gray-900">{{ overview.bounce_rate }}%</div>
+            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                <span class="w-2 h-2 bg-orange-400 rounded-full"></span> Bounce Rate
+            </div>
         </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ "{:,}".format(overview.total_contacts) }}</div>
-            <div class="text-xs md:text-sm text-gray-500">Contacts</div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
+            <div class="text-2xl font-bold text-gray-900" data-count="{{ overview.total_contacts }}">0</div>
+            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                <span class="w-2 h-2 bg-blue-400 rounded-full"></span> Contacts
+            </div>
         </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200">
-            <div class="text-xl md:text-2xl font-bold text-gray-900">{{ campaign_stats.sent }}</div>
-            <div class="text-xs md:text-sm text-gray-500">Campaigns</div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
+            <div class="text-2xl font-bold text-gray-900" data-count="{{ overview.active_contacts }}">0</div>
+            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                <span class="w-2 h-2 bg-green-400 rounded-full"></span> Active
+            </div>
         </div>
-        <div class="bg-white rounded-xl p-4 border border-gray-200 col-span-2 sm:col-span-1">
-            <div class="text-xl md:text-2xl font-bold {% if overview.spam_rate < 0.1 %}text-green-600{% else %}text-red-600{% endif %}">{{ overview.spam_rate }}%</div>
-            <div class="text-xs md:text-sm text-gray-500">Spam Rate</div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
+            <div class="text-2xl font-bold text-gray-900">{{ campaign_stats.sent }}</div>
+            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                <span class="w-2 h-2 bg-purple-400 rounded-full"></span> Campaigns
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
+            <div class="text-2xl font-bold {% if overview.spam_rate < 0.1 %}text-green-600{% else %}text-red-600{% endif %}">{{ overview.spam_rate }}%</div>
+            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full"></span> Spam Rate
+            </div>
         </div>
     </div>
 
     <!-- Charts Section -->
-    <div class="grid lg:grid-cols-3 gap-6 mb-6">
-        <!-- Email Performance Chart -->
+    <div class="grid lg:grid-cols-3 gap-6 mb-8">
         <div class="lg:col-span-2 chart-card">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Email Performance</h3>
-                    <p class="text-sm text-gray-500">Daily metrics over time</p>
+                    <h3 class="text-lg font-bold text-gray-900">Email Performance</h3>
+                    <p class="text-sm text-gray-500">Delivery metrics over time</p>
                 </div>
-                <div class="flex gap-4 text-xs">
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded-full"></span> Sent</span>
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Opened</span>
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-500 rounded-full"></span> Clicked</span>
+                <div class="flex flex-wrap gap-4 text-xs font-medium">
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-orange-500 rounded-full"></span> Sent</span>
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Delivered</span>
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-blue-500 rounded-full"></span> Opened</span>
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Failed</span>
                 </div>
             </div>
-            <div id="emailTrendChart" style="height: 300px; min-height: 300px;"></div>
+            <div id="performanceChart" style="height: 320px;"></div>
         </div>
 
-        <!-- Engagement Funnel -->
         <div class="chart-card">
             <div class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900">Engagement Funnel</h3>
-                <p class="text-sm text-gray-500">Conversion through stages</p>
+                <h3 class="text-lg font-bold text-gray-900">Delivery Funnel</h3>
+                <p class="text-sm text-gray-500">Email journey breakdown</p>
             </div>
             
-            {% set max_val = [engagement_funnel.sent, 1]|max %}
-            <div class="space-y-4">
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-gray-600 font-medium">Sent</span>
+            <div class="space-y-5">
+                {% set max_val = [engagement_funnel.sent, 1]|max %}
+                
+                <div class="funnel-item">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <i class="fas fa-paper-plane text-orange-500"></i> Sent
+                        </span>
                         <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.sent) }}</span>
                     </div>
-                    <div class="funnel-bar bg-gradient-to-r from-purple-500 to-purple-600" style="width: 100%;"></div>
+                    <div class="funnel-bar-bg">
+                        <div class="funnel-bar bg-gradient-to-r from-orange-500 to-orange-400" style="width: 100%;"></div>
+                    </div>
                 </div>
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-gray-600 font-medium">Delivered</span>
+                
+                <div class="funnel-item">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <i class="fas fa-check-double text-green-500"></i> Delivered
+                        </span>
                         <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.delivered) }}</span>
                     </div>
-                    <div class="funnel-bar bg-gradient-to-r from-indigo-500 to-indigo-600" style="width: {{ [(engagement_funnel.delivered / max_val * 100)|int, 5]|max }}%;"></div>
+                    <div class="funnel-bar-bg">
+                        <div class="funnel-bar bg-gradient-to-r from-green-500 to-green-400" data-width="{{ [(engagement_funnel.delivered / max_val * 100)|int, 3]|max }}"></div>
+                    </div>
                 </div>
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-gray-600 font-medium">Opened</span>
+                
+                <div class="funnel-item">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <i class="fas fa-envelope-open text-blue-500"></i> Opened
+                        </span>
                         <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.opened) }}</span>
                     </div>
-                    <div class="funnel-bar bg-gradient-to-r from-green-500 to-green-600" style="width: {{ [(engagement_funnel.opened / max_val * 100)|int, 5]|max }}%;"></div>
+                    <div class="funnel-bar-bg">
+                        <div class="funnel-bar bg-gradient-to-r from-blue-500 to-blue-400" data-width="{{ [(engagement_funnel.opened / max_val * 100)|int, 3]|max }}"></div>
+                    </div>
                 </div>
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-gray-600 font-medium">Clicked</span>
+                
+                <div class="funnel-item">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <i class="fas fa-mouse-pointer text-purple-500"></i> Clicked
+                        </span>
                         <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.clicked) }}</span>
                     </div>
-                    <div class="funnel-bar bg-gradient-to-r from-blue-500 to-blue-600" style="width: {{ [(engagement_funnel.clicked / max_val * 100)|int, 5]|max }}%;"></div>
+                    <div class="funnel-bar-bg">
+                        <div class="funnel-bar bg-gradient-to-r from-purple-500 to-purple-400" data-width="{{ [(engagement_funnel.clicked / max_val * 100)|int, 3]|max }}"></div>
+                    </div>
+                </div>
+                
+                <div class="funnel-item">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            <i class="fas fa-times-circle text-red-500"></i> Failed
+                        </span>
+                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.failed) }}</span>
+                    </div>
+                    <div class="funnel-bar-bg">
+                        <div class="funnel-bar bg-gradient-to-r from-red-500 to-red-400" data-width="{{ [(engagement_funnel.failed / max_val * 100)|int, 3]|max }}"></div>
+                    </div>
                 </div>
             </div>
 
             <div class="mt-6 pt-6 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
-                <div>
-                    <div class="text-lg font-bold text-purple-600">{{ overview.delivery_rate }}%</div>
-                    <div class="text-xs text-gray-500">Delivery</div>
+                <div class="p-3 bg-green-50 rounded-xl">
+                    <div class="text-xl font-bold text-green-600">{{ overview.delivery_rate }}%</div>
+                    <div class="text-xs text-green-700 font-medium">Delivery</div>
                 </div>
-                <div>
-                    <div class="text-lg font-bold text-green-600">{{ overview.open_rate }}%</div>
-                    <div class="text-xs text-gray-500">Open</div>
+                <div class="p-3 bg-blue-50 rounded-xl">
+                    <div class="text-xl font-bold text-blue-600">{{ overview.open_rate }}%</div>
+                    <div class="text-xs text-blue-700 font-medium">Open</div>
                 </div>
-                <div>
-                    <div class="text-lg font-bold text-blue-600">{{ overview.click_rate }}%</div>
-                    <div class="text-xs text-gray-500">Click</div>
+                <div class="p-3 bg-purple-50 rounded-xl">
+                    <div class="text-xl font-bold text-purple-600">{{ overview.click_rate }}%</div>
+                    <div class="text-xs text-purple-700 font-medium">Click</div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Second Row Charts -->
-    <div class="grid md:grid-cols-2 gap-6 mb-6">
-        <!-- Contact Growth -->
+    <div class="grid md:grid-cols-2 gap-6 mb-8">
         <div class="chart-card">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Contact Growth</h3>
-                    <p class="text-sm text-gray-500">Subscriber growth over time</p>
+                    <h3 class="text-lg font-bold text-gray-900">Send Time Analysis</h3>
+                    <p class="text-sm text-gray-500">Emails sent by hour of day</p>
                 </div>
-                <div class="text-right">
-                    <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.total_contacts) }}</div>
-                    <div class="text-xs text-gray-500">Total</div>
+                <div class="text-sm text-gray-500">
+                    Peak: <span class="font-bold text-orange-600" id="peakHour">--:00</span>
                 </div>
             </div>
-            <div id="contactGrowthChart" style="height: 250px; min-height: 250px;"></div>
+            <div id="hourlyChart" style="height: 280px;"></div>
         </div>
 
-        <!-- Hourly Distribution -->
         <div class="chart-card">
-            <div class="mb-6">
-                <h3 class="text-lg font-semibold text-gray-900">Send Time Distribution</h3>
-                <p class="text-sm text-gray-500">Emails sent by hour</p>
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Delivery Status</h3>
+                    <p class="text-sm text-gray-500">Current period breakdown</p>
+                </div>
             </div>
-            <div id="hourlyChart" style="height: 250px; min-height: 250px;"></div>
+            <div id="statusChart" style="height: 280px;"></div>
         </div>
     </div>
 
     <!-- Bottom Section -->
     <div class="grid lg:grid-cols-3 gap-6">
-        <!-- Top Campaigns -->
         <div class="lg:col-span-2 chart-card">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Top Campaigns</h3>
-                    <p class="text-sm text-gray-500">Best performing this period</p>
+                    <h3 class="text-lg font-bold text-gray-900">Recent Campaigns</h3>
+                    <p class="text-sm text-gray-500">Performance overview</p>
                 </div>
-                <a href="/dashboard/campaigns" class="text-sm text-purple-600 hover:text-purple-700 font-medium">View All →</a>
+                <a href="/dashboard/campaigns" class="text-sm text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
+                    View All <i class="fas fa-arrow-right text-xs"></i>
+                </a>
             </div>
             
             {% if top_campaigns %}
             <div class="overflow-x-auto -mx-4 md:mx-0">
-                <table class="w-full min-w-[500px]">
+                <table class="w-full min-w-[600px]">
                     <thead>
-                        <tr class="text-left text-xs font-medium text-gray-500 uppercase">
-                            <th class="pb-3 px-4 md:px-0">Campaign</th>
-                            <th class="pb-3 text-right">Sent</th>
-                            <th class="pb-3 text-right">Opens</th>
-                            <th class="pb-3 text-right">Clicks</th>
-                            <th class="pb-3 text-right pr-4 md:pr-0">Status</th>
+                        <tr class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            <th class="pb-4 px-4 md:px-0">Campaign</th>
+                            <th class="pb-4 text-right">Sent</th>
+                            <th class="pb-4 text-right">Delivered</th>
+                            <th class="pb-4 text-right">Opens</th>
+                            <th class="pb-4 text-right pr-4 md:pr-0">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody class="divide-y divide-gray-50">
                         {% for campaign in top_campaigns %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="py-3 px-4 md:px-0">
-                                <div class="font-medium text-gray-900 truncate max-w-[200px]">{{ campaign.name }}</div>
-                                <div class="text-xs text-gray-500">{{ campaign.created_at }}</div>
+                        <tr class="campaign-row">
+                            <td class="py-4 px-4 md:px-0">
+                                <div class="font-semibold text-gray-900 truncate max-w-[200px]">{{ campaign.name }}</div>
+                                <div class="text-xs text-gray-500 mt-0.5">{{ campaign.created_at }}</div>
                             </td>
-                            <td class="py-3 text-right font-medium text-gray-900">{{ "{:,}".format(campaign.sent) }}</td>
-                            <td class="py-3 text-right text-green-600 font-medium">{{ campaign.open_rate or 0 }}%</td>
-                            <td class="py-3 text-right text-blue-600 font-medium">{{ campaign.click_rate or 0 }}%</td>
-                            <td class="py-3 text-right pr-4 md:pr-0">
-                                <span class="px-2 py-1 text-xs font-medium rounded-full 
-                                    {% if campaign.status in ['sent', 'completed'] %}bg-green-100 text-green-700
-                                    {% elif campaign.status == 'sending' %}bg-blue-100 text-blue-700
-                                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            <td class="py-4 text-right">
+                                <span class="font-bold text-gray-900">{{ "{:,}".format(campaign.sent) }}</span>
+                            </td>
+                            <td class="py-4 text-right">
+                                <span class="font-semibold text-green-600">{{ campaign.delivery_rate|default(0) }}%</span>
+                            </td>
+                            <td class="py-4 text-right">
+                                <span class="font-semibold text-blue-600">{{ campaign.open_rate|default(0) }}%</span>
+                            </td>
+                            <td class="py-4 text-right pr-4 md:pr-0">
+                                <span class="status-pill {{ campaign.status }}">
+                                    {% if campaign.status == 'sending' %}
+                                    <i class="fas fa-spinner fa-spin text-xs"></i>
+                                    {% endif %}
                                     {{ campaign.status|capitalize }}
                                 </span>
                             </td>
@@ -388,76 +678,89 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-12">
-                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                    </svg>
+            <div class="text-center py-16">
+                <div class="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-paper-plane text-3xl text-orange-300"></i>
                 </div>
-                <p class="text-gray-500 mb-4">No campaigns sent yet</p>
-                <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700">
-                    Create Campaign
+                <h4 class="font-semibold text-gray-900 mb-2">No campaigns yet</h4>
+                <p class="text-gray-500 text-sm mb-4">Create your first campaign to see analytics</p>
+                <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30">
+                    <i class="fas fa-plus"></i> Create Campaign
                 </a>
             </div>
             {% endif %}
         </div>
 
-        <!-- Sidebar Stats -->
         <div class="space-y-6">
-            <!-- Domain Health -->
             <div class="chart-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-semibold text-gray-900">Domain Health</h3>
-                    <a href="/dashboard/domains" class="text-xs text-purple-600 hover:text-purple-700">Manage →</a>
+                    <h3 class="font-bold text-gray-900">Domain Health</h3>
+                    <a href="/dashboard/domains" class="text-xs text-orange-600 hover:text-orange-700 font-semibold">Manage →</a>
                 </div>
                 
                 {% if domain_stats %}
                 <div class="space-y-3">
                     {% for domain in domain_stats[:3] %}
-                    <div class="p-3 bg-gray-50 rounded-xl">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="font-medium text-gray-900 text-sm truncate max-w-[150px]">{{ domain.domain }}</span>
-                            <span class="text-sm font-bold {% if domain.health_score == 100 %}text-green-600{% elif domain.health_score >= 67 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                    <div class="domain-card">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="font-semibold text-gray-900 text-sm truncate max-w-[140px]">{{ domain.domain }}</span>
+                            <span class="text-sm font-bold {% if domain.health_score >= 90 %}text-green-600{% elif domain.health_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
                                 {{ domain.health_score }}%
                             </span>
                         </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill {% if domain.health_score == 100 %}bg-green-500{% elif domain.health_score >= 67 %}bg-yellow-500{% else %}bg-red-500{% endif %}" style="width: {{ domain.health_score }}%;"></div>
+                        <div class="health-bar">
+                            <div class="health-fill {% if domain.health_score >= 90 %}bg-gradient-to-r from-green-500 to-green-400{% elif domain.health_score >= 60 %}bg-gradient-to-r from-yellow-500 to-yellow-400{% else %}bg-gradient-to-r from-red-500 to-red-400{% endif %}" style="width: {{ domain.health_score }}%;"></div>
                         </div>
-                        <div class="flex gap-1 mt-2">
-                            <span class="text-xs px-1.5 py-0.5 rounded {% if domain.dns_verified %}bg-green-100 text-green-700{% else %}bg-gray-200 text-gray-500{% endif %}">DNS</span>
-                            <span class="text-xs px-1.5 py-0.5 rounded {% if domain.dkim_verified %}bg-green-100 text-green-700{% else %}bg-gray-200 text-gray-500{% endif %}">DKIM</span>
-                            <span class="text-xs px-1.5 py-0.5 rounded {% if domain.spf_verified %}bg-green-100 text-green-700{% else %}bg-gray-200 text-gray-500{% endif %}">SPF</span>
+                        <div class="flex gap-2 mt-3">
+                            <span class="text-xs px-2 py-1 rounded-lg font-medium {% if domain.dns_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                                <i class="fas fa-{% if domain.dns_verified %}check{% else %}times{% endif %} mr-1"></i>DNS
+                            </span>
+                            <span class="text-xs px-2 py-1 rounded-lg font-medium {% if domain.dkim_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                                <i class="fas fa-{% if domain.dkim_verified %}check{% else %}times{% endif %} mr-1"></i>DKIM
+                            </span>
+                            <span class="text-xs px-2 py-1 rounded-lg font-medium {% if domain.spf_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                                <i class="fas fa-{% if domain.spf_verified %}check{% else %}times{% endif %} mr-1"></i>SPF
+                            </span>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="text-center py-6">
+                <div class="text-center py-8">
+                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-globe text-gray-400"></i>
+                    </div>
                     <p class="text-gray-500 text-sm mb-2">No domains configured</p>
-                    <a href="/dashboard/domains" class="text-purple-600 text-sm hover:text-purple-700 font-medium">Add domain →</a>
+                    <a href="/dashboard/domains" class="text-orange-600 text-sm font-semibold hover:text-orange-700">Add Domain →</a>
                 </div>
                 {% endif %}
             </div>
 
-            <!-- Quick Stats -->
             <div class="chart-card">
-                <h3 class="font-semibold text-gray-900 mb-4">Quick Stats</h3>
+                <h3 class="font-bold text-gray-900 mb-4">Quick Stats</h3>
                 <div class="space-y-2">
-                    <div class="quick-stat bg-purple-50">
-                        <span class="text-sm text-purple-700">Active Contacts</span>
-                        <span class="font-bold text-purple-700">{{ "{:,}".format(overview.active_contacts) }}</span>
-                    </div>
                     <div class="quick-stat bg-orange-50">
-                        <span class="text-sm text-orange-700">Unsubscribed</span>
-                        <span class="font-bold text-orange-700">{{ "{:,}".format(overview.unsubscribed) }}</span>
+                        <span class="text-sm font-medium text-orange-700 flex items-center gap-2">
+                            <i class="fas fa-users"></i> Active Contacts
+                        </span>
+                        <span class="font-bold text-orange-700">{{ "{:,}".format(overview.active_contacts) }}</span>
+                    </div>
+                    <div class="quick-stat bg-red-50">
+                        <span class="text-sm font-medium text-red-700 flex items-center gap-2">
+                            <i class="fas fa-user-minus"></i> Unsubscribed
+                        </span>
+                        <span class="font-bold text-red-700">{{ "{:,}".format(overview.unsubscribed) }}</span>
                     </div>
                     <div class="quick-stat bg-blue-50">
-                        <span class="text-sm text-blue-700">Drafts</span>
+                        <span class="text-sm font-medium text-blue-700 flex items-center gap-2">
+                            <i class="fas fa-file-alt"></i> Draft Campaigns
+                        </span>
                         <span class="font-bold text-blue-700">{{ campaign_stats.drafts }}</span>
                     </div>
                     <div class="quick-stat bg-green-50">
-                        <span class="text-sm text-green-700">Scheduled</span>
+                        <span class="text-sm font-medium text-green-700 flex items-center gap-2">
+                            <i class="fas fa-calendar-check"></i> Scheduled
+                        </span>
                         <span class="font-bold text-green-700">{{ campaign_stats.scheduled }}</span>
                     </div>
                 </div>
@@ -466,42 +769,103 @@
     </div>
 </div>
 
+<div id="toastContainer" class="toast-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const emailTrends = {{ email_trends|safe }};
-    const contactGrowth = {{ contact_growth|safe }};
-    const hourlyDist = {{ hourly_dist|safe }};
-
-    // Common chart options
-    const commonOptions = {
-        chart: {
-            toolbar: { show: false },
-            fontFamily: 'Inter, system-ui, sans-serif',
-            animations: { enabled: true, easing: 'easeinout', speed: 500 }
-        },
-        grid: { borderColor: '#e5e7eb', strokeDashArray: 4 },
-        dataLabels: { enabled: false }
-    };
-
-    // Email Performance Chart
-    if (emailTrends && emailTrends.length > 0) {
-        new ApexCharts(document.querySelector("#emailTrendChart"), {
-            ...commonOptions,
+const AnalyticsDashboard = {
+    charts: {},
+    data: {
+        emailTrends: {{ email_trends|safe }},
+        hourlyDist: {{ hourly_dist|safe }},
+        statusBreakdown: {{ status_breakdown|safe if status_breakdown else '[]' }}
+    },
+    period: '{{ period }}',
+    refreshInterval: null,
+    
+    init() {
+        this.animateCounters();
+        this.animateFunnelBars();
+        this.initCharts();
+        this.startRealTimeUpdates();
+        this.findPeakHour();
+    },
+    
+    animateCounters() {
+        document.querySelectorAll('[data-count]').forEach(el => {
+            const target = parseInt(el.dataset.count) || 0;
+            const duration = 1500;
+            const start = Date.now();
+            
+            const animate = () => {
+                const elapsed = Date.now() - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                el.textContent = Math.floor(target * eased).toLocaleString();
+                if (progress < 1) requestAnimationFrame(animate);
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        animate();
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.5 });
+            observer.observe(el);
+        });
+    },
+    
+    animateFunnelBars() {
+        setTimeout(() => {
+            document.querySelectorAll('.funnel-bar[data-width]').forEach(bar => {
+                bar.style.width = bar.dataset.width + '%';
+            });
+        }, 300);
+    },
+    
+    findPeakHour() {
+        if (this.data.hourlyDist && this.data.hourlyDist.length > 0) {
+            const peak = this.data.hourlyDist.reduce((max, item) => 
+                item.count > max.count ? item : max, this.data.hourlyDist[0]);
+            document.getElementById('peakHour').textContent = peak.label || peak.hour + ':00';
+        }
+    },
+    
+    initCharts() {
+        this.initPerformanceChart();
+        this.initHourlyChart();
+        this.initStatusChart();
+    },
+    
+    initPerformanceChart() {
+        const container = document.querySelector("#performanceChart");
+        if (!container) return;
+        const data = this.data.emailTrends;
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-chart-line mr-2"></i>No data available</div>';
+            return;
+        }
+        
+        this.charts.performance = new ApexCharts(container, {
             series: [
-                { name: 'Sent', data: emailTrends.map(d => d.total || 0) },
-                { name: 'Opened', data: emailTrends.map(d => d.opened || 0) },
-                { name: 'Clicked', data: emailTrends.map(d => d.clicked || 0) }
+                { name: 'Sent', data: data.map(d => d.total || 0) },
+                { name: 'Delivered', data: data.map(d => d.delivered || 0) },
+                { name: 'Opened', data: data.map(d => d.opened || 0) },
+                { name: 'Failed', data: data.map(d => d.failed || d.bounced || 0) }
             ],
-            chart: { ...commonOptions.chart, type: 'area', height: 300 },
-            colors: ['#8b5cf6', '#22c55e', '#3b82f6'],
-            fill: {
-                type: 'gradient',
-                gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] }
-            },
-            stroke: { curve: 'smooth', width: 2 },
+            chart: { type: 'area', height: 320, toolbar: { show: false }, fontFamily: 'Inter, system-ui, sans-serif' },
+            colors: ['#F97316', '#22c55e', '#3b82f6', '#ef4444'],
+            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 100] } },
+            stroke: { curve: 'smooth', width: 3 },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
             xaxis: {
-                categories: emailTrends.map(d => d.label || ''),
-                labels: { style: { colors: '#9ca3af', fontSize: '11px' }, rotate: -45, rotateAlways: false },
+                categories: data.map(d => d.label || ''),
+                labels: { style: { colors: '#9ca3af', fontSize: '11px' }, rotate: -45 },
                 axisBorder: { show: false },
                 axisTicks: { show: false }
             },
@@ -512,52 +876,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             legend: { show: false },
-            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() : '0' } }
-        }).render();
-    } else {
-        document.querySelector("#emailTrendChart").innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">No data for selected period</div>';
-    }
-
-    // Contact Growth Chart
-    if (contactGrowth && contactGrowth.length > 0) {
-        new ApexCharts(document.querySelector("#contactGrowthChart"), {
-            ...commonOptions,
-            series: [{ name: 'Total Contacts', data: contactGrowth.map(d => d.total || 0) }],
-            chart: { ...commonOptions.chart, type: 'area', height: 250 },
-            colors: ['#8b5cf6'],
-            fill: {
-                type: 'gradient',
-                gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] }
-            },
-            stroke: { curve: 'smooth', width: 3 },
+            tooltip: { theme: 'light', shared: true, y: { formatter: val => val ? val.toLocaleString() : '0' } }
+        });
+        this.charts.performance.render();
+    },
+    
+    initHourlyChart() {
+        const container = document.querySelector("#hourlyChart");
+        if (!container) return;
+        const data = this.data.hourlyDist;
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-clock mr-2"></i>No data available</div>';
+            return;
+        }
+        
+        this.charts.hourly = new ApexCharts(container, {
+            series: [{ name: 'Emails Sent', data: data.map(d => d.count || 0) }],
+            chart: { type: 'bar', height: 280, toolbar: { show: false }, fontFamily: 'Inter, system-ui, sans-serif' },
+            colors: ['#F97316'],
+            plotOptions: { bar: { borderRadius: 6, columnWidth: '60%' } },
+            fill: { type: 'gradient', gradient: { shade: 'light', type: 'vertical', shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.85 } },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
             xaxis: {
-                categories: contactGrowth.map(d => d.label || ''),
-                labels: { style: { colors: '#9ca3af', fontSize: '10px' }, rotate: -45 },
-                axisBorder: { show: false },
-                axisTicks: { show: false }
-            },
-            yaxis: {
-                labels: {
-                    style: { colors: '#9ca3af', fontSize: '11px' },
-                    formatter: val => val >= 1000 ? (val/1000).toFixed(0) + 'k' : Math.round(val)
-                }
-            },
-            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() + ' contacts' : '0' } }
-        }).render();
-    } else {
-        document.querySelector("#contactGrowthChart").innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">No data for selected period</div>';
-    }
-
-    // Hourly Distribution Chart
-    if (hourlyDist && hourlyDist.length > 0) {
-        new ApexCharts(document.querySelector("#hourlyChart"), {
-            ...commonOptions,
-            series: [{ name: 'Emails', data: hourlyDist.map(d => d.count || 0) }],
-            chart: { ...commonOptions.chart, type: 'bar', height: 250 },
-            colors: ['#8b5cf6'],
-            plotOptions: { bar: { borderRadius: 4, columnWidth: '70%' } },
-            xaxis: {
-                categories: hourlyDist.map(d => d.hour),
+                categories: data.map(d => d.hour),
                 labels: { style: { colors: '#9ca3af', fontSize: '10px' } },
                 axisBorder: { show: false },
                 axisTicks: { show: false }
@@ -568,28 +910,113 @@ document.addEventListener('DOMContentLoaded', function() {
                     formatter: val => val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val)
                 }
             },
-            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() + ' emails' : '0' } }
-        }).render();
-    } else {
-        document.querySelector("#hourlyChart").innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm">No data for selected period</div>';
+            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() : '0' } }
+        });
+        this.charts.hourly.render();
+    },
+    
+    initStatusChart() {
+        const container = document.querySelector("#statusChart");
+        if (!container) return;
+        const overview = {
+            delivered: {{ overview.delivered|default(0) }},
+            opened: {{ overview.opened|default(0) }},
+            clicked: {{ overview.clicked|default(0) }},
+            bounced: {{ overview.bounced|default(0) }},
+            pending: {{ queue_stats.pending|default(0) }}
+        };
+        const total = Object.values(overview).reduce((a, b) => a + b, 0);
+        if (total === 0) {
+            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-chart-pie mr-2"></i>No data available</div>';
+            return;
+        }
+        
+        this.charts.status = new ApexCharts(container, {
+            series: [overview.delivered, overview.opened, overview.clicked, overview.bounced, overview.pending],
+            chart: { type: 'donut', height: 280, fontFamily: 'Inter, system-ui, sans-serif' },
+            labels: ['Delivered', 'Opened', 'Clicked', 'Failed', 'Pending'],
+            colors: ['#22c55e', '#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b'],
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '70%',
+                        labels: {
+                            show: true,
+                            total: { show: true, label: 'Total', fontSize: '14px', fontWeight: 600, color: '#6b7280', formatter: () => total.toLocaleString() },
+                            value: { fontSize: '24px', fontWeight: 700, color: '#1f2937' }
+                        }
+                    }
+                }
+            },
+            dataLabels: { enabled: false },
+            legend: { position: 'bottom', fontSize: '12px', fontWeight: 500, markers: { width: 10, height: 10, radius: 5 }, itemMargin: { horizontal: 10, vertical: 5 } },
+            tooltip: { y: { formatter: val => val ? val.toLocaleString() : '0' } }
+        });
+        this.charts.status.render();
+    },
+    
+    startRealTimeUpdates() {
+        this.refreshInterval = setInterval(() => this.fetchRealTimeData(), 30000);
+    },
+    
+    async fetchRealTimeData() {
+        try {
+            const response = await fetch('/dashboard/analytics/api/realtime');
+            const data = await response.json();
+            if (data.success) {
+                this.updateQueueStats(data.data);
+                document.getElementById('lastUpdate').textContent = 'Just now';
+            }
+        } catch (e) {}
+    },
+    
+    updateQueueStats(data) {
+        ['queuePending', 'queueProcessing', 'queueCompleted', 'queueFailed'].forEach(id => {
+            const el = document.getElementById(id);
+            const key = id.replace('queue', '').toLowerCase();
+            if (el && data[key] !== undefined) {
+                el.textContent = data[key].toLocaleString();
+            }
+        });
+    },
+    
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        const icons = { success: 'check-circle', error: 'times-circle', info: 'info-circle', warning: 'exclamation-circle' };
+        const colors = { success: 'text-green-500', error: 'text-red-500', info: 'text-blue-500', warning: 'text-yellow-500' };
+        toast.innerHTML = '<i class="fas fa-' + icons[type] + ' ' + colors[type] + ' text-xl"></i><span class="text-gray-700 font-medium">' + message + '</span>';
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    },
+    
+    destroy() {
+        if (this.refreshInterval) clearInterval(this.refreshInterval);
+        Object.values(this.charts).forEach(c => c && c.destroy());
     }
-});
+};
 
-function changePeriod(period) {
-    window.location.href = '/dashboard/analytics?period=' + period;
+function changePeriod(period) { window.location.href = '/dashboard/analytics?period=' + period; }
+function refreshData() {
+    const btn = document.getElementById('refreshBtn');
+    btn.classList.add('spinning');
+    fetch('/dashboard/analytics/api/overview?period=' + AnalyticsDashboard.period)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                AnalyticsDashboard.showToast('Data refreshed', 'success');
+                setTimeout(() => location.reload(), 500);
+            }
+        })
+        .finally(() => setTimeout(() => btn.classList.remove('spinning'), 1000));
 }
-
 function exportData() {
-    window.location.href = '/dashboard/analytics/api/export?period={{ period }}';
+    AnalyticsDashboard.showToast('Preparing export...', 'info');
+    window.location.href = '/dashboard/analytics/api/export?period=' + AnalyticsDashboard.period;
 }
 
-// Real-time updates
-setInterval(async () => {
-    try {
-        const response = await fetch('/dashboard/analytics/api/realtime');
-        const data = await response.json();
-        if (data.success) console.log('Real-time:', data.data);
-    } catch (e) {}
-}, 30000);
+document.addEventListener('DOMContentLoaded', () => AnalyticsDashboard.init());
+window.addEventListener('beforeunload', () => AnalyticsDashboard.destroy());
 </script>
 {% endblock %}

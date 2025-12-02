@@ -1,0 +1,48 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Verify Your Email - SendBaba{% endblock %}
+{% block page_title %}Email Verification Required{% endblock %}
+{% block page_subtitle %}Please verify your email to access all features{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-12">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center">
+        <!-- Icon -->
+        <div class="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i class="fas fa-envelope-open-text text-4xl text-orange-500"></i>
+        </div>
+        
+        <!-- Title -->
+        <h2 class="text-2xl font-bold text-gray-900 mb-3">Check Your Inbox</h2>
+        <p class="text-gray-600 mb-6">
+            We sent a verification link to <strong class="text-gray-900">{{ current_user.email }}</strong>
+        </p>
+        
+        <!-- Info Box -->
+        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
+            <p class="text-orange-800 text-sm">
+                <i class="fas fa-info-circle mr-2"></i>
+                You need to verify your email before you can send campaigns, manage contacts, and access other features.
+            </p>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{{ url_for('auth.resend_verification_email') }}" 
+               class="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:shadow-lg transition">
+                <i class="fas fa-paper-plane mr-2"></i>Resend Verification Email
+            </a>
+            <a href="{{ url_for('dashboard.index') }}" 
+               class="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+            </a>
+        </div>
+        
+        <!-- Help Text -->
+        <p class="text-gray-500 text-sm mt-6">
+            Didn't receive the email? Check your spam folder or 
+            <a href="mailto:support@sendbaba.com" class="text-orange-600 hover:underline">contact support</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

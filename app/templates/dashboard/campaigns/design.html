@@ -1,69 +1,359 @@
-{% extends "base.html" %}
+{% extends "dashboard/base.html" %}
 {% block title %}Design Campaign - SendBaba{% endblock %}
-{% block content %}
+{% block page_title %}{{ campaign_name }}{% endblock %}
+{% block page_subtitle %}Campaign Designer{% endblock %}
+
+{% block extra_css %}
 <style>
-.editor-wrapper { display: flex; height: calc(100vh - 70px); }
-.editor-sidebar { width: 340px; background: #1e293b; border-right: 1px solid #334155; overflow-y: auto; flex-shrink: 0; }
-.editor-canvas { flex: 1; background: #0f172a; overflow-y: auto; padding: 30px; }
-.editor-properties { width: 300px; background: #1e293b; border-left: 1px solid #334155; overflow-y: auto; flex-shrink: 0; display: none; }
+/* Main Layout */
+.editor-wrapper { display: flex; height: calc(100vh - 180px); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+.editor-sidebar { width: 340px; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-right: 1px solid #334155; overflow-y: auto; flex-shrink: 0; }
+.editor-canvas { flex: 1; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); overflow-y: auto; padding: 30px; }
+.editor-properties { width: 300px; background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); border-left: 1px solid #334155; overflow-y: auto; flex-shrink: 0; display: none; }
 .editor-properties.active { display: block; }
-.email-canvas { max-width: 650px; margin: 0 auto; background: white; min-height: 600px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border-radius: 8px; overflow: hidden; }
-.save-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: all 0.3s ease; }
+.email-canvas { max-width: 650px; margin: 0 auto; background: white; min-height: 600px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; }
+
+/* Toast Notification System */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+    min-width: 320px;
+    max-width: 420px;
+    pointer-events: auto;
+    animation: toastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top right;
+}
+.toast.toast-exit {
+    animation: toastSlideOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes toastSlideIn {
+    from { opacity: 0; transform: translateX(100px) scale(0.9); }
+    to { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes toastSlideOut {
+    from { opacity: 1; transform: translateX(0) scale(1); }
+    to { opacity: 0; transform: translateX(100px) scale(0.9); }
+}
+.toast-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+.toast-success .toast-icon { background: #d1fae5; color: #059669; }
+.toast-error .toast-icon { background: #fee2e2; color: #dc2626; }
+.toast-warning .toast-icon { background: #fef3c7; color: #d97706; }
+.toast-info .toast-icon { background: #dbeafe; color: #2563eb; }
+.toast-loading .toast-icon { background: #fff7ed; color: #F97316; }
+.toast-content { flex: 1; min-width: 0; }
+.toast-title { font-weight: 600; color: #1f2937; font-size: 14px; margin-bottom: 2px; }
+.toast-message { color: #6b7280; font-size: 13px; line-height: 1.4; }
+.toast-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    margin: -4px -4px -4px 0;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.toast-close:hover { background: #f3f4f6; color: #6b7280; }
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #F97316, #EA580C);
+    border-radius: 0 0 0 12px;
+    animation: toastProgress linear forwards;
+}
+@keyframes toastProgress {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+.toast-action {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+}
+.toast-action button {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.toast-action .btn-primary {
+    background: linear-gradient(135deg, #F97316, #EA580C);
+    color: white;
+    border: none;
+}
+.toast-action .btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: none;
+}
+
+/* Sending Progress Modal */
+.progress-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+.progress-modal.show { display: flex; }
+.progress-content {
+    background: white;
+    border-radius: 24px;
+    padding: 40px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+}
+.progress-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fff7ed, #fed7aa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24px;
+}
+.progress-icon i { font-size: 32px; color: #F97316; }
+.progress-icon.success { background: linear-gradient(135deg, #d1fae5, #a7f3d0); }
+.progress-icon.success i { color: #059669; }
+.progress-icon.error { background: linear-gradient(135deg, #fee2e2, #fecaca); }
+.progress-icon.error i { color: #dc2626; }
+.progress-title { font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 8px; }
+.progress-subtitle { color: #6b7280; margin-bottom: 24px; }
+.progress-bar-container {
+    background: #e5e7eb;
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #F97316, #EA580C);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+.progress-bar.indeterminate {
+    width: 30% !important;
+    animation: indeterminate 1.5s infinite ease-in-out;
+}
+@keyframes indeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+}
+.progress-stats {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-top: 20px;
+}
+.progress-stat {
+    text-align: center;
+}
+.progress-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+}
+.progress-stat-label {
+    font-size: 12px;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.progress-actions {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Top Bar */
+.designer-topbar { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; padding: 16px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.designer-topbar-left { display: flex; align-items: center; gap: 16px; }
+.designer-topbar-left a { color: #94a3b8; transition: color 0.2s; }
+.designer-topbar-left a:hover { color: #F97316; }
+.designer-topbar h1 { color: white; font-weight: 700; font-size: 18px; }
+.designer-topbar p { color: #64748b; font-size: 13px; }
+.designer-topbar-right { display: flex; align-items: center; gap: 12px; }
+
+/* Save Indicator */
+.save-indicator { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; transition: all 0.3s ease; }
 .save-indicator.saving { background: #fef3c7; color: #92400e; }
 .save-indicator.saved { background: #d1fae5; color: #065f46; }
 .save-indicator.unsaved { background: #fef3c7; color: #92400e; }
 .save-indicator.error { background: #fee2e2; color: #991b1b; }
-.tab-btn { padding: 12px 16px; background: transparent; border: none; border-bottom: 2px solid transparent; color: #94a3b8; cursor: pointer; transition: all 0.2s; font-weight: 500; font-size: 13px; }
-.tab-btn.active { color: #10b981; border-bottom-color: #10b981; }
-.tab-btn:hover { color: #cbd5e1; }
+
+/* Tabs */
+.tab-btn { padding: 12px 16px; background: transparent; border: none; border-bottom: 3px solid transparent; color: #94a3b8; cursor: pointer; transition: all 0.2s; font-weight: 600; font-size: 13px; }
+.tab-btn.active { color: #F97316; border-bottom-color: #F97316; }
+.tab-btn:hover { color: #fb923c; background: rgba(249, 115, 22, 0.1); }
 .tab-content { display: none; padding: 16px; }
-.tab-content.active { display: block; }
-.block-item { background: #334155; padding: 14px; margin-bottom: 10px; border-radius: 8px; cursor: grab; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
-.block-item:hover { background: #475569; transform: translateY(-2px); }
-.block-item:active { cursor: grabbing; }
-.block-icon { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 16px; }
+.tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Block Items */
+.block-item { background: linear-gradient(135deg, #334155 0%, #1e293b 100%); padding: 14px; margin-bottom: 10px; border-radius: 10px; cursor: grab; transition: all 0.3s; display: flex; align-items: center; gap: 12px; border: 1px solid transparent; }
+.block-item:hover { background: linear-gradient(135deg, #475569 0%, #334155 100%); transform: translateY(-2px); border-color: #F97316; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.2); }
+.block-item:active { cursor: grabbing; transform: scale(0.98); }
+.block-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; font-size: 16px; }
+
+/* Editable Sections */
 .editable-section { position: relative; cursor: text; transition: all 0.2s; min-height: 20px; }
-.editable-section:hover { outline: 2px dashed #10b981; outline-offset: 2px; }
-.editable-section.selected { outline: 2px solid #10b981; outline-offset: 2px; background: rgba(16,185,129,0.05); }
-.drop-zone { min-height: 150px; border: 2px dashed #475569; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #64748b; margin: 20px; padding: 40px; transition: all 0.2s; }
-.drop-zone.drag-over { border-color: #10b981; background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.format-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; background: #0f172a; border-radius: 8px; margin-bottom: 16px; }
-.format-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #334155; border: none; border-radius: 6px; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
-.format-btn:hover { background: #475569; color: white; }
-.format-btn.active { background: #10b981; color: white; }
-.format-separator { width: 1px; height: 28px; background: #475569; margin: 4px 8px; }
-.source-editor { width: 100%; min-height: 400px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+.editable-section:hover { outline: 2px dashed #F97316; outline-offset: 2px; }
+.editable-section.selected { outline: 2px solid #F97316; outline-offset: 2px; background: rgba(249, 115, 22, 0.05); }
+
+/* Drop Zone */
+.drop-zone { min-height: 150px; border: 2px dashed #cbd5e1; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #64748b; margin: 20px; padding: 40px; transition: all 0.3s; background: rgba(255,255,255,0.5); }
+.drop-zone.drag-over { border-color: #F97316; background: rgba(249, 115, 22, 0.1); color: #F97316; }
+
+/* Format Toolbar */
+.format-toolbar { display: flex; flex-wrap: wrap; gap: 4px; padding: 10px 12px; background: white; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+.format-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; border: none; border-radius: 8px; color: #64748b; cursor: pointer; transition: all 0.2s; }
+.format-btn:hover { background: #F97316; color: white; transform: scale(1.05); }
+.format-btn.active { background: #F97316; color: white; }
+.format-separator { width: 1px; height: 28px; background: #e2e8f0; margin: 4px 8px; }
+
+/* Source Editor */
+.source-editor { width: 100%; min-height: 400px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 10px; padding: 16px; font-family: 'Monaco', 'Menlo', monospace; font-size: 13px; line-height: 1.6; resize: vertical; }
+.source-editor:focus { outline: none; border-color: #F97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2); }
+
+/* Color Picker */
 .color-picker-wrapper { display: flex; align-items: center; gap: 8px; }
-.color-picker { width: 40px; height: 40px; border: none; border-radius: 8px; cursor: pointer; padding: 0; }
-.color-input { flex: 1; padding: 8px 12px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; font-size: 13px; }
+.color-picker { width: 44px; height: 44px; border: 2px solid #475569; border-radius: 10px; cursor: pointer; padding: 0; }
+.color-input { flex: 1; padding: 10px 12px; background: #334155; border: 1px solid #475569; border-radius: 8px; color: white; font-size: 13px; }
+.color-input:focus { border-color: #F97316; outline: none; }
+
+/* Property Panel */
 .property-group { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #334155; }
-.property-label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-.property-input { width: 100%; padding: 10px 12px; background: #334155; border: 1px solid #475569; border-radius: 6px; color: white; font-size: 14px; }
-.property-input:focus { border-color: #10b981; outline: none; }
-.block-delete { position: absolute; top: -10px; right: -10px; width: 24px; height: 24px; background: #ef4444; border: none; border-radius: 50%; color: white; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 12px; z-index: 10; }
+.property-label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.property-input { width: 100%; padding: 12px 14px; background: #334155; border: 1px solid #475569; border-radius: 10px; color: white; font-size: 14px; transition: all 0.2s; }
+.property-input:focus { border-color: #F97316; outline: none; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2); }
+
+/* Email Blocks */
+.block-delete { position: absolute; top: -10px; right: -10px; width: 26px; height: 26px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 50%; color: white; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 12px; z-index: 10; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); transition: transform 0.2s; }
+.block-delete:hover { transform: scale(1.1); }
 .email-block:hover .block-delete { display: flex; }
 .email-block { position: relative; transition: all 0.2s; }
-.email-block:hover { outline: 1px dashed #64748b; }
-.email-block.selected { outline: 2px solid #10b981; }
-</style>
+.email-block:hover { outline: 2px dashed #94a3b8; outline-offset: 2px; }
+.email-block.selected { outline: 2px solid #F97316; }
 
-<div class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-4">
-        <a href="/dashboard/campaigns" class="text-white hover:text-gray-300 transition"><i class="fas fa-arrow-left text-xl"></i></a>
-        <div>
-            <h1 class="text-white font-bold text-lg" id="campaignNameDisplay">{{ campaign_name }}</h1>
-            <p class="text-gray-400 text-sm">Campaign Designer</p>
+/* Buttons */
+.btn-preview { padding: 10px 20px; background: #334155; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; }
+.btn-preview:hover { background: #475569; }
+.btn-save { padding: 10px 20px; background: #334155; color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; }
+.btn-save:hover { background: #475569; }
+.btn-send { padding: 10px 24px; background: linear-gradient(135deg, #F97316, #EA580C); color: white; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4); transition: all 0.2s; }
+.btn-send:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5); }
+
+/* Modals */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 50; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.show { display: flex; }
+.modal-content { background: white; border-radius: 20px; max-width: 480px; width: 100%; padding: 32px; box-shadow: 0 25px 50px rgba(0,0,0,0.25); }
+.modal-title { font-size: 24px; font-weight: 700; color: #1f2937; margin-bottom: 12px; }
+.modal-desc { color: #6b7280; margin-bottom: 24px; }
+
+/* Section Headers */
+.section-header { font-size: 11px; font-weight: 700; color: #F97316; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; padding-top: 12px; border-top: 1px solid #334155; display: flex; align-items: center; gap: 8px; }
+.section-header i { opacity: 0.8; }
+
+/* Scrollbar */
+.editor-sidebar::-webkit-scrollbar, .editor-properties::-webkit-scrollbar { width: 6px; }
+.editor-sidebar::-webkit-scrollbar-track, .editor-properties::-webkit-scrollbar-track { background: #1e293b; }
+.editor-sidebar::-webkit-scrollbar-thumb, .editor-properties::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+.editor-sidebar::-webkit-scrollbar-thumb:hover, .editor-properties::-webkit-scrollbar-thumb:hover { background: #64748b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Toast Notification Container -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- Progress Modal for Sending -->
+<div id="progressModal" class="progress-modal">
+    <div class="progress-content">
+        <div class="progress-icon" id="progressIcon">
+            <i class="fas fa-paper-plane"></i>
+        </div>
+        <h3 class="progress-title" id="progressTitle">Sending Campaign</h3>
+        <p class="progress-subtitle" id="progressSubtitle">Please wait while we send your emails...</p>
+        <div class="progress-bar-container">
+            <div class="progress-bar indeterminate" id="progressBar"></div>
+        </div>
+        <div class="progress-stats" id="progressStats" style="display: none;">
+            <div class="progress-stat">
+                <div class="progress-stat-value" id="statSent">0</div>
+                <div class="progress-stat-label">Sent</div>
+            </div>
+            <div class="progress-stat">
+                <div class="progress-stat-value" id="statTotal">0</div>
+                <div class="progress-stat-label">Total</div>
+            </div>
+        </div>
+        <div class="progress-actions" id="progressActions" style="display: none;">
+            <button onclick="window.location.href='/dashboard/campaigns'" class="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold">
+                View Campaigns
+            </button>
         </div>
     </div>
-    <div class="flex items-center gap-3">
-        <div id="saveIndicator" class="save-indicator saved"><i class="fas fa-check-circle"></i><span id="saveIndicatorText">All changes saved</span></div>
-        <button onclick="previewEmail()" class="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition font-medium flex items-center gap-2"><i class="fas fa-eye"></i> Preview</button>
-        <button onclick="saveDraft()" id="saveDraftBtn" class="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition font-medium flex items-center gap-2"><i class="fas fa-save"></i> Save now</button>
-        <button onclick="showSendModal()" class="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition font-bold shadow-lg flex items-center gap-2"><i class="fas fa-paper-plane"></i> Send</button>
+</div>
+
+<!-- Top Bar -->
+<div class="designer-topbar">
+    <div class="designer-topbar-left">
+        <a href="/dashboard/campaigns"><i class="fas fa-arrow-left text-xl"></i></a>
+        <div>
+            <h1 id="campaignNameDisplay">{{ campaign_name }}</h1>
+            <p>Visual Email Designer</p>
+        </div>
+    </div>
+    <div class="designer-topbar-right">
+        <div id="saveIndicator" class="save-indicator saved">
+            <i class="fas fa-check-circle"></i>
+            <span id="saveIndicatorText">All changes saved</span>
+        </div>
+        <button onclick="previewEmail()" class="btn-preview"><i class="fas fa-eye"></i> Preview</button>
+        <button onclick="saveDraft()" id="saveDraftBtn" class="btn-save"><i class="fas fa-save"></i> Save</button>
+        <button onclick="showSendModal()" class="btn-send"><i class="fas fa-paper-plane"></i> Send</button>
     </div>
 </div>
 
 <div class="editor-wrapper">
+    <!-- Sidebar -->
     <div class="editor-sidebar">
         <div class="p-4">
             <div class="flex border-b border-slate-700 mb-4">
@@ -73,23 +363,24 @@
                 <button class="tab-btn" onclick="switchTab('code')">Code</button>
             </div>
 
+            <!-- Blocks Tab -->
             <div id="blocks-tab" class="tab-content active">
-                <h3 class="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Content Blocks</h3>
+                <h3 class="text-white font-semibold mb-3 text-xs uppercase tracking-wider opacity-70">Content Blocks</h3>
                 <div class="space-y-2">
-                    <div class="block-item" draggable="true" data-block="heading"><div class="block-icon bg-green-500"><i class="fas fa-heading text-white"></i></div><div><div class="text-white font-medium text-sm">Heading</div><div class="text-gray-400 text-xs">Add a title</div></div></div>
+                    <div class="block-item" draggable="true" data-block="heading"><div class="block-icon bg-orange-500"><i class="fas fa-heading text-white"></i></div><div><div class="text-white font-medium text-sm">Heading</div><div class="text-gray-400 text-xs">Add a title</div></div></div>
                     <div class="block-item" draggable="true" data-block="text"><div class="block-icon bg-blue-500"><i class="fas fa-align-left text-white"></i></div><div><div class="text-white font-medium text-sm">Text</div><div class="text-gray-400 text-xs">Paragraph content</div></div></div>
                     <div class="block-item" draggable="true" data-block="button"><div class="block-icon bg-purple-500"><i class="fas fa-hand-pointer text-white"></i></div><div><div class="text-white font-medium text-sm">Button</div><div class="text-gray-400 text-xs">Call to action</div></div></div>
                     <div class="block-item" draggable="true" data-block="image"><div class="block-icon bg-yellow-500"><i class="fas fa-image text-white"></i></div><div><div class="text-white font-medium text-sm">Image</div><div class="text-gray-400 text-xs">Add photo/graphic</div></div></div>
                     <div class="block-item" draggable="true" data-block="divider"><div class="block-icon bg-gray-500"><i class="fas fa-minus text-white"></i></div><div><div class="text-white font-medium text-sm">Divider</div><div class="text-gray-400 text-xs">Horizontal line</div></div></div>
                     <div class="block-item" draggable="true" data-block="spacer"><div class="block-icon bg-indigo-500"><i class="fas fa-arrows-alt-v text-white"></i></div><div><div class="text-white font-medium text-sm">Spacer</div><div class="text-gray-400 text-xs">Add vertical space</div></div></div>
                 </div>
-                <h3 class="text-white font-semibold mb-3 mt-6 text-sm uppercase tracking-wide">Layout Blocks</h3>
+                <h3 class="text-white font-semibold mb-3 mt-6 text-xs uppercase tracking-wider opacity-70">Layout Blocks</h3>
                 <div class="space-y-2">
                     <div class="block-item" draggable="true" data-block="columns2"><div class="block-icon bg-cyan-500"><i class="fas fa-columns text-white"></i></div><div><div class="text-white font-medium text-sm">2 Columns</div><div class="text-gray-400 text-xs">Side by side</div></div></div>
                     <div class="block-item" draggable="true" data-block="columns3"><div class="block-icon bg-teal-500"><i class="fas fa-th text-white"></i></div><div><div class="text-white font-medium text-sm">3 Columns</div><div class="text-gray-400 text-xs">Triple layout</div></div></div>
                     <div class="block-item" draggable="true" data-block="imagetext"><div class="block-icon bg-orange-500"><i class="fas fa-newspaper text-white"></i></div><div><div class="text-white font-medium text-sm">Image + Text</div><div class="text-gray-400 text-xs">Side by side</div></div></div>
                 </div>
-                <h3 class="text-white font-semibold mb-3 mt-6 text-sm uppercase tracking-wide">Social & Media</h3>
+                <h3 class="text-white font-semibold mb-3 mt-6 text-xs uppercase tracking-wider opacity-70">Social & Media</h3>
                 <div class="space-y-2">
                     <div class="block-item" draggable="true" data-block="social"><div class="block-icon bg-pink-500"><i class="fas fa-share-alt text-white"></i></div><div><div class="text-white font-medium text-sm">Social Links</div><div class="text-gray-400 text-xs">Social media icons</div></div></div>
                     <div class="block-item" draggable="true" data-block="video"><div class="block-icon bg-red-500"><i class="fas fa-play text-white"></i></div><div><div class="text-white font-medium text-sm">Video</div><div class="text-gray-400 text-xs">YouTube thumbnail</div></div></div>
@@ -97,47 +388,122 @@
                 </div>
             </div>
 
+            <!-- Settings Tab -->
             <div id="settings-tab" class="tab-content">
                 <div class="space-y-4">
-                    <div><label class="property-label">Campaign Name</label><input type="text" id="campaignName" value="{{ campaign_name }}" class="property-input" placeholder="Enter campaign name"></div>
-                    <div class="pt-3 border-t border-slate-600"><h4 class="text-xs font-bold text-green-400 uppercase tracking-wider mb-3"><i class="fas fa-user-circle mr-1"></i> Sender Info</h4></div>
-                    <div><label class="property-label">From Name <span class="text-red-400">*</span></label><input type="text" id="fromName" value="{{ campaign_from_name or '' }}" placeholder="Your Company Name" class="property-input"></div>
-                    <div><label class="property-label">From Email <span class="text-red-400">*</span></label><input type="text" id="fromEmail" value="{{ campaign_from_email or '' }}" placeholder="hello@yourdomain.com" class="property-input"></div>
-                    <div><label class="property-label">Reply-To Email</label><input type="email" id="replyTo" value="{{ campaign_reply_to or '' }}" placeholder="replies@yourdomain.com" class="property-input"></div>
-                    <div class="pt-3 border-t border-slate-600"><h4 class="text-xs font-bold text-green-400 uppercase tracking-wider mb-3"><i class="fas fa-envelope mr-1"></i> Email Content</h4></div>
-                    <div><label class="property-label">Subject Line <span class="text-red-400">*</span></label><input type="text" id="emailSubject" value="{{ campaign_subject }}" placeholder="Your email subject" class="property-input"></div>
-                    <div><label class="property-label">Preview Text</label><textarea id="previewText" rows="2" placeholder="Shows after subject in inbox..." class="property-input">{{ campaign_preview_text or '' }}</textarea></div>
+                    <div>
+                        <label class="property-label">Campaign Name</label>
+                        <input type="text" id="campaignName" value="{{ campaign_name }}" class="property-input" placeholder="Enter campaign name">
+                    </div>
+                    <div class="section-header"><i class="fas fa-user-circle"></i> Sender Info</div>
+                    <div>
+                        <label class="property-label">From Name <span class="text-red-400">*</span></label>
+                        <input type="text" id="fromName" value="{{ campaign_from_name or '' }}" placeholder="Your Company Name" class="property-input">
+                    </div>
+                    <div>
+                        <label class="property-label">From Email <span class="text-red-400">*</span></label>
+                        <input type="text" id="fromEmail" value="{{ campaign_from_email or '' }}" placeholder="hello@yourdomain.com" class="property-input">
+                    </div>
+                    <div>
+                        <label class="property-label">Reply-To Email</label>
+                        <input type="email" id="replyTo" value="{{ campaign_reply_to or '' }}" placeholder="replies@yourdomain.com" class="property-input">
+                    </div>
+                    <div class="section-header"><i class="fas fa-envelope"></i> Email Content</div>
+                    <div>
+                        <label class="property-label">Subject Line <span class="text-red-400">*</span></label>
+                        <input type="text" id="emailSubject" value="{{ campaign_subject }}" placeholder="Your email subject" class="property-input">
+                    </div>
+                    <div>
+                        <label class="property-label">Preview Text</label>
+                        <textarea id="previewText" rows="2" placeholder="Shows after subject in inbox..." class="property-input">{{ campaign_preview_text or '' }}</textarea>
+                    </div>
                 </div>
             </div>
 
+            <!-- Design Tab -->
             <div id="design-tab" class="tab-content">
-                <h3 class="text-white font-semibold mb-4 text-sm uppercase tracking-wide">Email Styling</h3>
+                <h3 class="text-white font-semibold mb-4 text-xs uppercase tracking-wider opacity-70">Email Styling</h3>
                 <div class="space-y-5">
-                    <div><label class="property-label">Background Color</label><div class="color-picker-wrapper"><input type="color" id="emailBgColor" value="#ffffff" class="color-picker" onchange="updateEmailStyle()"><input type="text" id="emailBgColorText" value="#ffffff" class="color-input" onchange="syncBgColor()"></div></div>
-                    <div><label class="property-label">Content Background</label><div class="color-picker-wrapper"><input type="color" id="contentBgColor" value="#ffffff" class="color-picker" onchange="updateEmailStyle()"><input type="text" id="contentBgColorText" value="#ffffff" class="color-input"></div></div>
-                    <div><label class="property-label">Text Color</label><div class="color-picker-wrapper"><input type="color" id="textColor" value="#333333" class="color-picker" onchange="updateTextColor()"><input type="text" id="textColorText" value="#333333" class="color-input"></div></div>
-                    <div><label class="property-label">Link Color</label><div class="color-picker-wrapper"><input type="color" id="linkColor" value="#10b981" class="color-picker" onchange="updateLinkColor()"><input type="text" id="linkColorText" value="#10b981" class="color-input"></div></div>
-                    <div><label class="property-label">Content Width</label><select id="contentWidth" class="property-input" onchange="updateContentWidth()"><option value="500">Narrow (500px)</option><option value="600" selected>Standard (600px)</option><option value="700">Wide (700px)</option><option value="100%">Full Width</option></select></div>
-                    <div><label class="property-label">Font Family</label><select id="fontFamily" class="property-input" onchange="updateFontFamily()"><option value="Arial, sans-serif">Arial</option><option value="Helvetica, sans-serif">Helvetica</option><option value="Georgia, serif">Georgia</option><option value="Verdana, sans-serif">Verdana</option></select></div>
-                    <div><label class="property-label">Base Font Size</label><select id="baseFontSize" class="property-input" onchange="updateBaseFontSize()"><option value="14px">Small (14px)</option><option value="16px" selected>Medium (16px)</option><option value="18px">Large (18px)</option></select></div>
+                    <div>
+                        <label class="property-label">Background Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="emailBgColor" value="#ffffff" class="color-picker" onchange="updateEmailStyle()">
+                            <input type="text" id="emailBgColorText" value="#ffffff" class="color-input" onchange="syncBgColor()">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="property-label">Content Background</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="contentBgColor" value="#ffffff" class="color-picker" onchange="updateEmailStyle()">
+                            <input type="text" id="contentBgColorText" value="#ffffff" class="color-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="property-label">Text Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="textColor" value="#333333" class="color-picker" onchange="updateTextColor()">
+                            <input type="text" id="textColorText" value="#333333" class="color-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="property-label">Link Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="linkColor" value="#F97316" class="color-picker" onchange="updateLinkColor()">
+                            <input type="text" id="linkColorText" value="#F97316" class="color-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="property-label">Content Width</label>
+                        <select id="contentWidth" class="property-input" onchange="updateContentWidth()">
+                            <option value="500">Narrow (500px)</option>
+                            <option value="600" selected>Standard (600px)</option>
+                            <option value="700">Wide (700px)</option>
+                            <option value="100%">Full Width</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="property-label">Font Family</label>
+                        <select id="fontFamily" class="property-input" onchange="updateFontFamily()">
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="Helvetica, sans-serif">Helvetica</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="Verdana, sans-serif">Verdana</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="property-label">Base Font Size</label>
+                        <select id="baseFontSize" class="property-input" onchange="updateBaseFontSize()">
+                            <option value="14px">Small (14px)</option>
+                            <option value="16px" selected>Medium (16px)</option>
+                            <option value="18px">Large (18px)</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
+            <!-- Code Tab -->
             <div id="code-tab" class="tab-content">
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-white font-semibold text-sm uppercase tracking-wide">HTML Source</h3>
-                    <button onclick="applySourceCode()" class="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded text-sm font-medium"><i class="fas fa-check mr-1"></i> Apply</button>
+                    <h3 class="text-white font-semibold text-xs uppercase tracking-wider opacity-70">HTML Source</h3>
+                    <button onclick="applySourceCode()" class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-check mr-1"></i> Apply
+                    </button>
                 </div>
                 <textarea id="sourceCode" class="source-editor" placeholder="Edit HTML source code here..."></textarea>
-                <p class="text-gray-400 text-xs mt-2"><i class="fas fa-info-circle mr-1"></i> Edit HTML directly. Click "Apply" to update.</p>
+                <p class="text-gray-400 text-xs mt-2"><i class="fas fa-info-circle mr-1"></i> Edit HTML directly. Click "Apply" to update canvas.</p>
                 <div class="mt-4 space-y-2">
-                    <button onclick="copySourceCode()" class="w-full px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium"><i class="fas fa-copy mr-2"></i> Copy to Clipboard</button>
-                    <button onclick="formatSourceCode()" class="w-full px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium"><i class="fas fa-indent mr-2"></i> Format Code</button>
+                    <button onclick="copySourceCode()" class="w-full px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-copy mr-2"></i> Copy to Clipboard
+                    </button>
+                    <button onclick="formatSourceCode()" class="w-full px-4 py-2.5 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm font-medium transition">
+                        <i class="fas fa-indent mr-2"></i> Format Code
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Canvas -->
     <div class="editor-canvas">
         <div class="format-toolbar max-w-[650px] mx-auto mb-4">
             <button class="format-btn" onclick="formatText('bold')" title="Bold"><i class="fas fa-bold"></i></button>
@@ -156,84 +522,299 @@
             <button class="format-btn" onclick="insertLink()" title="Insert Link"><i class="fas fa-link"></i></button>
             <button class="format-btn" onclick="removeFormat()" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
             <div class="format-separator"></div>
-            <select id="fontSizeSelect" onchange="changeFontSize()" class="bg-slate-700 text-white text-sm rounded px-2 py-1.5 border-none"><option value="">Size</option><option value="1">Small</option><option value="3">Normal</option><option value="4">Medium</option><option value="5">Large</option><option value="6">X-Large</option></select>
-            <input type="color" id="textColorPicker" onchange="changeTextColor()" class="w-8 h-8 rounded cursor-pointer" value="#333333" title="Text Color">
-            <input type="color" id="bgColorPicker" onchange="changeBlockBgColor()" class="w-8 h-8 rounded cursor-pointer" value="#ffffff" title="Block Background">
+            <select id="fontSizeSelect" onchange="changeFontSize()" class="bg-slate-100 text-slate-700 text-sm rounded-lg px-3 py-2 border border-slate-200 cursor-pointer">
+                <option value="">Size</option>
+                <option value="1">Small</option>
+                <option value="3">Normal</option>
+                <option value="4">Medium</option>
+                <option value="5">Large</option>
+                <option value="6">X-Large</option>
+            </select>
+            <input type="color" id="textColorPicker" onchange="changeTextColor()" class="w-9 h-9 rounded-lg cursor-pointer border-2 border-slate-200" value="#333333" title="Text Color">
+            <input type="color" id="bgColorPicker" onchange="changeBlockBgColor()" class="w-9 h-9 rounded-lg cursor-pointer border-2 border-slate-200" value="#ffffff" title="Block Background">
         </div>
         <div class="email-canvas" id="emailCanvas" style="background: #ffffff;">
             {% if template_html %}{{ template_html|safe }}{% else %}
-            <div id="mainDropZone" class="drop-zone"><div class="text-center"><i class="fas fa-mouse-pointer text-4xl mb-3"></i><p class="font-semibold text-lg">Drag blocks here to start</p><p class="text-sm mt-1">Or choose a template</p></div></div>
+            <div id="mainDropZone" class="drop-zone">
+                <div class="text-center">
+                    <i class="fas fa-mouse-pointer text-4xl mb-3 text-orange-400"></i>
+                    <p class="font-semibold text-lg text-slate-700">Drag blocks here to start</p>
+                    <p class="text-sm mt-1 text-slate-500">Or choose a template from the sidebar</p>
+                </div>
+            </div>
             {% endif %}
         </div>
     </div>
 
+    <!-- Properties Panel -->
     <div class="editor-properties" id="propertiesPanel">
         <div class="p-4">
-            <div class="flex justify-between items-center mb-4"><h3 class="text-white font-semibold">Element Properties</h3><button onclick="closePropertiesPanel()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div>
-            <div id="propertiesContent"><p class="text-gray-400 text-sm">Select an element to edit its properties</p></div>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-white font-semibold">Element Properties</h3>
+                <button onclick="closePropertiesPanel()" class="text-gray-400 hover:text-white transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="propertiesContent">
+                <p class="text-gray-400 text-sm">Select an element to edit its properties</p>
+            </div>
         </div>
     </div>
 </div>
 
-<div id="sendModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
-        <h3 class="text-2xl font-bold text-gray-900 mb-4">Ready to send?</h3>
-        <p class="text-gray-600 mb-6">This campaign will be sent to <span class="font-bold text-green-600">{{ contacts_count }}</span> contact.</p>
-        <div class="space-y-4 mb-6">
-            <button onclick="showTestModal()" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-bold transition flex items-center justify-center gap-2"><i class="fas fa-flask"></i> Send Test Email First</button>
-            <button onclick="sendCampaign()" id="sendCampaignBtn" class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-bold transition flex items-center justify-center gap-2"><i class="fas fa-paper-plane"></i> Send to All Contacts</button>
+<!-- Send Modal -->
+<div id="sendModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 class="modal-title">Ready to send?</h3>
+        <p class="modal-desc">This campaign will be sent to <span class="font-bold text-orange-600">{{ contacts_count }}</span> contacts.</p>
+        <div class="space-y-3 mb-6">
+            <button onclick="showTestModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3 rounded-xl font-semibold transition flex items-center justify-center gap-2">
+                <i class="fas fa-flask"></i> Send Test Email First
+            </button>
+            <button onclick="sendCampaign()" id="sendCampaignBtn" class="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 shadow-lg">
+                <i class="fas fa-paper-plane"></i> Send to All Contacts
+            </button>
         </div>
-        <button onclick="closeSendModal()" class="w-full text-gray-600 hover:text-gray-900 font-medium">Cancel</button>
+        <button onclick="closeSendModal()" class="w-full text-gray-500 hover:text-gray-700 font-medium transition">Cancel</button>
     </div>
 </div>
 
-<div id="testModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
-        <h3 class="text-2xl font-bold text-gray-900 mb-2">Send Test Email</h3>
-        <p class="text-gray-600 mb-6">Preview before sending to all contacts</p>
-        <div class="mb-6"><label class="block text-sm font-semibold text-gray-700 mb-2">Test Email Address</label><input type="email" id="testEmail" placeholder="your@email.com" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+<!-- Test Modal -->
+<div id="testModal" class="modal-overlay">
+    <div class="modal-content">
+        <h3 class="modal-title">Send Test Email</h3>
+        <p class="modal-desc">Preview how your email looks before sending to everyone</p>
+        <div class="mb-6">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Test Email Address</label>
+            <input type="email" id="testEmail" placeholder="your@email.com" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition">
+        </div>
         <div class="flex gap-3">
-            <button onclick="closeTestModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
-            <button onclick="sendTestEmail()" id="sendTestBtn" class="flex-1 bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 font-bold"><i class="fas fa-paper-plane mr-2"></i>Send</button>
+            <button onclick="closeTestModal()" class="flex-1 px-6 py-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium transition">Cancel</button>
+            <button onclick="sendTestEmail()" id="sendTestBtn" class="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 font-bold transition">
+                <i class="fas fa-paper-plane mr-2"></i>Send Test
+            </button>
         </div>
     </div>
 </div>
 
-<div id="htmlModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
-        <h3 class="text-xl font-bold text-gray-900 mb-4">Custom HTML Block</h3>
-        <textarea id="customHtmlInput" rows="10" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg font-mono text-sm" placeholder="Enter your HTML code here..."></textarea>
+<!-- HTML Modal -->
+<div id="htmlModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3 class="modal-title">Custom HTML Block</h3>
+        <p class="modal-desc">Paste your custom HTML code below</p>
+        <textarea id="customHtmlInput" rows="10" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-mono text-sm focus:border-orange-500 focus:outline-none transition" placeholder="Enter your HTML code here..."></textarea>
         <div class="flex gap-3 mt-4">
-            <button onclick="closeHtmlModal()" class="flex-1 px-6 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium">Cancel</button>
-            <button onclick="insertCustomHtml()" class="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 font-bold">Insert HTML</button>
+            <button onclick="closeHtmlModal()" class="flex-1 px-6 py-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium transition">Cancel</button>
+            <button onclick="insertCustomHtml()" class="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 font-bold transition">Insert HTML</button>
         </div>
     </div>
 </div>
 
+<!-- Link Input Modal -->
+<div id="linkModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <h3 class="modal-title">Insert Link</h3>
+        <p class="modal-desc">Enter the URL for this link</p>
+        <input type="url" id="linkUrl" placeholder="https://example.com" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition mb-4">
+        <div class="flex gap-3">
+            <button onclick="closeLinkModal()" class="flex-1 px-6 py-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium transition">Cancel</button>
+            <button onclick="applyLink()" class="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 font-bold transition">Insert</button>
+        </div>
+    </div>
+</div>
+
+<!-- Image URL Modal -->
+<div id="imageModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+        <h3 class="modal-title">Change Image</h3>
+        <p class="modal-desc">Enter the URL for your image</p>
+        <input type="url" id="imageUrl" placeholder="https://example.com/image.jpg" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition mb-4">
+        <div class="flex gap-3">
+            <button onclick="closeImageModal()" class="flex-1 px-6 py-3 border-2 border-gray-200 rounded-xl hover:bg-gray-50 font-medium transition">Cancel</button>
+            <button onclick="applyImage()" class="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 font-bold transition">Apply</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
 const CAMPAIGN_ID = '{{ campaign_id }}';
 let draggedBlock = null;
 let autoSaveInterval = null;
 let hasUnsavedChanges = false;
 let selectedElement = null;
+let currentImageElement = null;
+let savedSelection = null;
 
+// ==================== TOAST NOTIFICATION SYSTEM ====================
+class ToastNotification {
+    constructor() {
+        this.container = document.getElementById('toastContainer');
+        this.toasts = [];
+    }
+
+    show(options) {
+        const { type = 'info', title, message, duration = 5000, actions = null, persistent = false } = options;
+        
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.style.position = 'relative';
+        
+        const icons = {
+            success: 'fa-check',
+            error: 'fa-times',
+            warning: 'fa-exclamation',
+            info: 'fa-info',
+            loading: 'fa-spinner fa-spin'
+        };
+        
+        let html = `
+            <div class="toast-icon"><i class="fas ${icons[type]}"></i></div>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                ${message ? `<div class="toast-message">${message}</div>` : ''}
+                ${actions ? `<div class="toast-action">${actions}</div>` : ''}
+            </div>
+            <button class="toast-close" onclick="toast.remove(this)"><i class="fas fa-times"></i></button>
+        `;
+        
+        if (!persistent && duration > 0) {
+            html += `<div class="toast-progress" style="animation-duration: ${duration}ms;"></div>`;
+        }
+        
+        toast.innerHTML = html;
+        this.container.appendChild(toast);
+        this.toasts.push(toast);
+        
+        if (!persistent && duration > 0) {
+            setTimeout(() => this.dismiss(toast), duration);
+        }
+        
+        return toast;
+    }
+
+    dismiss(toast) {
+        if (!toast || !toast.parentNode) return;
+        toast.classList.add('toast-exit');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+                this.toasts = this.toasts.filter(t => t !== toast);
+            }
+        }, 300);
+    }
+
+    remove(closeBtn) {
+        const toast = closeBtn.closest('.toast');
+        this.dismiss(toast);
+    }
+
+    success(title, message, duration = 4000) {
+        return this.show({ type: 'success', title, message, duration });
+    }
+
+    error(title, message, duration = 6000) {
+        return this.show({ type: 'error', title, message, duration });
+    }
+
+    warning(title, message, duration = 5000) {
+        return this.show({ type: 'warning', title, message, duration });
+    }
+
+    info(title, message, duration = 4000) {
+        return this.show({ type: 'info', title, message, duration });
+    }
+
+    loading(title, message) {
+        return this.show({ type: 'loading', title, message, persistent: true });
+    }
+
+    clearAll() {
+        this.toasts.forEach(toast => this.dismiss(toast));
+    }
+}
+
+const toast = new ToastNotification();
+
+// ==================== PROGRESS MODAL ====================
+function showProgressModal(title, subtitle) {
+    const modal = document.getElementById('progressModal');
+    const iconEl = document.getElementById('progressIcon');
+    const progressBar = document.getElementById('progressBar');
+    
+    document.getElementById('progressTitle').textContent = title;
+    document.getElementById('progressSubtitle').textContent = subtitle;
+    iconEl.className = 'progress-icon';
+    iconEl.innerHTML = '<i class="fas fa-paper-plane"></i>';
+    progressBar.className = 'progress-bar indeterminate';
+    progressBar.style.width = '30%';
+    document.getElementById('progressStats').style.display = 'none';
+    document.getElementById('progressActions').style.display = 'none';
+    modal.classList.add('show');
+}
+
+function updateProgressModal(title, subtitle, sent, total, isComplete = false, isError = false) {
+    document.getElementById('progressTitle').textContent = title;
+    document.getElementById('progressSubtitle').textContent = subtitle;
+    
+    const iconEl = document.getElementById('progressIcon');
+    const progressBar = document.getElementById('progressBar');
+    
+    if (isComplete) {
+        iconEl.className = 'progress-icon success';
+        iconEl.innerHTML = '<i class="fas fa-check"></i>';
+        progressBar.className = 'progress-bar';
+        progressBar.style.width = '100%';
+        document.getElementById('progressActions').style.display = 'flex';
+    } else if (isError) {
+        iconEl.className = 'progress-icon error';
+        iconEl.innerHTML = '<i class="fas fa-times"></i>';
+        progressBar.className = 'progress-bar';
+        progressBar.style.width = '0%';
+        document.getElementById('progressActions').style.display = 'flex';
+    }
+    
+    if (sent !== undefined && total !== undefined) {
+        document.getElementById('statSent').textContent = sent.toLocaleString();
+        document.getElementById('statTotal').textContent = total.toLocaleString();
+        document.getElementById('progressStats').style.display = 'flex';
+        
+        if (total > 0) {
+            const percent = Math.round((sent / total) * 100);
+            progressBar.style.width = percent + '%';
+        }
+    }
+}
+
+function hideProgressModal() {
+    document.getElementById('progressModal').classList.remove('show');
+}
+
+// ==================== BLOCK TEMPLATES ====================
 const blockTemplates = {
     heading: '<div class="email-block" style="padding: 20px;"><h1 contenteditable="true" style="margin: 0; font-size: 28px; font-weight: bold; color: #1e293b;">Click to edit heading</h1><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
     text: '<div class="email-block" style="padding: 20px;"><p contenteditable="true" style="margin: 0; font-size: 16px; line-height: 1.6; color: #475569;">Click to edit this paragraph. Add your content here.</p><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
-    button: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" contenteditable="true" style="display: inline-block; background: #10b981; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Click Here</a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
-    image: '<div class="email-block" style="padding: 20px; text-align: center;"><img src="https://via.placeholder.com/560x280/10b981/FFFFFF?text=Click+to+Change+Image" style="max-width: 100%; height: auto; border-radius: 8px; cursor: pointer;" onclick="changeImage(this)"><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    button: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" contenteditable="true" style="display: inline-block; background: #F97316; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Click Here</a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    image: '<div class="email-block" style="padding: 20px; text-align: center;"><img src="https://via.placeholder.com/560x280/F97316/FFFFFF?text=Click+to+Change+Image" style="max-width: 100%; height: auto; border-radius: 8px; cursor: pointer;" onclick="changeImage(this)"><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
     divider: '<div class="email-block" style="padding: 20px;"><hr style="border: none; border-top: 2px solid #e2e8f0; margin: 0;"><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
     spacer: '<div class="email-block" style="height: 40px;"><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
     columns2: '<div class="email-block" style="padding: 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="50%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 1 content</p></td><td width="50%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 2 content</p></td></tr></table><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
     columns3: '<div class="email-block" style="padding: 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="33%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 1</p></td><td width="33%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 2</p></td><td width="33%" style="padding: 10px; vertical-align: top;"><p contenteditable="true" style="margin: 0;">Column 3</p></td></tr></table><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
-    imagetext: '<div class="email-block" style="padding: 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="40%" style="padding: 10px; vertical-align: top;"><img src="https://via.placeholder.com/200x150/10b981/FFFFFF?text=Image" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="changeImage(this)"></td><td width="60%" style="padding: 10px; vertical-align: top;"><h3 contenteditable="true" style="margin: 0 0 10px 0; font-size: 20px;">Heading Here</h3><p contenteditable="true" style="margin: 0; color: #64748b;">Add your description text here.</p></td></tr></table><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    imagetext: '<div class="email-block" style="padding: 20px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="40%" style="padding: 10px; vertical-align: top;"><img src="https://via.placeholder.com/200x150/F97316/FFFFFF?text=Image" style="max-width: 100%; border-radius: 8px; cursor: pointer;" onclick="changeImage(this)"></td><td width="60%" style="padding: 10px; vertical-align: top;"><h3 contenteditable="true" style="margin: 0 0 10px 0; font-size: 20px;">Heading Here</h3><p contenteditable="true" style="margin: 0; color: #64748b;">Add your description text here.</p></td></tr></table><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
     social: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733547.png" width="32" height="32" alt="Facebook"></a><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733579.png" width="32" height="32" alt="Twitter"></a><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733558.png" width="32" height="32" alt="LinkedIn"></a><a href="#" style="display: inline-block; margin: 0 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733561.png" width="32" height="32" alt="Instagram"></a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
-    video: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" onclick="editVideoUrl(this); return false;" style="display: block; position: relative;"><img src="https://via.placeholder.com/560x315/1e293b/FFFFFF?text=Click+to+Add+Video+URL" style="max-width: 100%; border-radius: 8px;"><div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-play" style="color: #ef4444; font-size: 24px; margin-left: 4px;"></i></div></a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
+    video: '<div class="email-block" style="padding: 20px; text-align: center;"><a href="#" onclick="editVideoUrl(this); return false;" style="display: block; position: relative;"><img src="https://via.placeholder.com/560x315/1e293b/FFFFFF?text=Click+to+Add+Video+URL" style="max-width: 100%; border-radius: 8px;"><div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; background: rgba(255,255,255,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-play" style="color: #F97316; font-size: 24px; margin-left: 4px;"></i></div></a><button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button></div>',
     html: 'custom'
 };
 
-document.addEventListener('DOMContentLoaded', () => { initDragAndDrop(); startAutoSave(); trackChanges(); updateSourceCode(); makeEditable(); });
+// ==================== INITIALIZATION ====================
+document.addEventListener('DOMContentLoaded', () => { 
+    initDragAndDrop(); 
+    startAutoSave(); 
+    trackChanges(); 
+    updateSourceCode(); 
+    makeEditable(); 
+});
 
+// ==================== DRAG AND DROP ====================
 function initDragAndDrop() {
     document.querySelectorAll('.block-item').forEach(item => {
         item.addEventListener('dragstart', (e) => { draggedBlock = e.target.dataset.block; e.target.style.opacity = '0.5'; });
@@ -248,7 +829,7 @@ function initDragAndDrop() {
 function handleDrop(e) {
     e.preventDefault(); e.currentTarget.classList.remove('drag-over');
     const mainDropZone = document.getElementById('mainDropZone'); if (mainDropZone) mainDropZone.remove();
-    if (draggedBlock === 'html') { document.getElementById('htmlModal').classList.remove('hidden'); } else { addBlock(draggedBlock); }
+    if (draggedBlock === 'html') { document.getElementById('htmlModal').classList.add('show'); } else { addBlock(draggedBlock); }
     markUnsaved();
 }
 
@@ -258,20 +839,89 @@ function addBlock(type) {
     if (template && template !== 'custom') {
         const wrapper = document.createElement('div'); wrapper.innerHTML = template;
         canvas.appendChild(wrapper.firstChild); makeEditable(); updateSourceCode();
+        toast.success('Block Added', `${type.charAt(0).toUpperCase() + type.slice(1)} block added to canvas`);
     }
 }
 
-function deleteBlock(btn) { const block = btn.closest('.email-block'); if (block && confirm('Delete this block?')) { block.remove(); markUnsaved(); updateSourceCode(); } }
-function changeImage(img) { const url = prompt('Enter image URL:', img.src); if (url) { img.src = url; markUnsaved(); updateSourceCode(); } }
-function editVideoUrl(el) { const url = prompt('Enter YouTube URL:'); if (url) { const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/); if (match) { el.querySelector('img').src = 'https://img.youtube.com/vi/' + match[1] + '/maxresdefault.jpg'; el.href = url; markUnsaved(); } } }
+function deleteBlock(btn) { 
+    const block = btn.closest('.email-block'); 
+    if (block) { 
+        block.remove(); 
+        markUnsaved(); 
+        updateSourceCode(); 
+        toast.info('Block Removed', 'The block has been deleted');
+    } 
+}
 
+function changeImage(img) { 
+    currentImageElement = img;
+    document.getElementById('imageUrl').value = img.src;
+    document.getElementById('imageModal').classList.add('show');
+}
+
+function closeImageModal() {
+    document.getElementById('imageModal').classList.remove('show');
+    currentImageElement = null;
+}
+
+function applyImage() {
+    const url = document.getElementById('imageUrl').value.trim();
+    if (url && currentImageElement) {
+        currentImageElement.src = url;
+        markUnsaved();
+        updateSourceCode();
+        toast.success('Image Updated', 'Image source has been changed');
+    }
+    closeImageModal();
+}
+
+function editVideoUrl(el) { 
+    const url = prompt('Enter YouTube URL:'); 
+    if (url) { 
+        const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/); 
+        if (match) { 
+            el.querySelector('img').src = 'https://img.youtube.com/vi/' + match[1] + '/maxresdefault.jpg'; 
+            el.href = url; 
+            markUnsaved();
+            toast.success('Video Added', 'YouTube video thumbnail updated');
+        } else {
+            toast.error('Invalid URL', 'Please enter a valid YouTube URL');
+        }
+    } 
+}
+
+// ==================== TEXT FORMATTING ====================
 function formatText(cmd) { document.execCommand(cmd, false, null); markUnsaved(); updateSourceCode(); }
-function insertLink() { const url = prompt('Enter URL:'); if (url) { document.execCommand('createLink', false, url); markUnsaved(); updateSourceCode(); } }
+
+function insertLink() { 
+    savedSelection = window.getSelection().getRangeAt(0);
+    document.getElementById('linkUrl').value = '';
+    document.getElementById('linkModal').classList.add('show');
+}
+
+function closeLinkModal() {
+    document.getElementById('linkModal').classList.remove('show');
+}
+
+function applyLink() {
+    const url = document.getElementById('linkUrl').value.trim();
+    if (url && savedSelection) {
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(savedSelection);
+        document.execCommand('createLink', false, url);
+        markUnsaved();
+        updateSourceCode();
+        toast.success('Link Added', 'Link has been inserted');
+    }
+    closeLinkModal();
+}
+
 function removeFormat() { document.execCommand('removeFormat', false, null); markUnsaved(); updateSourceCode(); }
 function changeFontSize() { const size = document.getElementById('fontSizeSelect').value; if (size) { document.execCommand('fontSize', false, size); markUnsaved(); updateSourceCode(); } }
 function changeTextColor() { document.execCommand('foreColor', false, document.getElementById('textColorPicker').value); markUnsaved(); updateSourceCode(); }
 function changeBlockBgColor() { const sel = window.getSelection(); if (sel.rangeCount > 0) { const block = sel.getRangeAt(0).startContainer.parentElement.closest('.email-block'); if (block) { block.style.backgroundColor = document.getElementById('bgColorPicker').value; markUnsaved(); updateSourceCode(); } } }
 
+// ==================== STYLE FUNCTIONS ====================
 function updateEmailStyle() { const canvas = document.getElementById('emailCanvas'); const bgColor = document.getElementById('emailBgColor').value; document.getElementById('emailBgColorText').value = bgColor; canvas.style.backgroundColor = bgColor; markUnsaved(); updateSourceCode(); }
 function syncBgColor() { document.getElementById('emailBgColor').value = document.getElementById('emailBgColorText').value; updateEmailStyle(); }
 function updateTextColor() { document.getElementById('textColorText').value = document.getElementById('textColor').value; markUnsaved(); }
@@ -280,22 +930,40 @@ function updateContentWidth() { document.getElementById('emailCanvas').style.max
 function updateFontFamily() { document.getElementById('emailCanvas').style.fontFamily = document.getElementById('fontFamily').value; markUnsaved(); updateSourceCode(); }
 function updateBaseFontSize() { document.getElementById('emailCanvas').style.fontSize = document.getElementById('baseFontSize').value; markUnsaved(); updateSourceCode(); }
 
+// ==================== SOURCE CODE ====================
 function updateSourceCode() { const canvas = document.getElementById('emailCanvas'); const clone = canvas.cloneNode(true); clone.querySelectorAll('.block-delete, .drop-zone').forEach(el => el.remove()); document.getElementById('sourceCode').value = clone.innerHTML; }
-function applySourceCode() { document.getElementById('emailCanvas').innerHTML = document.getElementById('sourceCode').value; makeEditable(); markUnsaved(); alert('HTML applied!'); }
-function copySourceCode() { const s = document.getElementById('sourceCode'); s.select(); document.execCommand('copy'); alert('Copied!'); }
-function formatSourceCode() { document.getElementById('sourceCode').value = document.getElementById('sourceCode').value.replace(/></g, '>\n<'); }
+function applySourceCode() { document.getElementById('emailCanvas').innerHTML = document.getElementById('sourceCode').value; makeEditable(); markUnsaved(); toast.success('Applied', 'HTML has been applied to canvas'); }
+function copySourceCode() { const s = document.getElementById('sourceCode'); s.select(); document.execCommand('copy'); toast.success('Copied', 'HTML copied to clipboard'); }
+function formatSourceCode() { document.getElementById('sourceCode').value = document.getElementById('sourceCode').value.replace(/></g, '>\n<'); toast.info('Formatted', 'Code has been formatted'); }
 
-function closeHtmlModal() { document.getElementById('htmlModal').classList.add('hidden'); }
-function insertCustomHtml() { const html = document.getElementById('customHtmlInput').value; if (html) { const canvas = document.getElementById('emailCanvas'); const wrapper = document.createElement('div'); wrapper.className = 'email-block'; wrapper.style.padding = '20px'; wrapper.innerHTML = html + '<button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button>'; canvas.appendChild(wrapper); document.getElementById('customHtmlInput').value = ''; closeHtmlModal(); markUnsaved(); updateSourceCode(); } }
+// ==================== MODALS ====================
+function closeHtmlModal() { document.getElementById('htmlModal').classList.remove('show'); }
+function insertCustomHtml() { 
+    const html = document.getElementById('customHtmlInput').value; 
+    if (html) { 
+        const canvas = document.getElementById('emailCanvas'); 
+        const wrapper = document.createElement('div'); 
+        wrapper.className = 'email-block'; 
+        wrapper.style.padding = '20px'; 
+        wrapper.innerHTML = html + '<button class="block-delete" onclick="deleteBlock(this)"><i class="fas fa-times"></i></button>'; 
+        canvas.appendChild(wrapper); 
+        document.getElementById('customHtmlInput').value = ''; 
+        closeHtmlModal(); 
+        markUnsaved(); 
+        updateSourceCode();
+        toast.success('HTML Inserted', 'Custom HTML block added');
+    } 
+}
 
 function makeEditable() { document.getElementById('emailCanvas').querySelectorAll('.email-block').forEach(block => { block.addEventListener('click', (e) => { if (!e.target.classList.contains('block-delete')) selectBlock(block); }); }); }
 function selectBlock(block) { document.querySelectorAll('.email-block.selected').forEach(b => b.classList.remove('selected')); block.classList.add('selected'); selectedElement = block; showProperties(block); }
-function showProperties(block) { document.getElementById('propertiesPanel').classList.add('active'); document.getElementById('propertiesContent').innerHTML = '<div class="property-group"><label class="property-label">Padding</label><input type="text" class="property-input" value="' + (block.style.padding || '20px') + '" onchange="selectedElement.style.padding = this.value; markUnsaved(); updateSourceCode();"></div><div class="property-group"><label class="property-label">Background</label><input type="color" class="color-picker" value="' + (rgbToHex(block.style.backgroundColor) || '#ffffff') + '" onchange="selectedElement.style.backgroundColor = this.value; markUnsaved(); updateSourceCode();"></div><div class="property-group"><label class="property-label">Text Align</label><select class="property-input" onchange="selectedElement.style.textAlign = this.value; markUnsaved(); updateSourceCode();"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div><button onclick="deleteBlock(selectedElement.querySelector(\'.block-delete\'))" class="w-full mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium"><i class="fas fa-trash mr-2"></i>Delete Block</button>'; }
+function showProperties(block) { document.getElementById('propertiesPanel').classList.add('active'); document.getElementById('propertiesContent').innerHTML = '<div class="property-group"><label class="property-label">Padding</label><input type="text" class="property-input" value="' + (block.style.padding || '20px') + '" onchange="selectedElement.style.padding = this.value; markUnsaved(); updateSourceCode();"></div><div class="property-group"><label class="property-label">Background</label><input type="color" class="color-picker" value="' + (rgbToHex(block.style.backgroundColor) || '#ffffff') + '" onchange="selectedElement.style.backgroundColor = this.value; markUnsaved(); updateSourceCode();"></div><div class="property-group"><label class="property-label">Text Align</label><select class="property-input" onchange="selectedElement.style.textAlign = this.value; markUnsaved(); updateSourceCode();"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></div><button onclick="deleteBlock(selectedElement.querySelector(\'.block-delete\'))" class="w-full mt-4 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"><i class="fas fa-trash mr-2"></i>Delete Block</button>'; }
 function closePropertiesPanel() { document.getElementById('propertiesPanel').classList.remove('active'); document.querySelectorAll('.email-block.selected').forEach(b => b.classList.remove('selected')); selectedElement = null; }
 function rgbToHex(rgb) { if (!rgb || rgb === 'transparent') return '#ffffff'; if (rgb.startsWith('#')) return rgb; const m = rgb.match(/\d+/g); return m ? '#' + m.slice(0,3).map(x => parseInt(x).toString(16).padStart(2,'0')).join('') : '#ffffff'; }
 
 function switchTab(tab) { document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); event.target.classList.add('active'); document.getElementById(tab + '-tab').classList.add('active'); if (tab === 'code') updateSourceCode(); }
 
+// ==================== AUTO SAVE ====================
 function startAutoSave() { autoSaveInterval = setInterval(() => { if (hasUnsavedChanges) autoSaveDraft(); }, 10000); }
 function trackChanges() { ['campaignName', 'emailSubject', 'previewText', 'fromName', 'fromEmail', 'replyTo'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('input', () => { markUnsaved(); if (id === 'campaignName') document.getElementById('campaignNameDisplay').textContent = el.value; }); }); document.getElementById('emailCanvas').addEventListener('input', markUnsaved); }
 function markUnsaved() { hasUnsavedChanges = true; showSaveIndicator('unsaved'); }
@@ -311,45 +979,186 @@ async function autoSaveDraft() {
     } catch (e) { showSaveIndicator('error'); }
 }
 
-async function saveDraft() { const btn = document.getElementById('saveDraftBtn'); btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; await autoSaveDraft(); btn.innerHTML = '<i class="fas fa-check"></i> Saved!'; setTimeout(() => { btn.innerHTML = '<i class="fas fa-save"></i> Save now'; btn.disabled = false; }, 2000); }
+async function saveDraft() { 
+    const btn = document.getElementById('saveDraftBtn'); 
+    btn.disabled = true; 
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...'; 
+    await autoSaveDraft(); 
+    btn.innerHTML = '<i class="fas fa-check"></i> Saved!'; 
+    toast.success('Draft Saved', 'Your campaign has been saved');
+    setTimeout(() => { btn.innerHTML = '<i class="fas fa-save"></i> Save'; btn.disabled = false; }, 2000); 
+}
 
-function previewEmail() { updateSourceCode(); const html = document.getElementById('sourceCode').value; const win = window.open('', 'Preview', 'width=700,height=600'); win.document.write('<!DOCTYPE html><html><head><title>Preview</title></head><body style="margin:0;padding:20px;background:#f1f5f9;"><div style="max-width:650px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">' + html + '</div></body></html>'); win.document.close(); }
+// ==================== PREVIEW ====================
+function previewEmail() { 
+    updateSourceCode(); 
+    const html = document.getElementById('sourceCode').value; 
+    const win = window.open('', 'Preview', 'width=700,height=600'); 
+    win.document.write('<!DOCTYPE html><html><head><title>Email Preview</title></head><body style="margin:0;padding:20px;background:#f1f5f9;"><div style="max-width:650px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">' + html + '</div></body></html>'); 
+    win.document.close(); 
+}
 
-function showSendModal() { if (hasUnsavedChanges) { saveDraft().then(() => { document.getElementById('sendModal').classList.remove('hidden'); }); } else { document.getElementById('sendModal').classList.remove('hidden'); } }
-function closeSendModal() { document.getElementById('sendModal').classList.add('hidden'); }
-function showTestModal() { closeSendModal(); document.getElementById('testModal').classList.remove('hidden'); }
-function closeTestModal() { document.getElementById('testModal').classList.add('hidden'); }
+// ==================== SEND MODALS ====================
+function showSendModal() { 
+    if (hasUnsavedChanges) { 
+        saveDraft().then(() => { document.getElementById('sendModal').classList.add('show'); }); 
+    } else { 
+        document.getElementById('sendModal').classList.add('show'); 
+    } 
+}
+function closeSendModal() { document.getElementById('sendModal').classList.remove('show'); }
+function showTestModal() { closeSendModal(); document.getElementById('testModal').classList.add('show'); }
+function closeTestModal() { document.getElementById('testModal').classList.remove('show'); }
 
+// ==================== SEND TEST EMAIL ====================
 async function sendTestEmail() {
-    const btn = document.getElementById('sendTestBtn'); const testEmail = document.getElementById('testEmail').value.trim();
-    if (!testEmail || !testEmail.includes('@')) { alert('Please enter a valid email'); return; }
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    const btn = document.getElementById('sendTestBtn'); 
+    const testEmail = document.getElementById('testEmail').value.trim();
+    
+    if (!testEmail || !testEmail.includes('@')) { 
+        toast.error('Invalid Email', 'Please enter a valid email address');
+        return; 
+    }
+    
+    btn.disabled = true; 
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    closeTestModal();
+    
+    const loadingToast = toast.loading('Sending Test Email', `Sending to ${testEmail}...`);
+    
     try {
         updateSourceCode();
-        const response = await fetch('/dashboard/campaigns/api/send-test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ test_email: testEmail, subject: document.getElementById('emailSubject').value || 'Test', from_name: document.getElementById('fromName').value, from_email: document.getElementById('fromEmail').value, html: document.getElementById('sourceCode').value }) });
+        const response = await fetch('/dashboard/campaigns/api/send-test', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ 
+                test_email: testEmail, 
+                subject: document.getElementById('emailSubject').value || 'Test Email', 
+                from_name: document.getElementById('fromName').value, 
+                from_email: document.getElementById('fromEmail').value, 
+                html: document.getElementById('sourceCode').value 
+            }) 
+        });
+        
         const data = await response.json();
-        if (data.success) { btn.innerHTML = '<i class="fas fa-check mr-2"></i>Sent!'; setTimeout(() => { closeTestModal(); btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send'; btn.disabled = false; alert('Test email sent to ' + testEmail); }, 1000); }
-        else { alert('Error: ' + data.error); btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send'; btn.disabled = false; }
-    } catch (e) { alert('Network error'); btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send'; btn.disabled = false; }
+        toast.dismiss(loadingToast);
+        
+        if (data.success) { 
+            toast.success('Test Email Sent!', `Successfully sent to ${testEmail}`);
+        } else { 
+            toast.error('Send Failed', data.error || 'Could not send test email');
+        }
+    } catch (e) { 
+        toast.dismiss(loadingToast);
+        toast.error('Network Error', 'Please check your connection and try again');
+    }
+    
+    btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Test'; 
+    btn.disabled = false;
 }
 
+// ==================== SEND CAMPAIGN (WITH PROPER ASYNC HANDLING) ====================
 async function sendCampaign() {
     const btn = document.getElementById('sendCampaignBtn');
-    const fromName = document.getElementById('fromName').value.trim(); const fromEmail = document.getElementById('fromEmail').value.trim(); const subject = document.getElementById('emailSubject').value.trim();
-    if (!fromName) { alert('Please enter From Name'); closeSendModal(); switchTab('settings'); return; }
-    if (!fromEmail) { alert('Please enter From Email'); closeSendModal(); switchTab('settings'); return; }
-    if (!subject) { alert('Please enter Subject Line'); closeSendModal(); switchTab('settings'); return; }
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    const fromName = document.getElementById('fromName').value.trim(); 
+    const fromEmail = document.getElementById('fromEmail').value.trim(); 
+    const subject = document.getElementById('emailSubject').value.trim();
+    
+    // Validation
+    if (!fromName) { 
+        toast.warning('Missing Field', 'Please enter a From Name in Settings');
+        closeSendModal(); 
+        switchTab('settings'); 
+        return; 
+    }
+    if (!fromEmail) { 
+        toast.warning('Missing Field', 'Please enter a From Email in Settings');
+        closeSendModal(); 
+        switchTab('settings'); 
+        return; 
+    }
+    if (!subject) { 
+        toast.warning('Missing Field', 'Please enter a Subject Line in Settings');
+        closeSendModal(); 
+        switchTab('settings'); 
+        return; 
+    }
+    
+    btn.disabled = true; 
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Starting...';
+    closeSendModal();
+    
+    // Save draft first
     await saveDraft();
+    
+    // Show progress modal
+    showProgressModal('Sending Campaign', 'Queuing emails for delivery...');
+    
     try {
-        const response = await fetch('/dashboard/campaigns/api/send', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({campaign_id: CAMPAIGN_ID}) });
+        // Use AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+        
+        const response = await fetch('/dashboard/campaigns/api/send', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({campaign_id: CAMPAIGN_ID}),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         const data = await response.json();
-        if (data.success) { btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Sent!'; setTimeout(() => { alert('Campaign sent! Delivered: ' + (data.sent || 0) + ' emails'); window.location.href = '/dashboard/campaigns'; }, 500); }
-        else { alert('Error: ' + data.error); btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send to All Contacts'; btn.disabled = false; }
-    } catch (e) { alert('Network error'); btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send to All Contacts'; btn.disabled = false; }
+        
+        if (data.success) {
+            updateProgressModal(
+                'Campaign Sent Successfully!',
+                'Your emails have been queued for delivery',
+                data.sent || 0,
+                data.total || data.sent || 0,
+                true
+            );
+            toast.success('Campaign Sent!', `${(data.sent || 0).toLocaleString()} emails queued for delivery`);
+        } else {
+            updateProgressModal(
+                'Send Failed',
+                data.error || 'An error occurred while sending',
+                0,
+                0,
+                false,
+                true
+            );
+            toast.error('Send Failed', data.error || 'Could not send campaign');
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            // Request was taking too long - but emails may still be sending
+            updateProgressModal(
+                'Campaign Queued',
+                'Your campaign is being processed in the background. Check your campaigns page for status.',
+                0,
+                0,
+                true
+            );
+            toast.info('Campaign Queued', 'Emails are being sent in the background');
+        } else {
+            updateProgressModal(
+                'Connection Error',
+                'Please check your campaigns page for delivery status',
+                0,
+                0,
+                false,
+                true
+            );
+            toast.error('Connection Error', 'Please check your campaigns page for status');
+        }
+    }
+    
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send to All Contacts'; 
+    btn.disabled = false;
 }
 
-window.addEventListener('beforeunload', (e) => { if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = 'Unsaved changes'; return e.returnValue; } });
+// ==================== CLEANUP ====================
+window.addEventListener('beforeunload', (e) => { if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = 'You have unsaved changes'; return e.returnValue; } });
 window.addEventListener('unload', () => { if (autoSaveInterval) clearInterval(autoSaveInterval); });
 </script>
 {% endblock %}

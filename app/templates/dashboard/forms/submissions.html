@@ -1,0 +1,41 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{{ form.name }} Submissions - SendBaba{% endblock %}
+{% block page_title %}{{ form.name }}{% endblock %}
+{% block page_subtitle %}Form submissions{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <a href="/dashboard/forms" class="text-gray-500 hover:text-orange-500 mb-6 inline-block"><i class="fas fa-arrow-left mr-2"></i>Back to Forms</a>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-xl p-5 border border-gray-200"><div class="text-3xl font-bold text-gray-900">{{ form.views }}</div><div class="text-sm text-gray-500">Views</div></div>
+        <div class="bg-white rounded-xl p-5 border border-gray-200"><div class="text-3xl font-bold text-gray-900">{{ form.submissions }}</div><div class="text-sm text-gray-500">Submissions</div></div>
+        <div class="bg-white rounded-xl p-5 border border-gray-200"><div class="text-3xl font-bold text-green-600">{{ form.conversion_rate }}%</div><div class="text-sm text-gray-500">Conversion</div></div>
+        <div class="bg-white rounded-xl p-5 border border-gray-200"><div class="text-3xl font-bold text-orange-500 capitalize">{{ form.status }}</div><div class="text-sm text-gray-500">Status</div></div>
+    </div>
+    
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 bg-gray-50 font-semibold text-gray-600 flex"><div class="flex-1">Email</div><div class="w-32 text-center">Status</div><div class="w-48 text-right">Date</div></div>
+        <div id="submissionsList"><div class="px-6 py-12 text-center"><i class="fas fa-spinner fa-spin text-2xl text-orange-500"></i></div></div>
+    </div>
+</div>
+
+<script>
+async function loadSubmissions(){
+    try{
+        const r=await fetch('/dashboard/forms/api/{{ form.id }}/submissions');
+        const d=await r.json();
+        const c=document.getElementById('submissionsList');
+        if(!d.submissions||d.submissions.length===0){c.innerHTML='<div class="px-6 py-12 text-center text-gray-500">No submissions yet</div>';return;}
+        c.innerHTML=d.submissions.map(s=>`
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center hover:bg-orange-50">
+                <div class="flex-1 font-medium text-gray-900">${s.data.email||'N/A'}</div>
+                <div class="w-32 text-center"><span class="px-3 py-1 rounded-full text-xs font-semibold ${s.confirmed?'bg-green-100 text-green-700':'bg-yellow-100 text-yellow-700'}">${s.confirmed?'Confirmed':'Pending'}</span></div>
+                <div class="w-48 text-right text-sm text-gray-500">${new Date(s.created_at).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    }catch(e){document.getElementById('submissionsList').innerHTML='<div class="px-6 py-12 text-center text-red-500">Failed to load</div>';}
+}
+loadSubmissions();
+</script>
+{% endblock %}

@@ -1,143 +1,463 @@
-{% extends "base.html" %}
+{% extends "dashboard/base.html" %}
 {% block title %}Campaigns - SendBaba{% endblock %}
+{% block page_title %}Campaigns{% endblock %}
+{% block page_subtitle %}Create and manage your email campaigns{% endblock %}
+
+{% block extra_css %}
+<style>
+    .campaigns-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    .btn-create {
+        background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+        transition: all 0.3s ease;
+    }
+    .btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
+    }
+    
+    .tabs-container {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .tabs-nav {
+        display: flex;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .tab-btn {
+        flex: 1;
+        padding: 16px 24px;
+        background: transparent;
+        border: none;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .tab-btn:hover {
+        color: #F97316;
+        background: #fff7ed;
+    }
+    .tab-btn.active {
+        color: #F97316;
+    }
+    .tab-btn.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #F97316, #EA580C);
+        border-radius: 3px 3px 0 0;
+    }
+    .tab-badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .tab-btn.active .tab-badge {
+        background: #fff7ed;
+        color: #F97316;
+    }
+    .tab-btn:not(.active) .tab-badge {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+    
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .campaign-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        border: 1px solid #f3f4f6;
+        transition: all 0.3s ease;
+    }
+    .campaign-card:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+        border-color: #fed7aa;
+    }
+    .campaign-card-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+    }
+    .campaign-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .campaign-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .campaign-subject {
+        color: #6b7280;
+        font-size: 14px;
+        margin-bottom: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .campaign-meta {
+        display: flex;
+        gap: 20px;
+        font-size: 13px;
+        color: #9ca3af;
+    }
+    .campaign-meta i {
+        margin-right: 6px;
+        color: #d1d5db;
+    }
+    
+    .campaign-stats {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+    }
+    .stat-block {
+        text-align: center;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+        border-radius: 12px;
+        min-width: 80px;
+    }
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #F97316;
+    }
+    .stat-label {
+        font-size: 11px;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 2px;
+    }
+    
+    .btn-view {
+        padding: 10px 20px;
+        background: #f3f4f6;
+        color: #374151;
+        border-radius: 10px;
+        font-weight: 500;
+        font-size: 14px;
+        text-decoration: none;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+    .btn-view:hover {
+        background: #F97316;
+        color: white;
+    }
+    
+    .draft-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #fef3c7;
+        color: #d97706;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .pending-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #e0e7ff;
+        color: #4f46e5;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .btn-edit {
+        padding: 10px 20px;
+        background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+        color: white;
+        border-radius: 10px;
+        font-weight: 500;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    .btn-edit:hover {
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+        transform: translateY(-1px);
+    }
+    .btn-delete {
+        padding: 10px 14px;
+        background: transparent;
+        color: #9ca3af;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-delete:hover {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 80px 40px;
+        background: white;
+        border-radius: 16px;
+        border: 2px dashed #e5e7eb;
+    }
+    .empty-state i {
+        font-size: 64px;
+        color: #d1d5db;
+        margin-bottom: 20px;
+    }
+    .empty-state h3 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    .empty-state p {
+        color: #9ca3af;
+        font-size: 15px;
+    }
+    
+    @media (max-width: 768px) {
+        .campaigns-header {
+            flex-direction: column;
+            gap: 16px;
+            align-items: stretch;
+        }
+        .btn-create {
+            justify-content: center;
+        }
+        .campaign-card-inner {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .campaign-stats {
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f3f4f6;
+        }
+        .tabs-nav {
+            overflow-x: auto;
+        }
+        .tab-btn {
+            white-space: nowrap;
+            padding: 12px 16px;
+            font-size: 14px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-gray-50 p-8">
-    <div class="max-w-7xl mx-auto">
-        <div class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-4xl font-bold text-gray-900">Campaigns</h1>
-                <p class="text-gray-600 mt-2">Create and manage your email campaigns</p>
-            </div>
-            <a href="/dashboard/campaigns/create" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-4 rounded-xl hover:from-green-600 hover:to-green-700 transition font-semibold shadow-lg flex items-center gap-2">
-                <i class="fas fa-plus-circle"></i> Create campaign
-            </a>
-        </div>
+<div class="campaigns-header">
+    <div></div>
+    <a href="/dashboard/campaigns/create" class="btn-create">
+        <i class="fas fa-plus-circle"></i> Create Campaign
+    </a>
+</div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-            <div class="flex border-b border-gray-200">
-                <button onclick="showTab('sent')" id="tab-sent" class="tab-btn flex-1 px-6 py-4 font-semibold text-green-600 border-b-2 border-green-600">
-                    Sent <span class="ml-2 bg-green-100 text-green-600 px-2 py-1 rounded-full text-sm">{{ campaigns.sent|length }}</span>
-                </button>
-                <button onclick="showTab('drafts')" id="tab-drafts" class="tab-btn flex-1 px-6 py-4 font-semibold text-gray-700 hover:text-green-600 border-b-2 border-transparent">
-                    Drafts <span class="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">{{ campaigns.drafts|length }}</span>
-                </button>
-                <button onclick="showTab('pending')" id="tab-pending" class="tab-btn flex-1 px-6 py-4 font-semibold text-gray-700 hover:text-green-600 border-b-2 border-transparent">
-                    Pending <span class="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">{{ campaigns.pending|length }}</span>
-                </button>
-            </div>
-        </div>
-
-        <div id="content-sent" class="tab-content">
-            {% if campaigns.sent %}
-            <div class="grid gap-4">
-                {% for campaign in campaigns.sent %}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <h3 class="text-lg font-bold text-gray-900">{{ campaign.name or 'Untitled' }}</h3>
-                            <p class="text-gray-600 text-sm mt-1">{{ campaign.subject or 'No subject' }}</p>
-                            <div class="flex gap-4 mt-3 text-sm text-gray-500">
-                                <span><i class="fas fa-calendar mr-1"></i>{{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
-                                <span><i class="fas fa-users mr-1"></i>Recipients: {{ "{:,}".format(campaign.recipients|default(0, true)|int) }}</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-6">
-                            <div class="text-center">
-                                <div class="text-2xl font-bold text-green-600">{{ "{:,}".format(campaign.emails_sent|default(0, true)|int) }}</div>
-                                <div class="text-xs text-gray-500">Delivered</div>
-                            </div>
-                            <a href="/dashboard/campaigns/view/{{ campaign.id }}" class="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition text-sm font-medium">View report</a>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
-                <i class="fas fa-paper-plane text-6xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-700 mb-2">No sent campaigns yet</h3>
-                <p class="text-gray-500">Your sent campaigns will appear here</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div id="content-drafts" class="tab-content hidden">
-            {% if campaigns.drafts %}
-            <div class="grid gap-4">
-                {% for campaign in campaigns.drafts %}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition" data-draft-id="{{ campaign.id }}">
-                    <div class="flex items-center justify-between">
-                        <div class="flex-1">
-                            <h3 class="text-lg font-bold text-gray-900">{{ campaign.name or 'Untitled' }}</h3>
-                            <p class="text-gray-600 text-sm mt-1">{{ campaign.subject if campaign.subject else 'No subject yet' }}</p>
-                            <div class="flex gap-3 mt-2">
-                                <span class="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-semibold">Draft</span>
-                                <span class="text-xs text-gray-500"><i class="far fa-clock mr-1"></i>{{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <a href="/dashboard/campaigns/design/blank?campaign_id={{ campaign.id }}" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition font-medium inline-flex items-center gap-2">
-                                <i class="fas fa-edit"></i> Continue editing
-                            </a>
-                            <button onclick="deleteDraft('{{ campaign.id }}')" class="text-gray-400 hover:text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
-                <i class="fas fa-file-alt text-6xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-700 mb-2">No drafts</h3>
-                <p class="text-gray-500">Start creating a campaign to save drafts</p>
-            </div>
-            {% endif %}
-        </div>
-
-        <div id="content-pending" class="tab-content hidden">
-            {% if campaigns.pending %}
-            <div class="grid gap-4">
-                {% for campaign in campaigns.pending %}
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <h3 class="text-lg font-bold">{{ campaign.name or 'Untitled' }}</h3>
-                    <span class="inline-block mt-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-semibold">{{ campaign.status|title }}</span>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
-                <i class="fas fa-clock text-6xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-700 mb-2">No pending campaigns</h3>
-                <p class="text-gray-500">Scheduled campaigns will appear here</p>
-            </div>
-            {% endif %}
-        </div>
+<div class="tabs-container">
+    <div class="tabs-nav">
+        <button onclick="showTab('sent')" id="tab-sent" class="tab-btn active">
+            <i class="fas fa-paper-plane"></i>
+            Sent
+            <span class="tab-badge">{{ campaigns.sent|length }}</span>
+        </button>
+        <button onclick="showTab('drafts')" id="tab-drafts" class="tab-btn">
+            <i class="fas fa-file-alt"></i>
+            Drafts
+            <span class="tab-badge">{{ campaigns.drafts|length }}</span>
+        </button>
+        <button onclick="showTab('pending')" id="tab-pending" class="tab-btn">
+            <i class="fas fa-clock"></i>
+            Pending
+            <span class="tab-badge">{{ campaigns.pending|length }}</span>
+        </button>
     </div>
 </div>
 
+<!-- Sent Tab -->
+<div id="content-sent" class="tab-content active">
+    {% if campaigns.sent %}
+        {% for campaign in campaigns.sent %}
+        <div class="campaign-card">
+            <div class="campaign-card-inner">
+                <div class="campaign-info">
+                    <h3 class="campaign-title">
+                        {{ campaign.name or 'Untitled Campaign' }}
+                    </h3>
+                    <p class="campaign-subject">{{ campaign.subject or 'No subject' }}</p>
+                    <div class="campaign-meta">
+                        <span><i class="fas fa-calendar"></i>{{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
+                        <span><i class="fas fa-users"></i>{{ "{:,}".format(campaign.recipients|default(0, true)|int) }} recipients</span>
+                    </div>
+                </div>
+                <div class="campaign-stats">
+                    <div class="stat-block">
+                        <div class="stat-value">{{ "{:,}".format(campaign.emails_sent|default(0, true)|int) }}</div>
+                        <div class="stat-label">Delivered</div>
+                    </div>
+                    <a href="/dashboard/campaigns/view/{{ campaign.id }}" class="btn-view">
+                        <i class="fas fa-chart-bar"></i> View Report
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-paper-plane"></i>
+            <h3>No sent campaigns yet</h3>
+            <p>Your sent campaigns will appear here after you send your first one</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Drafts Tab -->
+<div id="content-drafts" class="tab-content">
+    {% if campaigns.drafts %}
+        {% for campaign in campaigns.drafts %}
+        <div class="campaign-card" data-draft-id="{{ campaign.id }}">
+            <div class="campaign-card-inner">
+                <div class="campaign-info">
+                    <h3 class="campaign-title">
+                        {{ campaign.name or 'Untitled Campaign' }}
+                        <span class="draft-badge">Draft</span>
+                    </h3>
+                    <p class="campaign-subject">{{ campaign.subject or 'No subject yet' }}</p>
+                    <div class="campaign-meta">
+                        <span><i class="far fa-clock"></i>Last edited {{ campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}</span>
+                    </div>
+                </div>
+                <div class="campaign-stats">
+                    <a href="/dashboard/campaigns/design/blank?campaign_id={{ campaign.id }}" class="btn-edit">
+                        <i class="fas fa-edit"></i> Continue Editing
+                    </a>
+                    <button onclick="deleteDraft('{{ campaign.id }}')" class="btn-delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-file-alt"></i>
+            <h3>No drafts</h3>
+            <p>Start creating a campaign to save drafts</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Pending Tab -->
+<div id="content-pending" class="tab-content">
+    {% if campaigns.pending %}
+        {% for campaign in campaigns.pending %}
+        <div class="campaign-card">
+            <div class="campaign-card-inner">
+                <div class="campaign-info">
+                    <h3 class="campaign-title">
+                        {{ campaign.name or 'Untitled Campaign' }}
+                        <span class="pending-badge">{{ campaign.status|title }}</span>
+                    </h3>
+                    <p class="campaign-subject">{{ campaign.subject or 'No subject' }}</p>
+                    <div class="campaign-meta">
+                        <span><i class="fas fa-calendar"></i>Scheduled for {{ campaign.scheduled_at.strftime('%b %d, %Y at %I:%M %p') if campaign.scheduled_at else 'N/A' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-clock"></i>
+            <h3>No pending campaigns</h3>
+            <p>Scheduled campaigns will appear here</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
 <script>
 function showTab(tab) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.tab-btn').forEach(el => {
-        el.classList.remove('border-green-600', 'text-green-600');
-        el.classList.add('border-transparent', 'text-gray-700');
-    });
-    document.getElementById('content-' + tab).classList.remove('hidden');
-    const btn = document.getElementById('tab-' + tab);
-    btn.classList.remove('border-transparent', 'text-gray-700');
-    btn.classList.add('border-green-600', 'text-green-600');
+    // Hide all content
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    // Reset all tabs
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    // Show selected content
+    document.getElementById('content-' + tab).classList.add('active');
+    // Activate selected tab
+    document.getElementById('tab-' + tab).classList.add('active');
 }
 
 function deleteDraft(campaignId) {
-    if (!confirm('Delete this draft?')) return;
-    fetch('/dashboard/campaigns/api/delete-draft/' + campaignId, {method: 'DELETE'})
+    if (!confirm('Are you sure you want to delete this draft?')) return;
+    
+    fetch('/dashboard/campaigns/api/delete-draft/' + campaignId, { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {
-            if (data.success) location.reload();
-            else alert('Error: ' + data.error);
-        });
+            if (data.success) {
+                document.querySelector(`[data-draft-id="${campaignId}"]`).remove();
+                // Update badge count
+                const badge = document.querySelector('#tab-drafts .tab-badge');
+                if (badge) {
+                    const count = parseInt(badge.textContent) - 1;
+                    badge.textContent = count;
+                }
+            } else {
+                alert('Error: ' + (data.error || 'Could not delete draft'));
+            }
+        })
+        .catch(() => alert('Error deleting draft'));
 }
 </script>
 {% endblock %}

@@ -1,281 +1,118 @@
 {% extends "dashboard/base.html" %}
-
 {% block title %}Forms - SendBaba{% endblock %}
+{% block page_title %}Forms{% endblock %}
+{% block page_subtitle %}Create signup forms to grow your list{% endblock %}
+
+{% block extra_css %}
+<style>
+:root{--primary:#F97316}
+.form-card{background:#fff;border:1px solid #E5E7EB;border-radius:16px;padding:20px;transition:all .3s}
+.form-card:hover{border-color:#FDBA74;transform:translateY(-4px);box-shadow:0 20px 40px -12px rgba(249,115,22,.2)}
+.form-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.status-badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600}
+.status-active{background:#DCFCE7;color:#166534}
+.status-draft{background:#F3F4F6;color:#4B5563}
+.status-paused{background:#FEF3C7;color:#92400E}
+.stat-item{text-align:center;padding:0 16px;border-right:1px solid #E5E7EB}
+.stat-item:last-child{border-right:none}
+.stat-value{font-size:1.4rem;font-weight:700}
+.stat-label{font-size:11px;color:#9CA3AF;text-transform:uppercase}
+.action-btn{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#9CA3AF;background:transparent;border:none;cursor:pointer;transition:all .2s}
+.action-btn:hover{background:#FFF7ED;color:var(--primary)}
+.action-btn.delete:hover{background:#FEE2E2;color:#DC2626}
+.btn-primary{background:linear-gradient(135deg,var(--primary),#EA580C);color:#fff;padding:12px 24px;border-radius:12px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(249,115,22,.3)}
+.dropdown-menu{position:absolute;right:0;top:100%;margin-top:8px;background:#fff;border-radius:16px;box-shadow:0 20px 40px rgba(0,0,0,.15);min-width:220px;z-index:50;display:none}
+.dropdown-menu.active{display:block}
+.dropdown-item{display:block;padding:14px 20px;color:#374151;text-decoration:none;border-bottom:1px solid #F3F4F6}
+.dropdown-item:hover{background:#FFF7ED}
+.empty-state{text-align:center;padding:60px 20px;background:#fff;border-radius:20px;border:2px dashed #E5E7EB}
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999}
+.toast{background:#fff;padding:16px 20px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.15);display:flex;align-items:center;gap:12px;margin-top:8px;animation:slideIn .3s}
+@keyframes slideIn{from{opacity:0;transform:translateX(100px)}to{opacity:1;transform:translateX(0)}}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="p-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Forms</h1>
-            <p class="text-gray-600">Create signup forms to grow your email list</p>
-        </div>
-        <div class="flex gap-3">
-            <div class="relative" x-data="{ open: false }">
-                <button @click="open = !open" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center gap-2">
-                    <i class="fas fa-plus"></i>
-                    Create Form
-                    <i class="fas fa-chevron-down text-xs"></i>
-                </button>
-                <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-50">
-                    <a href="/dashboard/forms/create?type=inline" class="block px-4 py-3 hover:bg-gray-50 border-b">
-                        <div class="font-medium">Inline Form</div>
-                        <div class="text-sm text-gray-500">Embed in your website</div>
-                    </a>
-                    <a href="/dashboard/forms/create?type=popup" class="block px-4 py-3 hover:bg-gray-50 border-b">
-                        <div class="font-medium">Pop-up</div>
-                        <div class="text-sm text-gray-500">Modal overlay</div>
-                    </a>
-                    <a href="/dashboard/forms/create?type=slide_in" class="block px-4 py-3 hover:bg-gray-50 border-b">
-                        <div class="font-medium">Slide-in</div>
-                        <div class="text-sm text-gray-500">Corner widget</div>
-                    </a>
-                    <a href="/dashboard/forms/create?type=sticky_bar" class="block px-4 py-3 hover:bg-gray-50">
-                        <div class="font-medium">Sticky Bar</div>
-                        <div class="text-sm text-gray-500">Top/bottom bar</div>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow mb-6 p-4">
-        <div class="flex gap-4 flex-wrap">
-            <div class="flex-1 min-w-[200px]">
-                <input type="text" id="searchInput" placeholder="Search forms..." class="w-full px-4 py-2 border rounded-lg">
-            </div>
-            <select id="typeFilter" class="px-4 py-2 border rounded-lg">
-                <option value="">All Types</option>
-                <option value="inline">Inline</option>
-                <option value="popup">Pop-up</option>
-                <option value="slide_in">Slide-in</option>
-                <option value="sticky_bar">Sticky Bar</option>
-            </select>
-            <select id="statusFilter" class="px-4 py-2 border rounded-lg">
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="draft">Draft</option>
-                <option value="paused">Paused</option>
-            </select>
-        </div>
-    </div>
-
-    <!-- Forms List -->
-    <div id="formsList" class="grid gap-4">
-        <!-- Loading -->
-        <div id="loadingState" class="text-center py-12">
-            <i class="fas fa-spinner fa-spin text-3xl text-purple-600"></i>
-            <p class="mt-2 text-gray-600">Loading forms...</p>
-        </div>
-    </div>
-
-    <!-- Empty State -->
-    <div id="emptyState" class="hidden text-center py-12 bg-white rounded-lg">
-        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-file-alt text-2xl text-purple-600"></i>
-        </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No forms yet</h3>
-        <p class="text-gray-600 mb-4">Create your first form to start collecting subscribers</p>
-        <a href="/dashboard/forms/create" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-            <i class="fas fa-plus mr-2"></i>
-            Create Form
-        </a>
-    </div>
-</div>
-
-<!-- Embed Code Modal -->
-<div id="embedModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg max-w-lg w-full mx-4 p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold">Embed Code</h3>
-            <button onclick="closeEmbedModal()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <div></div>
+        <div class="relative" id="createDropdown">
+            <button onclick="document.getElementById('createMenu').classList.toggle('active')" class="btn-primary">
+                <i class="fas fa-plus"></i> Create Form <i class="fas fa-chevron-down text-xs opacity-70"></i>
             </button>
+            <div id="createMenu" class="dropdown-menu">
+                <a href="/dashboard/forms/create?type=inline" class="dropdown-item"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center"><i class="fas fa-align-left text-orange-600"></i></div><div><div class="font-semibold">Inline Form</div><div class="text-sm text-gray-500">Embed in website</div></div></div></a>
+                <a href="/dashboard/forms/create?type=popup" class="dropdown-item"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"><i class="fas fa-window-restore text-blue-600"></i></div><div><div class="font-semibold">Pop-up</div><div class="text-sm text-gray-500">Modal overlay</div></div></div></a>
+                <a href="/dashboard/forms/create?type=slide_in" class="dropdown-item"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center"><i class="fas fa-comment text-green-600"></i></div><div><div class="font-semibold">Slide-in</div><div class="text-sm text-gray-500">Corner widget</div></div></div></a>
+            </div>
         </div>
-        <p class="text-gray-600 mb-4">Copy and paste this code into your website:</p>
-        <div class="bg-gray-100 p-4 rounded-lg mb-4">
-            <pre id="embedCode" class="text-sm overflow-x-auto whitespace-pre-wrap"></pre>
-        </div>
-        <button onclick="copyEmbedCode()" class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700">
-            <i class="fas fa-copy mr-2"></i>
-            Copy Code
-        </button>
+    </div>
+
+    <div id="formsList" class="space-y-4"></div>
+    <div id="loadingState" class="text-center py-12"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i></div>
+    <div id="emptyState" class="hidden empty-state">
+        <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-file-alt text-3xl text-orange-400"></i></div>
+        <h3 class="text-xl font-bold text-gray-900 mb-2">No forms yet</h3>
+        <p class="text-gray-500 mb-6">Create your first form to collect subscribers</p>
+        <a href="/dashboard/forms/create?type=inline" class="btn-primary"><i class="fas fa-plus"></i> Create Form</a>
     </div>
 </div>
+
+<div id="embedModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6">
+        <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">Embed Code</h3><button onclick="document.getElementById('embedModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button></div>
+        <div class="bg-gray-900 rounded-xl p-4 mb-4"><pre id="embedCode" class="text-sm text-green-400 font-mono whitespace-pre-wrap"></pre></div>
+        <button onclick="navigator.clipboard.writeText(document.getElementById('embedCode').textContent);showToast('Copied!','success')" class="btn-primary w-full justify-center"><i class="fas fa-copy"></i> Copy Code</button>
+    </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
 
 <script>
-let forms = [];
-
-async function loadForms() {
-    try {
-        const type = document.getElementById('typeFilter').value;
-        const status = document.getElementById('statusFilter').value;
-        const search = document.getElementById('searchInput').value;
-        
-        const params = new URLSearchParams();
-        if (type) params.append('type', type);
-        if (status) params.append('status', status);
-        if (search) params.append('search', search);
-        
-        const response = await fetch(`/dashboard/forms/api/list?${params}`);
-        const data = await response.json();
-        
-        forms = data.forms;
-        renderForms();
-    } catch (error) {
-        console.error('Error loading forms:', error);
-    }
-}
-
-function renderForms() {
-    const container = document.getElementById('formsList');
-    const loading = document.getElementById('loadingState');
-    const empty = document.getElementById('emptyState');
-    
-    loading.classList.add('hidden');
-    
-    if (forms.length === 0) {
-        container.innerHTML = '';
-        empty.classList.remove('hidden');
-        return;
-    }
-    
-    empty.classList.add('hidden');
-    
-    container.innerHTML = forms.map(form => `
-        <div class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <i class="fas ${getFormIcon(form.form_type)} text-purple-600"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-medium text-gray-900">${form.name}</h3>
-                        <div class="flex items-center gap-3 text-sm text-gray-500">
-                            <span class="capitalize">${form.form_type.replace('_', ' ')}</span>
-                            <span>•</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass(form.status)}">
-                                ${form.status}
-                            </span>
+async function loadForms(){
+    try{
+        const r=await fetch('/dashboard/forms/api/list');
+        const d=await r.json();
+        document.getElementById('loadingState').classList.add('hidden');
+        if(!d.forms||d.forms.length===0){document.getElementById('emptyState').classList.remove('hidden');return;}
+        const icons={inline:'fa-align-left',popup:'fa-window-restore',slide_in:'fa-comment',sticky_bar:'fa-minus'};
+        const colors={inline:'bg-orange-100 text-orange-600',popup:'bg-blue-100 text-blue-600',slide_in:'bg-green-100 text-green-600',sticky_bar:'bg-purple-100 text-purple-600'};
+        document.getElementById('formsList').innerHTML=d.forms.map(f=>`
+            <div class="form-card">
+                <div class="flex flex-col md:flex-row md:items-center gap-4">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="form-icon ${colors[f.form_type]||'bg-gray-100'}"><i class="fas ${icons[f.form_type]||'fa-file'}"></i></div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-semibold text-gray-900 truncate">${f.name}</h3>
+                            <div class="flex items-center gap-3 mt-1">
+                                <span class="text-sm text-gray-500 capitalize">${(f.form_type||'').replace('_',' ')}</span>
+                                <span class="status-badge status-${f.status}">${f.status}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="flex items-center gap-6">
-                    <div class="text-center">
-                        <div class="text-xl font-bold text-gray-900">${form.views.toLocaleString()}</div>
-                        <div class="text-xs text-gray-500">Views</div>
+                    <div class="flex items-center gap-2">
+                        <div class="stat-item"><div class="stat-value">${f.views||0}</div><div class="stat-label">Views</div></div>
+                        <div class="stat-item"><div class="stat-value">${f.submissions||0}</div><div class="stat-label">Leads</div></div>
+                        <div class="stat-item border-none"><div class="stat-value text-green-600">${f.conversion_rate||0}%</div><div class="stat-label">CVR</div></div>
                     </div>
-                    <div class="text-center">
-                        <div class="text-xl font-bold text-gray-900">${form.submissions.toLocaleString()}</div>
-                        <div class="text-xs text-gray-500">Submissions</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-xl font-bold text-green-600">${form.conversion_rate}%</div>
-                        <div class="text-xs text-gray-500">Conversion</div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="showEmbedCode('${form.id}')" class="p-2 text-gray-400 hover:text-purple-600" title="Get embed code">
-                            <i class="fas fa-code"></i>
-                        </button>
-                        <a href="/dashboard/forms/${form.id}/edit" class="p-2 text-gray-400 hover:text-purple-600" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        <a href="/dashboard/forms/${form.id}/submissions" class="p-2 text-gray-400 hover:text-purple-600" title="View submissions">
-                            <i class="fas fa-list"></i>
-                        </a>
-                        <button onclick="duplicateForm('${form.id}')" class="p-2 text-gray-400 hover:text-purple-600" title="Duplicate">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                        <button onclick="deleteForm('${form.id}')" class="p-2 text-gray-400 hover:text-red-600" title="Delete">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                    <div class="flex items-center gap-1 ml-4">
+                        <button onclick="showEmbed('${f.id}')" class="action-btn" title="Embed"><i class="fas fa-code"></i></button>
+                        <a href="/dashboard/forms/${f.id}/edit" class="action-btn" title="Edit"><i class="fas fa-edit"></i></a>
+                        <a href="/dashboard/forms/${f.id}/submissions" class="action-btn" title="Submissions"><i class="fas fa-list"></i></a>
+                        <button onclick="toggleStatus('${f.id}')" class="action-btn" title="Toggle"><i class="fas fa-${f.status==='active'?'pause':'play'}"></i></button>
+                        <button onclick="deleteForm('${f.id}')" class="action-btn delete" title="Delete"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `).join('');
+    }catch(e){console.error(e);document.getElementById('loadingState').innerHTML='<p class="text-red-500">Failed to load</p>';}
 }
-
-function getFormIcon(type) {
-    const icons = {
-        'inline': 'fa-align-left',
-        'popup': 'fa-window-restore',
-        'slide_in': 'fa-comment',
-        'sticky_bar': 'fa-minus'
-    };
-    return icons[type] || 'fa-file-alt';
-}
-
-function getStatusClass(status) {
-    const classes = {
-        'active': 'bg-green-100 text-green-800',
-        'draft': 'bg-gray-100 text-gray-800',
-        'paused': 'bg-yellow-100 text-yellow-800'
-    };
-    return classes[status] || 'bg-gray-100 text-gray-800';
-}
-
-async function showEmbedCode(formId) {
-    const response = await fetch(`/dashboard/forms/api/${formId}/embed-code`);
-    const data = await response.json();
-    
-    document.getElementById('embedCode').textContent = data.embed_code;
-    document.getElementById('embedModal').classList.remove('hidden');
-    document.getElementById('embedModal').classList.add('flex');
-}
-
-function closeEmbedModal() {
-    document.getElementById('embedModal').classList.add('hidden');
-    document.getElementById('embedModal').classList.remove('flex');
-}
-
-function copyEmbedCode() {
-    const code = document.getElementById('embedCode').textContent;
-    navigator.clipboard.writeText(code);
-    alert('Embed code copied!');
-}
-
-async function duplicateForm(formId) {
-    if (!confirm('Duplicate this form?')) return;
-    
-    const response = await fetch(`/dashboard/forms/api/${formId}/duplicate`, { method: 'POST' });
-    const data = await response.json();
-    
-    if (data.success) {
-        loadForms();
-    }
-}
-
-async function deleteForm(formId) {
-    if (!confirm('Are you sure you want to delete this form?')) return;
-    
-    const response = await fetch(`/dashboard/forms/api/${formId}`, { method: 'DELETE' });
-    const data = await response.json();
-    
-    if (data.success) {
-        loadForms();
-    }
-}
-
-// Event listeners
-document.getElementById('searchInput').addEventListener('input', debounce(loadForms, 300));
-document.getElementById('typeFilter').addEventListener('change', loadForms);
-document.getElementById('statusFilter').addEventListener('change', loadForms);
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-// Initial load
+async function showEmbed(id){const r=await fetch('/dashboard/forms/api/'+id+'/embed-code');const d=await r.json();document.getElementById('embedCode').textContent=d.embed_code||'';document.getElementById('embedModal').classList.remove('hidden');document.getElementById('embedModal').classList.add('flex');}
+async function toggleStatus(id){await fetch('/dashboard/forms/api/'+id+'/toggle-status',{method:'POST'});loadForms();}
+async function deleteForm(id){if(!confirm('Delete this form?'))return;await fetch('/dashboard/forms/api/'+id,{method:'DELETE'});loadForms();}
+function showToast(msg,type){const c=document.getElementById('toastContainer');const t=document.createElement('div');t.className='toast';t.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle text-green-500':'times-circle text-red-500')+' text-xl"></i><span>'+msg+'</span>';c.appendChild(t);setTimeout(()=>t.remove(),3000);}
+document.addEventListener('click',e=>{if(!e.target.closest('#createDropdown'))document.getElementById('createMenu').classList.remove('active');});
 loadForms();
 </script>
 {% endblock %}

@@ -1,221 +1,163 @@
 {% extends "dashboard/base.html" %}
+{% block title %}{% if form %}Edit{% else %}Create{% endif %} Form - SendBaba{% endblock %}
+{% block page_title %}{% if form %}Edit Form{% else %}Create Form{% endif %}{% endblock %}
 
-{% block title %}{% if form %}Edit Form{% else %}Create Form{% endif %} - SendBaba{% endblock %}
+{% block extra_css %}
+<style>
+:root{--primary:#F97316}
+.builder-wrap{display:flex;gap:24px;min-height:calc(100vh - 200px)}
+.sidebar{width:340px;background:#fff;border-radius:16px;border:1px solid #E5E7EB;padding:20px;flex-shrink:0}
+.preview-area{flex:1;background:#F3F4F6;border-radius:16px;padding:24px;display:flex;flex-direction:column}
+.sidebar-tabs{display:flex;gap:4px;margin-bottom:20px}
+.sidebar-tab{flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;color:#6B7280;cursor:pointer;border:none;background:#F3F4F6;border-radius:8px}
+.sidebar-tab.active{background:var(--primary);color:#fff}
+.field-item{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:14px;margin-bottom:12px}
+.field-input{width:100%;padding:10px 12px;border:2px solid #E5E7EB;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box}
+.field-input:focus{border-color:var(--primary)}
+.add-field-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.add-field-btn{padding:12px;border:2px dashed #E5E7EB;border-radius:10px;background:#fff;cursor:pointer;font-size:13px;color:#6B7280;display:flex;align-items:center;justify-content:center;gap:8px}
+.add-field-btn:hover{border-color:var(--primary);color:var(--primary);background:#FFF7ED}
+.preview-frame{background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.1);max-width:420px;margin:0 auto;padding:28px}
+.preview-field{margin-bottom:16px}
+.preview-label{display:block;font-size:14px;font-weight:500;margin-bottom:6px}
+.preview-input{width:100%;padding:12px;border:2px solid #E5E7EB;border-radius:10px;font-size:14px;box-sizing:border-box}
+.preview-button{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;margin-top:8px}
+.btn-save{padding:12px 24px;border-radius:12px;font-weight:600;cursor:pointer;border:none;font-size:14px}
+.btn-draft{background:#fff;border:2px solid #E5E7EB;color:#374151}
+.btn-draft:hover{border-color:var(--primary);color:var(--primary)}
+.btn-publish{background:linear-gradient(135deg,var(--primary),#EA580C);color:#fff;box-shadow:0 4px 12px rgba(249,115,22,.3)}
+.btn-publish:hover{transform:translateY(-2px)}
+.setting-group{margin-bottom:16px}
+.setting-label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px}
+.color-input{width:100%;height:40px;border:2px solid #E5E7EB;border-radius:8px;cursor:pointer;padding:4px}
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999}
+.toast{background:#fff;padding:16px 20px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.15);display:flex;align-items:center;gap:12px;margin-top:8px}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="flex h-screen" x-data="formBuilder()" x-init="init()">
-    <!-- Sidebar -->
-    <div class="w-80 bg-white border-r overflow-y-auto">
-        <div class="p-4 border-b">
-            <input type="text" x-model="formData.name" placeholder="Form Name" class="w-full px-3 py-2 border rounded-lg font-medium">
-        </div>
-        
-        <!-- Tabs -->
-        <div class="flex border-b">
-            <button @click="activeTab = 'fields'" :class="activeTab === 'fields' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'" class="flex-1 py-3 text-sm font-medium">Fields</button>
-            <button @click="activeTab = 'design'" :class="activeTab === 'design' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'" class="flex-1 py-3 text-sm font-medium">Design</button>
-            <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'" class="flex-1 py-3 text-sm font-medium">Settings</button>
-        </div>
-        
-        <!-- Fields Tab -->
-        <div x-show="activeTab === 'fields'" class="p-4">
-            <h4 class="font-medium mb-3">Form Fields</h4>
-            <div class="space-y-2 mb-4">
-                <template x-for="(field, index) in formData.fields" :key="field.id">
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-sm font-medium" x-text="field.label"></span>
-                            <button @click="removeField(index)" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>
-                        </div>
-                        <input type="text" x-model="field.label" placeholder="Label" class="w-full px-2 py-1 text-sm border rounded mb-1">
-                        <input type="text" x-model="field.placeholder" placeholder="Placeholder" class="w-full px-2 py-1 text-sm border rounded mb-1">
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" x-model="field.required" class="mr-2">
-                            Required
-                        </label>
-                    </div>
-                </template>
-            </div>
-            
-            <h4 class="font-medium mb-2">Add Field</h4>
-            <div class="grid grid-cols-2 gap-2">
-                <button @click="addField('text')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-font mr-1"></i> Text</button>
-                <button @click="addField('email')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-envelope mr-1"></i> Email</button>
-                <button @click="addField('phone')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-phone mr-1"></i> Phone</button>
-                <button @click="addField('select')" class="p-2 border rounded hover:bg-gray-50 text-sm"><i class="fas fa-list mr-1"></i> Dropdown</button>
-            </div>
-        </div>
-        
-        <!-- Design Tab -->
-        <div x-show="activeTab === 'design'" class="p-4">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Primary Color</label>
-                    <input type="color" x-model="formData.design.primary_color" class="w-full h-10 rounded cursor-pointer">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Background Color</label>
-                    <input type="color" x-model="formData.design.background_color" class="w-full h-10 rounded cursor-pointer">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Text Color</label>
-                    <input type="color" x-model="formData.design.text_color" class="w-full h-10 rounded cursor-pointer">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Button Text</label>
-                    <input type="text" x-model="formData.design.button_text" class="w-full px-3 py-2 border rounded">
-                </div>
-            </div>
-        </div>
-        
-        <!-- Settings Tab -->
-        <div x-show="activeTab === 'settings'" class="p-4">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Form Type</label>
-                    <select x-model="formData.form_type" class="w-full px-3 py-2 border rounded">
-                        <option value="inline">Inline</option>
-                        <option value="popup">Pop-up</option>
-                        <option value="slide_in">Slide-in</option>
-                        <option value="sticky_bar">Sticky Bar</option>
-                    </select>
-                </div>
-                <div x-show="formData.form_type !== 'inline'">
-                    <label class="block text-sm font-medium mb-1">Trigger</label>
-                    <select x-model="formData.trigger_type" class="w-full px-3 py-2 border rounded">
-                        <option value="immediate">Immediately</option>
-                        <option value="time_delay">After X seconds</option>
-                        <option value="scroll">After scroll %</option>
-                        <option value="exit_intent">Exit Intent</option>
-                    </select>
-                </div>
-                <div x-show="formData.trigger_type === 'time_delay' || formData.trigger_type === 'scroll'">
-                    <label class="block text-sm font-medium mb-1">Value</label>
-                    <input type="number" x-model="formData.trigger_value" class="w-full px-3 py-2 border rounded" placeholder="Seconds or %">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Success Action</label>
-                    <select x-model="formData.success_action" class="w-full px-3 py-2 border rounded">
-                        <option value="message">Show Message</option>
-                        <option value="redirect">Redirect to URL</option>
-                        <option value="close">Close Form</option>
-                    </select>
-                </div>
-                <div x-show="formData.success_action === 'message'">
-                    <label class="block text-sm font-medium mb-1">Success Message</label>
-                    <textarea x-model="formData.success_message" class="w-full px-3 py-2 border rounded" rows="2"></textarea>
-                </div>
-                <div x-show="formData.success_action === 'redirect'">
-                    <label class="block text-sm font-medium mb-1">Redirect URL</label>
-                    <input type="url" x-model="formData.success_redirect_url" class="w-full px-3 py-2 border rounded" placeholder="https://...">
-                </div>
-                <div>
-                    <label class="flex items-center">
-                        <input type="checkbox" x-model="formData.double_optin" class="mr-2">
-                        <span class="text-sm">Require double opt-in</span>
-                    </label>
-                </div>
-            </div>
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <a href="/dashboard/forms" class="text-gray-500 hover:text-orange-500"><i class="fas fa-arrow-left mr-2"></i>Back</a>
+        <div class="flex gap-3">
+            <button onclick="saveForm('draft')" class="btn-save btn-draft"><i class="fas fa-save mr-2"></i>Save Draft</button>
+            <button onclick="saveForm('active')" class="btn-save btn-publish"><i class="fas fa-rocket mr-2"></i>Publish</button>
         </div>
     </div>
     
-    <!-- Preview Area -->
-    <div class="flex-1 bg-gray-100 p-8 overflow-auto">
-        <div class="mb-4 flex justify-between items-center">
-            <div class="flex gap-2">
-                <button @click="previewDevice = 'desktop'" :class="previewDevice === 'desktop' ? 'bg-purple-100 text-purple-600' : 'bg-white'" class="px-3 py-1 rounded"><i class="fas fa-desktop"></i></button>
-                <button @click="previewDevice = 'tablet'" :class="previewDevice === 'tablet' ? 'bg-purple-100 text-purple-600' : 'bg-white'" class="px-3 py-1 rounded"><i class="fas fa-tablet-alt"></i></button>
-                <button @click="previewDevice = 'mobile'" :class="previewDevice === 'mobile' ? 'bg-purple-100 text-purple-600' : 'bg-white'" class="px-3 py-1 rounded"><i class="fas fa-mobile-alt"></i></button>
+    <div class="builder-wrap">
+        <div class="sidebar">
+            <input type="text" id="formName" value="{{ form.name if form else 'Untitled Form' }}" placeholder="Form Name" class="field-input mb-4" style="font-size:15px;font-weight:600">
+            
+            <div class="sidebar-tabs">
+                <button onclick="switchTab('fields')" id="tabFields" class="sidebar-tab active">Fields</button>
+                <button onclick="switchTab('design')" id="tabDesign" class="sidebar-tab">Design</button>
+                <button onclick="switchTab('settings')" id="tabSettings" class="sidebar-tab">Settings</button>
             </div>
-            <div class="flex gap-2">
-                <button @click="saveForm('draft')" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Save Draft</button>
-                <button @click="saveForm('active')" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Publish</button>
+            
+            <div id="panelFields">
+                <h4 class="font-semibold text-gray-700 text-sm mb-3">Form Fields</h4>
+                <div id="fieldsList"></div>
+                <h4 class="font-semibold text-gray-700 text-sm mb-3 mt-4">Add Field</h4>
+                <div class="add-field-grid">
+                    <button onclick="addField('text','Text')" class="add-field-btn"><i class="fas fa-font"></i>Text</button>
+                    <button onclick="addField('email','Email')" class="add-field-btn"><i class="fas fa-envelope"></i>Email</button>
+                    <button onclick="addField('tel','Phone')" class="add-field-btn"><i class="fas fa-phone"></i>Phone</button>
+                    <button onclick="addField('text','Name')" class="add-field-btn"><i class="fas fa-user"></i>Name</button>
+                </div>
+            </div>
+            
+            <div id="panelDesign" style="display:none">
+                <div class="setting-group"><label class="setting-label">Primary Color</label><input type="color" id="primaryColor" value="{{ (form.design.primary_color if form else '#F97316') }}" class="color-input" onchange="updatePreview()"></div>
+                <div class="setting-group"><label class="setting-label">Background</label><input type="color" id="bgColor" value="{{ (form.design.background_color if form else '#FFFFFF') }}" class="color-input" onchange="updatePreview()"></div>
+                <div class="setting-group"><label class="setting-label">Text Color</label><input type="color" id="textColor" value="{{ (form.design.text_color if form else '#1F2937') }}" class="color-input" onchange="updatePreview()"></div>
+                <div class="setting-group"><label class="setting-label">Button Text</label><input type="text" id="buttonText" value="{{ (form.design.button_text if form else 'Subscribe') }}" class="field-input" oninput="updatePreview()"></div>
+            </div>
+            
+            <div id="panelSettings" style="display:none">
+                <div class="setting-group"><label class="setting-label">Form Type</label><select id="formType" class="field-input"><option value="inline" {{ 'selected' if (form.form_type if form else form_type)=='inline' }}>Inline</option><option value="popup" {{ 'selected' if (form.form_type if form else form_type)=='popup' }}>Pop-up</option><option value="slide_in" {{ 'selected' if (form.form_type if form else form_type)=='slide_in' }}>Slide-in</option></select></div>
+                <div class="setting-group"><label class="setting-label">Trigger</label><select id="triggerType" class="field-input"><option value="immediate">Immediately</option><option value="time_delay">After delay</option><option value="scroll">After scroll</option></select></div>
+                <div class="setting-group"><label class="setting-label">Success Message</label><textarea id="successMessage" class="field-input" rows="2">{{ form.success_message if form else 'Thanks for subscribing!' }}</textarea></div>
             </div>
         </div>
         
-        <div class="flex justify-center">
-            <div :class="{'w-full max-w-4xl': previewDevice === 'desktop', 'w-96': previewDevice === 'tablet', 'w-80': previewDevice === 'mobile'}" class="bg-white rounded-lg shadow-lg">
-                <div class="p-6" :style="`background: ${formData.design.background_color}`">
-                    <template x-for="field in formData.fields" :key="field.id">
-                        <div class="mb-4">
-                            <label class="block mb-1 text-sm font-medium" :style="`color: ${formData.design.text_color}`" x-text="field.label + (field.required ? ' *' : '')"></label>
-                            <input :type="field.type" :placeholder="field.placeholder" class="w-full px-3 py-2 border rounded-lg" :style="`border-color: ${formData.design.primary_color}40`">
-                        </div>
-                    </template>
-                    <button class="w-full py-3 rounded-lg text-white font-medium" :style="`background: ${formData.design.primary_color}`" x-text="formData.design.button_text"></button>
-                </div>
+        <div class="preview-area">
+            <h3 class="text-lg font-semibold text-gray-700 mb-4">Preview</h3>
+            <div class="flex-1 flex items-start justify-center pt-8">
+                <div id="previewFrame" class="preview-frame"></div>
             </div>
         </div>
     </div>
 </div>
 
+<div id="toastContainer" class="toast-container"></div>
+
 <script>
-function formBuilder() {
-    return {
-        formId: '{{ form.id if form else "" }}',
-        activeTab: 'fields',
-        previewDevice: 'desktop',
-        formData: {
-            name: '{{ form.name if form else "Untitled Form" }}',
-            form_type: '{{ form.form_type if form else form_type }}',
-            fields: {{ form.fields_list | tojson if form else '[{"id": "email", "type": "email", "label": "Email", "placeholder": "Enter your email", "required": true}]' | safe }},
-            design: {{ form.design | tojson if form else '{"primary_color": "#8B5CF6", "background_color": "#FFFFFF", "text_color": "#1F2937", "button_text": "Subscribe"}' | safe }},
-            trigger_type: '{{ form.trigger_type if form else "immediate" }}',
-            trigger_value: '{{ form.trigger_value if form else "" }}',
-            success_action: '{{ form.success_action if form else "message" }}',
-            success_message: '{{ form.success_message if form else "Thanks for subscribing!" }}',
-            success_redirect_url: '{{ form.success_redirect_url if form else "" }}',
-            double_optin: {{ 'true' if form and form.double_optin else 'false' }}
-        },
-        
-        init() {
-            console.log('Form builder initialized');
-        },
-        
-        addField(type) {
-            const field = {
-                id: 'field_' + Date.now(),
-                type: type,
-                label: type.charAt(0).toUpperCase() + type.slice(1),
-                placeholder: '',
-                required: false
-            };
-            this.formData.fields.push(field);
-        },
-        
-        removeField(index) {
-            this.formData.fields.splice(index, 1);
-        },
-        
-        async saveForm(status) {
-            const data = {
-                ...this.formData,
-                status: status
-            };
-            
-            const url = this.formId 
-                ? `/dashboard/forms/api/${this.formId}` 
-                : '/dashboard/forms/api/create';
-            
-            const method = this.formId ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                if (!this.formId) {
-                    window.location.href = `/dashboard/forms/${result.form.id}/edit`;
-                } else {
-                    alert(status === 'active' ? 'Form published!' : 'Draft saved!');
-                }
-            }
-        }
-    }
+const formId='{{ form.id if form else "" }}';
+let fields={{ form.fields_list | tojson | safe if form else '[{"id":"email_1","type":"email","label":"Email Address","placeholder":"Enter your email","required":true}]' }};
+
+function switchTab(tab){
+    document.querySelectorAll('.sidebar-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('active');
+    document.getElementById('panelFields').style.display=tab==='fields'?'block':'none';
+    document.getElementById('panelDesign').style.display=tab==='design'?'block':'none';
+    document.getElementById('panelSettings').style.display=tab==='settings'?'block':'none';
 }
+
+function renderFields(){
+    document.getElementById('fieldsList').innerHTML=fields.map((f,i)=>`
+        <div class="field-item">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-semibold text-gray-700">${f.label||'Field'}</span>
+                <button onclick="removeField(${i})" class="text-red-400 hover:text-red-600 text-sm"><i class="fas fa-trash"></i></button>
+            </div>
+            <input type="text" value="${f.label||''}" placeholder="Label" class="field-input mb-2" onchange="updateField(${i},'label',this.value)">
+            <input type="text" value="${f.placeholder||''}" placeholder="Placeholder" class="field-input" onchange="updateField(${i},'placeholder',this.value)">
+        </div>
+    `).join('');
+    updatePreview();
+}
+
+function updateField(i,k,v){fields[i][k]=v;if(k==='label')renderFields();else updatePreview();}
+function addField(type,label){fields.push({id:type+'_'+Date.now(),type:type,label:label,placeholder:'',required:false});renderFields();}
+function removeField(i){if(fields.length>1){fields.splice(i,1);renderFields();}else{showToast('Need at least one field','error');}}
+
+function updatePreview(){
+    const pc=document.getElementById('primaryColor').value;
+    const bg=document.getElementById('bgColor').value;
+    const tc=document.getElementById('textColor').value;
+    const bt=document.getElementById('buttonText').value||'Subscribe';
+    let html='';
+    fields.forEach(f=>{html+=`<div class="preview-field"><label class="preview-label" style="color:${tc}">${f.label}${f.required?' *':''}</label><input type="${f.type}" placeholder="${f.placeholder||''}" class="preview-input"></div>`;});
+    html+=`<button class="preview-button" style="background:${pc}">${bt}</button>`;
+    document.getElementById('previewFrame').innerHTML=html;
+    document.getElementById('previewFrame').style.background=bg;
+}
+
+async function saveForm(status){
+    const data={
+        name:document.getElementById('formName').value||'Untitled Form',
+        form_type:document.getElementById('formType').value,
+        fields:fields,
+        design:{primary_color:document.getElementById('primaryColor').value,background_color:document.getElementById('bgColor').value,text_color:document.getElementById('textColor').value,button_text:document.getElementById('buttonText').value||'Subscribe'},
+        trigger_type:document.getElementById('triggerType').value,
+        success_message:document.getElementById('successMessage').value,
+        status:status
+    };
+    const url=formId?'/dashboard/forms/api/'+formId:'/dashboard/forms/api/create';
+    const method=formId?'PUT':'POST';
+    try{
+        const r=await fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+        const d=await r.json();
+        if(d.success){
+            showToast(status==='active'?'Published!':'Saved!','success');
+            if(!formId&&d.form)setTimeout(()=>window.location.href='/dashboard/forms/'+d.form.id+'/edit',1000);
+        }else{showToast(d.error||'Failed','error');}
+    }catch(e){showToast('Network error','error');}
+}
+
+function showToast(msg,type){const c=document.getElementById('toastContainer');const t=document.createElement('div');t.className='toast';t.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle text-green-500':'times-circle text-red-500')+' text-xl"></i><span class="font-medium">'+msg+'</span>';c.appendChild(t);setTimeout(()=>t.remove(),3000);}
+
+renderFields();
 </script>
 {% endblock %}

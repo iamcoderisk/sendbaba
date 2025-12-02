@@ -8,6 +8,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formatdate, make_msgid
 import logging
+try:
+    from premailer import transform as inline_css
+    HAS_PREMAILER = True
+except ImportError:
+    HAS_PREMAILER = False
+    inline_css = None
 from typing import Dict, Tuple, Optional
 import time
 import sys
@@ -144,6 +150,13 @@ class ProfessionalSMTPRelay:
         if text_body:
             msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
         if html_body:
+            # Inline CSS for email client compatibility (Gmail strips <style> tags)
+            if HAS_PREMAILER:
+                try:
+                    html_body = inline_css(html_body, remove_classes=True, strip_important=False)
+                    logger.info("✅ CSS inlined for email")
+                except Exception as css_err:
+                    logger.warning(f"CSS inline failed: {css_err}")
             msg.attach(MIMEText(html_body, 'html', 'utf-8'))
         elif not text_body:
             msg.attach(MIMEText('Message from ' + sender_domain, 'plain', 'utf-8'))

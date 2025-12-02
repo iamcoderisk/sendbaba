@@ -1,44 +1,183 @@
-{% extends "base.html" %}
+{% extends "dashboard/base.html" %}
 {% block title %}Create Campaign - SendBaba{% endblock %}
+{% block page_title %}Create Campaign{% endblock %}
+{% block page_subtitle %}Choose how you want to start your campaign{% endblock %}
+
+{% block extra_css %}
+<style>
+    .create-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px 0;
+    }
+    
+    .options-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .option-card {
+        background: white;
+        border-radius: 20px;
+        padding: 32px 24px;
+        text-align: center;
+        text-decoration: none;
+        border: 2px solid #f3f4f6;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .option-card:hover {
+        border-color: #F97316;
+        box-shadow: 0 12px 40px rgba(249, 115, 22, 0.15);
+        transform: translateY(-4px);
+    }
+    .option-card.recommended {
+        border-color: #F97316;
+    }
+    .option-card.recommended::before {
+        content: 'Recommended';
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: linear-gradient(135deg, #F97316, #EA580C);
+        color: white;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .option-card.disabled {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    .option-icon {
+        width: 100%;
+        height: 160px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        transition: all 0.3s ease;
+    }
+    .option-card:hover .option-icon {
+        transform: scale(1.02);
+    }
+    .option-icon i {
+        font-size: 56px;
+        transition: all 0.3s ease;
+    }
+    
+    .option-icon.blank {
+        background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    }
+    .option-icon.blank i { color: #9ca3af; }
+    .option-card:hover .option-icon.blank {
+        background: linear-gradient(135deg, #fff7ed, #fed7aa);
+    }
+    .option-card:hover .option-icon.blank i { color: #F97316; }
+    
+    .option-icon.templates {
+        background: linear-gradient(135deg, #fff7ed, #fed7aa);
+    }
+    .option-icon.templates i { color: #F97316; }
+    
+    .option-icon.recent {
+        background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+    }
+    .option-icon.recent i { color: #6366f1; }
+    
+    .option-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 8px;
+    }
+    .option-desc {
+        font-size: 14px;
+        color: #6b7280;
+        line-height: 1.5;
+    }
+    .coming-soon {
+        display: inline-block;
+        margin-top: 12px;
+        padding: 6px 14px;
+        background: #f3f4f6;
+        color: #6b7280;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .back-link {
+        text-align: center;
+    }
+    .back-link a {
+        color: #6b7280;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s;
+    }
+    .back-link a:hover {
+        color: #F97316;
+    }
+    .back-link i {
+        margin-right: 8px;
+    }
+    
+    @media (max-width: 768px) {
+        .options-grid {
+            grid-template-columns: 1fr;
+        }
+        .option-card.recommended::before {
+            top: 12px;
+            right: 12px;
+            font-size: 10px;
+            padding: 4px 10px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-    <div class="max-w-6xl w-full">
-        <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-gray-900 mb-3">Create New Campaign</h1>
-            <p class="text-gray-600">Choose how you want to start</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <a href="/dashboard/campaigns/design/blank?name=New Campaign" class="group bg-white rounded-2xl shadow-lg border-2 border-gray-200 hover:border-green-500 hover:shadow-xl transition-all duration-300 p-8 text-center">
-                <div class="bg-gradient-to-br from-gray-100 to-gray-200 w-full h-48 rounded-xl mb-6 flex items-center justify-center group-hover:from-green-50 group-hover:to-green-100 transition-all">
-                    <i class="fas fa-plus text-6xl text-gray-400 group-hover:text-green-500 transition"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-900 mb-2">Start from scratch</h3>
-                <p class="text-gray-600 text-sm">Create from a blank canvas</p>
-            </a>
-
-            <a href="/dashboard/campaigns/templates" class="group bg-white rounded-2xl shadow-lg border-2 border-purple-500 hover:shadow-xl transition-all duration-300 p-8 text-center relative">
-                <div class="absolute top-4 right-4 bg-purple-500 text-white text-xs px-3 py-1 rounded-full font-semibold">Recommended</div>
-                <div class="bg-gradient-to-br from-purple-100 to-purple-200 w-full h-48 rounded-xl mb-6 flex items-center justify-center group-hover:from-purple-200 group-hover:to-purple-300 transition-all">
-                    <i class="fas fa-th-large text-6xl text-purple-600"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-900 mb-2">Template gallery</h3>
-                <p class="text-gray-600 text-sm">Choose from professional templates</p>
-            </a>
-
-            <div class="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-8 text-center opacity-50">
-                <div class="bg-gradient-to-br from-blue-50 to-blue-100 w-full h-48 rounded-xl mb-6 flex items-center justify-center">
-                    <i class="fas fa-history text-6xl text-blue-400"></i>
-                </div>
-                <h3 class="text-xl font-bold text-gray-900 mb-2">Recent emails</h3>
-                <p class="text-gray-600 text-sm">Reuse a recent design</p>
-                <span class="inline-block mt-3 bg-gray-200 text-gray-600 px-3 py-1 rounded-full text-xs font-semibold">Coming Soon</span>
+<div class="create-container">
+    <div class="options-grid">
+        <a href="/dashboard/campaigns/design/blank?name=New Campaign" class="option-card">
+            <div class="option-icon blank">
+                <i class="fas fa-plus"></i>
             </div>
+            <h3 class="option-title">Start from Scratch</h3>
+            <p class="option-desc">Create your email from a blank canvas with full creative control</p>
+        </a>
+        
+        <a href="/dashboard/campaigns/templates" class="option-card recommended">
+            <div class="option-icon templates">
+                <i class="fas fa-th-large"></i>
+            </div>
+            <h3 class="option-title">Template Gallery</h3>
+            <p class="option-desc">Choose from professionally designed templates to get started quickly</p>
+        </a>
+        
+        <div class="option-card disabled">
+            <div class="option-icon recent">
+                <i class="fas fa-history"></i>
+            </div>
+            <h3 class="option-title">Recent Emails</h3>
+            <p class="option-desc">Reuse a previous campaign design as your starting point</p>
+            <span class="coming-soon">Coming Soon</span>
         </div>
-
-        <div class="text-center mt-8">
-            <a href="/dashboard/campaigns" class="text-gray-600 hover:text-gray-900 font-medium"><i class="fas fa-arrow-left mr-2"></i>Back to campaigns</a>
-        </div>
+    </div>
+    
+    <div class="back-link">
+        <a href="/dashboard/campaigns">
+            <i class="fas fa-arrow-left"></i>Back to Campaigns
+        </a>
     </div>
 </div>
 {% endblock %}

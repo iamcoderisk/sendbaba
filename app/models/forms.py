@@ -1,71 +1,31 @@
-"""
-SendBaba Forms Module - Database Models
-Handles signup forms, popups, slide-ins, and sticky bars
-"""
+"""Forms Model - SendBaba"""
+from app import db
 from datetime import datetime
 import uuid
 import json
 
-try:
-    from app import db
-except ImportError:
-    from flask_sqlalchemy import SQLAlchemy
-    db = SQLAlchemy()
-
 
 class Form(db.Model):
-    """Signup form model"""
     __tablename__ = 'forms'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id = db.Column(db.String(36), nullable=False)
-    
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text)
-    form_type = db.Column(db.String(50), default='inline')  # inline, popup, slide_in, sticky_bar
-    
-    # Design settings (JSON)
-    design_settings = db.Column(db.Text, default='{}')
-    
-    # Form fields (JSON array)
+    organization_id = db.Column(db.String(36), nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, default='Untitled Form')
+    form_type = db.Column(db.String(50), default='inline')
+    status = db.Column(db.String(20), default='draft', index=True)
     fields = db.Column(db.Text, default='[]')
-    
-    # Behavior settings
+    design_settings = db.Column(db.Text, default='{}')
     trigger_type = db.Column(db.String(50), default='immediate')
-    trigger_value = db.Column(db.String(100))
-    show_on_pages = db.Column(db.Text, default='*')
-    
-    # Success actions
+    trigger_value = db.Column(db.String(50), nullable=True)
     success_action = db.Column(db.String(50), default='message')
     success_message = db.Column(db.Text, default='Thanks for subscribing!')
-    success_redirect_url = db.Column(db.String(500))
-    
-    # Double opt-in
+    success_redirect_url = db.Column(db.String(500), nullable=True)
     double_optin = db.Column(db.Boolean, default=False)
-    confirmation_email_subject = db.Column(db.String(255))
-    confirmation_email_body = db.Column(db.Text)
-    
-    # Integration
-    add_to_list_id = db.Column(db.String(36))
-    add_tags = db.Column(db.String(500))
-    
-    # Status
-    status = db.Column(db.String(20), default='draft')
-    
-    # Stats
     views = db.Column(db.Integer, default=0)
     submissions = db.Column(db.Integer, default=0)
-    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    submissions_rel = db.relationship('FormSubmission', backref='form', lazy='dynamic', cascade='all, delete-orphan')
-    
-    @property
-    def conversion_rate(self):
-        if self.views == 0:
-            return 0
-        return round((self.submissions / self.views) * 100, 2)
     
     @property
     def fields_list(self):
@@ -77,59 +37,50 @@ class Form(db.Model):
     @property
     def design(self):
         try:
-            return json.loads(self.design_settings) if self.design_settings else {}
+            d = json.loads(self.design_settings) if self.design_settings else {}
+            return {
+                'primary_color': d.get('primary_color', '#F97316'),
+                'background_color': d.get('background_color', '#FFFFFF'),
+                'text_color': d.get('text_color', '#1F2937'),
+                'button_text': d.get('button_text', 'Subscribe')
+            }
         except:
-            return {}
+            return {'primary_color': '#F97316', 'background_color': '#FFFFFF', 'text_color': '#1F2937', 'button_text': 'Subscribe'}
     
-    def get_embed_code(self, base_url='https://sendbaba.com'):
-        if self.form_type == 'inline':
-            return f'<div id="sb-form-{self.id}"></div>\n<script src="{base_url}/forms/embed/{self.id}.js" async></script>'
-        return f'<script src="{base_url}/forms/embed/{self.id}.js" async></script>'
+    @property
+    def conversion_rate(self):
+        if not self.views or self.views == 0:
+            return 0
+        return round((self.submissions or 0) / self.views * 100, 1)
     
     def to_dict(self):
         return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description,
-            'form_type': self.form_type,
-            'status': self.status,
-            'views': self.views,
-            'submissions': self.submissions,
+            'id': self.id, 'name': self.name, 'form_type': self.form_type, 'status': self.status,
+            'fields': self.fields_list, 'design': self.design, 'trigger_type': self.trigger_type,
+            'trigger_value': self.trigger_value, 'success_action': self.success_action,
+            'success_message': self.success_message, 'success_redirect_url': self.success_redirect_url,
+            'double_optin': self.double_optin, 'views': self.views or 0, 'submissions': self.submissions or 0,
             'conversion_rate': self.conversion_rate,
-            'fields': self.fields_list,
-            'design': self.design,
-            'trigger_type': self.trigger_type,
-            'trigger_value': self.trigger_value,
-            'success_action': self.success_action,
-            'success_message': self.success_message,
-            'double_optin': self.double_optin,
-            'add_to_list_id': self.add_to_list_id,
-            'add_tags': self.add_tags,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+    
+    def get_embed_code(self, base_url):
+        if self.form_type == 'inline':
+            return f'<div id="sb-form-{self.id}"></div>\n<script src="{base_url}/forms/embed/{self.id}.js" async></script>'
+        return f'<script src="{base_url}/forms/embed/{self.id}.js" async></script>'
 
 
 class FormSubmission(db.Model):
-    """Form submission tracking"""
     __tablename__ = 'form_submissions'
+    __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    form_id = db.Column(db.String(36), db.ForeignKey('forms.id'), nullable=False)
-    
-    data = db.Column(db.Text, nullable=False)
-    
+    form_id = db.Column(db.String(36), nullable=False, index=True)
+    data = db.Column(db.Text)
     ip_address = db.Column(db.String(50))
     user_agent = db.Column(db.String(500))
-    referrer = db.Column(db.String(500))
-    page_url = db.Column(db.String(500))
-    
-    contact_id = db.Column(db.String(36))
-    
-    confirmed = db.Column(db.Boolean, default=False)
-    confirmation_token = db.Column(db.String(100))
-    confirmed_at = db.Column(db.DateTime)
-    
+    confirmed = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     @property
@@ -141,11 +92,7 @@ class FormSubmission(db.Model):
     
     def to_dict(self):
         return {
-            'id': self.id,
-            'form_id': self.form_id,
-            'data': self.submission_data,
-            'ip_address': self.ip_address,
-            'confirmed': self.confirmed,
-            'contact_id': self.contact_id,
+            'id': self.id, 'form_id': self.form_id, 'data': self.submission_data,
+            'ip_address': self.ip_address, 'confirmed': self.confirmed,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

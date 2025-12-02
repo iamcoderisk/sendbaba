@@ -38,3 +38,28 @@ def contact_submit():
     # TODO: Send email or save to database
     flash('Thank you for your message! We will get back to you soon.', 'success')
     return redirect(url_for('web.contact'))
+
+
+@web_bp.route('/verify-email/<token>')
+def verify_email(token):
+    """Verify user email - root level route"""
+    from app.models.user import User
+    from app import db
+    from flask import flash, redirect, url_for
+    from flask_login import current_user
+    
+    user = User.query.filter_by(verification_token=token).first()
+    
+    if not user:
+        flash('Invalid or expired verification link.', 'error')
+        return redirect('/auth/login')
+    
+    user.is_verified = True
+    user.verification_token = None
+    db.session.commit()
+    
+    flash('Email verified successfully!', 'success')
+    
+    if current_user.is_authenticated:
+        return redirect('/dashboard/')
+    return redirect('/auth/login')
