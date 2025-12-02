@@ -1,964 +1,666 @@
-# 🚀 BabaForge - Enterprise Email Marketing Platform
+# SendBaba - Enterprise Email Marketing Platform
 
-![BabaForge](https://img.shields.io/badge/BabaForge-Email%20Marketing-purple)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Python](https://img.shields.io/badge/python-3.10+-blue)
-![Status](https://img.shields.io/badge/status-production-success)
+[![Status](https://img.shields.io/badge/status-production-green.svg)]()
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)]()
+[![Python](https://img.shields.io/badge/python-3.10+-yellow.svg)]()
 
-**BabaForge (SendBaba)** is a powerful, self-hosted email marketing platform designed to handle **1+ billion emails daily**. Built with Python, Flask, and modern technologies, it rivals commercial solutions like SendGrid, Mailgun, and Postal.
+> AI-powered enterprise-grade SMTP email service platform designed to compete with SendGrid, Mailgun, and Postal while offering significant cost savings. Capable of handling **1+ billion emails daily**.
 
----
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Performance](#-performance)
-- [Tech Stack](#️-tech-stack)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Server Setup](#-complete-server-setup-guide)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [API Documentation](#-api-documentation)
-- [Monitoring](#-monitoring--health-checks)
-- [Troubleshooting](#-troubleshooting)
-- [Scaling](#-scaling)
-- [Security](#-security)
-- [Contributing](#-contributing)
+**Live URLs:**
+- Production: https://sendbaba.com
+- Staging: http://playmaster.sendbaba.com (Port 5001)
 
 ---
 
-## ✨ Features
+## 🎯 What We Built
 
-### Core Features
-- ✅ **High-Performance SMTP** - 12,000+ emails/second
-- ✅ **Campaign Management** - Bulk email campaigns with personalization
-- ✅ **Contact Management** - Import, organize, and segment contacts
-- ✅ **Analytics Dashboard** - Real-time tracking (opens, clicks, bounces)
-- ✅ **Domain Management** - Multiple sending domains with DKIM/SPF/DMARC
-- ✅ **API Access** - Full RESTful API
-- ✅ **Webhooks** - Real-time event notifications
-- ✅ **Rate Limiting** - Per-minute and per-hour limits
-- ✅ **Suppression Lists** - Automatic bounce management
-- ✅ **Email Templates** - Reusable HTML templates
-- ✅ **Mobile Responsive** - Works on all devices
-
-### Advanced Features
-- 🔐 **Authentication** - User accounts with role-based access
-- 📊 **Advanced Analytics** - Click tracking, open tracking, conversion tracking
-- 🎯 **Segmentation** - Target specific audience groups
-- 🔄 **Automation** - Automated email sequences
-- 📝 **Template Variables** - {{first_name}}, {{company}}, etc.
-- 🌐 **Multi-Organization** - Support for multiple tenants
-- 📦 **Batch Operations** - Process thousands of emails efficiently
-- 💾 **Message Retention** - Automatic cleanup policies
+We transformed a basic Python SMTP concept into a **production-ready, enterprise-grade email server** capable of handling **1+ billion emails daily**, rivaling services like SendGrid, Mailgun, and Postal.
 
 ---
 
-## 📊 Performance
+## ✅ Features Accomplished
 
-### Single Instance (16-core, 32GB RAM)
+### Core Email Infrastructure
+- [x] Custom SMTP server using Python `aiosmtpd`
+- [x] Flask REST API for programmatic access
+- [x] PostgreSQL database for email storage
+- [x] Redis for distributed caching and rate limiting
+- [x] DKIM key generation and signing
+- [x] SPF/DMARC DNS record generation
+- [x] TLS/SSL support on port 587
+- [x] Multi-organization/tenant support
+
+### Email Sending & Delivery
+- [x] Bulk email sending (100K+ contacts)
+- [x] Email validation (syntax, domain, SMTP, disposable detection)
+- [x] IP warmup system (50→100K over 63 days)
+- [x] Provider-specific rate limiting (Gmail: 20/min, Yahoo: 15/min)
+- [x] Bounce handling and suppression lists
+- [x] Connection pooling for SMTP relays
+- [x] Click/open tracking with pixel and link rewriting
+
+### Campaign Management
+- [x] Campaign creation and scheduling
+- [x] Contact list management with CSV import
+- [x] Contact segmentation
+- [x] Email templates with GrapeJS drag-and-drop builder
+- [x] Template library with categories
+
+### Automation & Workflows
+- [x] Workflow automation engine
+- [x] Trigger-based email sequences
+- [x] Form builder for lead capture
+- [x] Webhook delivery system
+
+### Analytics & Monitoring
+- [x] Real-time analytics dashboard
+- [x] Prometheus metrics integration
+- [x] Delivery rate tracking
+- [x] Open/click rate analytics
+- [x] Campaign performance reports
+
+### AI Features
+- [x] Reply AI - Sentiment analysis
+- [x] Auto-response generation
+- [x] Priority detection for replies
+
+### Team & Access Management
+- [x] Organization management
+- [x] Department structure
+- [x] Team member invitations
+- [x] Role-based permissions
+- [x] Audit logging
+
+### Infrastructure
+- [x] Celery workers for async processing
+- [x] Auto-scaling workers (2-20 based on queue)
+- [x] PM2 process management
+- [x] Nginx reverse proxy with SSL
+- [x] Staging → Production deployment workflow
+
+### Frontend & UI
+- [x] Modern dashboard with Tailwind CSS
+- [x] Responsive landing pages
+- [x] Authentication system (login/register/forgot password)
+- [x] Local logo and favicon integration
+
+---
+
+## 📊 Performance Metrics
 ```
-Emails/second:  12,000+
-Emails/hour:    43.2 million
-Emails/day:     1.04 billion
-P95 Latency:    <50ms
-Uptime:         99.99%
-```
+Single Instance (16-core, 32GB):
+├─ Emails/second: 12,000+
+├─ Emails/hour: 43.2M
+├─ Emails/day: 1.04B
+├─ P95 Latency: 50ms
+└─ Uptime: 99.99%
 
-### Clustered Deployment (10 instances)
-```
-Emails/second:  120,000+
-Emails/hour:    432 million
-Emails/day:     10.3+ billion
-P99 Latency:    <150ms
-Throughput:     5Gbps+
-```
-
----
-
-## 🛠️ Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| **Backend** | Python 3.10+, Flask 2.3+ |
-| **Database** | PostgreSQL 13+ |
-| **Cache** | Redis 6+ |
-| **SMTP** | aiosmtpd (async) |
-| **Queue** | Redis Queue |
-| **Web Server** | Nginx |
-| **Process Manager** | PM2 |
-| **Frontend** | TailwindCSS, FontAwesome |
-| **Monitoring** | Prometheus, Grafana (optional) |
-
----
-
-## 📋 Prerequisites
-
-### System Requirements
-- **OS**: Ubuntu 20.04+ / Debian 11+ / CentOS 8+
-- **CPU**: 4+ cores (16+ recommended for production)
-- **RAM**: 8GB minimum (32GB+ recommended)
-- **Storage**: 100GB+ SSD
-- **Network**: 1Gbps+
-
-### Software Requirements
-```bash
-Python 3.10+
-PostgreSQL 13+
-Redis 6+
-Nginx 1.18+
-Node.js 16+ (for PM2)
-Git
+Current Staging Stats:
+├─ Total Contacts: 110,015
+├─ Total Campaigns: 24
+├─ Emails Sent: 110,047
+├─ Delivery Rate: 100%
+└─ Verified Domains: 1
 ```
 
 ---
 
-## 🚀 Installation
+## 💰 Cost Comparison
 
-### Method 1: Automated Installation (Recommended)
-```bash
-# 1. Clone the repository
-git clone https://github.com/iamcoderisk/babaforge.git
-cd babaforge
+| Solution | Monthly Cost (1M emails/day) | Annual Cost |
+|----------|------------------------------|-------------|
+| **SendBaba** | **$900** | **$10,800** |
+| SendGrid | $25,000 | $300,000 |
+| Mailgun | $20,000 | $240,000 |
+| Postal | $5,000 | $60,000 |
+| AWS SES | $1,000 | $12,000 |
 
-# 2. Run automated installer
-sudo bash install.sh
+**Annual Savings: $49,200 - $289,200**
 
-# 3. Configure environment
-sudo nano /opt/sendbaba-smtp/.env
+---
 
-# 4. Start services
-sudo systemctl start nginx
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
-
-# Done! Access at http://your-server-ip
+## 📁 Project Structure
 ```
+/opt/sendbaba-staging/          # Staging Environment
+/opt/sendbaba-smtp/             # Production Environment
 
-### Method 2: Manual Installation
-```bash
-# 1. Update system
-sudo apt update && sudo apt upgrade -y
-
-# 2. Install dependencies
-sudo apt install -y python3.10 python3-pip python3-venv \
-    postgresql postgresql-contrib redis-server nginx \
-    nodejs npm git curl
-
-# 3. Install PM2
-sudo npm install -g pm2
-
-# 4. Clone repository
-git clone https://github.com/iamcoderisk/babaforge.git
-cd babaforge
-
-# 5. Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# 6. Install Python packages
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# 7. Setup PostgreSQL
-sudo -u postgres psql << SQL
-CREATE DATABASE sendbaba;
-CREATE USER sendbaba WITH ENCRYPTED PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE sendbaba TO sendbaba;
-\q
-SQL
-
-# 8. Configure environment
-cp .env.example .env
-nano .env
-
-# 9. Initialize database
-flask db upgrade
-
-# 10. Create admin user
-python3 << PYTHON
-from app import create_app, db
-from app.models.user import User
-from app.models.organization import Organization
-
-app = create_app()
-with app.app_context():
-    org = Organization(name="Default Org")
-    db.session.add(org)
-    db.session.flush()
-    
-    admin = User(
-        email="admin@example.com",
-        organization_id=org.id
-    )
-    admin.set_password("changeme123")
-    db.session.add(admin)
-    db.session.commit()
-    print("✅ Admin user created: admin@example.com / changeme123")
-PYTHON
-
-# 11. Configure Nginx
-sudo nano /etc/nginx/sites-available/sendbaba
-
-# 12. Start services
-pm2 start run.py --name sendbaba-flask
-pm2 start worker.py --name sendbaba-worker
-pm2 save
-pm2 startup
-
-sudo systemctl restart nginx
-sudo systemctl restart redis
-sudo systemctl restart postgresql
+├── app/
+│   ├── __init__.py             # Flask app factory & blueprint registration
+│   ├── main.py                 # Application entry point
+│   │
+│   ├── controllers/            # Route handlers (blueprints)
+│   │   ├── admin_controller.py
+│   │   ├── analytics_controller.py
+│   │   ├── api_controller.py
+│   │   ├── auth_controller.py
+│   │   ├── billing_controller.py
+│   │   ├── bulk_send_controller.py
+│   │   ├── campaign_controller.py
+│   │   ├── contact_controller.py
+│   │   ├── dashboard_controller.py
+│   │   ├── domain_controller.py
+│   │   ├── email_builder_controller.py
+│   │   ├── form_controller.py
+│   │   ├── integration_controller.py
+│   │   ├── pricing_controller.py
+│   │   ├── reply_controller.py
+│   │   ├── segment_controller.py
+│   │   ├── settings_controller.py
+│   │   ├── team_controller.py
+│   │   ├── tracking_controller.py
+│   │   ├── warmup_controller.py
+│   │   ├── web_controller.py
+│   │   ├── webhook_controller.py
+│   │   └── workflow_controller.py
+│   │
+│   ├── models/                 # SQLAlchemy models
+│   │   ├── __init__.py
+│   │   ├── analytics.py
+│   │   ├── campaign.py
+│   │   ├── contact.py
+│   │   ├── contact_list.py
+│   │   ├── domain.py
+│   │   ├── email.py
+│   │   ├── email_template.py
+│   │   ├── email_tracking.py
+│   │   ├── email_validation.py
+│   │   ├── form.py
+│   │   ├── integration.py
+│   │   ├── ip_warmup.py
+│   │   ├── organization.py
+│   │   ├── payment.py
+│   │   ├── pricing.py
+│   │   ├── reply.py
+│   │   ├── segment.py
+│   │   ├── suppression.py
+│   │   ├── team.py
+│   │   ├── template.py
+│   │   ├── user.py
+│   │   └── workflow.py
+│   │
+│   ├── services/               # Business logic
+│   │   ├── autoscaler.py
+│   │   ├── batch_processor.py
+│   │   ├── dkim_service.py
+│   │   ├── email_service.py
+│   │   ├── email_tracker.py
+│   │   ├── email_validator.py
+│   │   ├── ip_warmup.py
+│   │   ├── korapay.py
+│   │   ├── queue_service.py
+│   │   ├── rate_limiter.py
+│   │   ├── reply_intelligence.py
+│   │   ├── segmentation.py
+│   │   ├── smtp_pool.py
+│   │   └── template_library.py
+│   │
+│   ├── smtp/                   # SMTP servers
+│   │   ├── bounce_receiver.py
+│   │   ├── relay_server.py
+│   │   └── submission_server.py
+│   │
+│   ├── workers/                # Celery workers
+│   │   ├── email_worker.py
+│   │   └── enhanced_email_worker.py
+│   │
+│   ├── templates/              # Jinja2 templates
+│   │   ├── univ.html           # Base template for landing pages
+│   │   ├── index.html
+│   │   ├── about.html
+│   │   ├── contact.html
+│   │   ├── features.html
+│   │   ├── pricing.html
+│   │   ├── docs.html
+│   │   │
+│   │   ├── auth/
+│   │   │   ├── login.html
+│   │   │   ├── register.html
+│   │   │   └── forgot_password.html
+│   │   │
+│   │   ├── dashboard/
+│   │   │   ├── base.html       # Dashboard base template
+│   │   │   ├── index.html
+│   │   │   ├── campaigns/
+│   │   │   ├── contacts/
+│   │   │   └── ...
+│   │   │
+│   │   └── components/
+│   │       ├── navbar.html
+│   │       └── footer.html
+│   │
+│   └── static/
+│       ├── css/
+│       │   ├── dashboard.css
+│       │   └── landing.css
+│       ├── js/
+│       │   ├── dashboard.js
+│       │   └── landing.js
+│       └── images/
+│           ├── logo.png
+│           ├── favicon.ico
+│           ├── favicon.svg
+│           ├── favicon-96x96.png
+│           ├── apple-touch-icon.png
+│           └── site.webmanifest
+│
+├── run.py                      # Staging entry (port 5001)
+├── run_production.py           # Production entry (port 5000)
+├── config.py                   # Configuration
+├── celery_app.py               # Celery configuration
+├── requirements.txt            # Python dependencies
+└── README.md                   # This file
 ```
 
 ---
 
-## 🖥️ Complete Server Setup Guide
+## 🔧 Server Configuration
 
-### Step-by-Step Production Setup
-
-#### 1. **Initial Server Configuration**
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Set hostname
-sudo hostmail.yourdomain.com
-sudo nano /etc/hosts
-# Add: 127.0.0.1 mail.yourdomain.com
-
-# Configure firewall
-sudo ufw allow 22/tcp
-sudo ufw allow 25/tcp
-sudo ufw allow 587/tcp
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-
-# Check firewall status
-sudo ufw status
+### Database
+```
+Host: localhost (127.0.0.1)
+Port: 5432
+Database: emailer
+Username: emailer
+Password: SecurePassword123
 ```
 
-#### 2. **Install Core Dependencies**
-```bash
-# Python
-sudo apt install -y python3.10 python3.10-venv python3-pip python3-dev build-essential
-
-# PostgreSQL
-sudo apt install -y postgresql postgresql-contrib libpq-dev
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Redis
-sudo apt install -y redis-server
-sudo systemctl start redis
-sudo systemctl enable redis
-
-# Nginx
-sudo apt install -y nginx
-sudo systemctl start nginx
-sudo systemctl enable nginx
-
-# Node.js & PM2
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
-sudo npm install -g pm2
-
-# Git
-sudo apt install -y git
-
-# Check versions
-python3 --version
-psql --version
-redis-cli --version
-nginx -v
-node --version
-pm2 --version
-git --version
+### Redis
+```
+Host: localhost
+Port: 6379
 ```
 
-#### 3. **Database Setup**
-```bash
-# Switch to postgres user
-sudo -u postgres psql
-
-# In PostgreSQL prompt:
-CREATE DATABASE sendbaba;
-CREATE USER sendbaba WITH ENCRYPTED PASSWORD 'YourSecurePassword123!';
-GRANT ALL PRIVILEGES ON DATABASE sendbaba TO sendbaba;
-ALTER USER sendbaba CREATEDB;
-\l
-\du
-\q
-
-# Test connection
-psql -h localhost -U sendbaba -d sendbaba
-# Enter password when prompted
-# \q to exit
-
-# Configure PostgreSQL for remote access (if needed)
-sudo nano /etc/postgresql/13/main/postgresql.conf
-# Find and set: listen_addresses = '*'
-
-sudo nano /etc/postgresql/13/main/pg_hba.conf
-# Add: host all all 0.0.0.0/0 md5
-
-sudo systemctl restart postgresql
+### Ports
+```
+5000 - Production (sendbaba.com)
+5001 - Staging (playmaster.sendbaba.com)
+5555 - Celery Flower (monitoring)
 ```
 
-#### 4. **Redis Configuration**
-```bash
-# Edit Redis config
-sudo nano /etc/redis/redis.conf
-
-# Important settings:
-# maxmemory 2gb
-# maxmemory-policy allkeys-lru
-# save 900 1
-# save 300 10
-
-# Restart Redis
-sudo systemctl restart redis
-
-# Test Redis
-redis-cli ping
-# Should return: PONG
-
-# Check Redis info
-redis-cli info server
-redis-cli info memory
+### PM2 Processes
+```
+sendbaba-smtp     - Production Flask app (port 5000)
+sendbaba-staging  - Staging Flask app (port 5001)
+celery-high       - High priority email worker
+celery-default    - Default email worker
+celery-bulk       - Bulk email worker
+celery-beat       - Scheduled tasks
+celery-flower     - Worker monitoring UI
 ```
 
-#### 5. **Application Deployment**
+---
+
+## 🚀 Commands Reference
+
+### Workflow Management (Staging → Production)
 ```bash
-# Create application directory
-sudo mkdir -p /opt/sendbaba-smtp
-sudo chown $USER:$USER /opt/sendbaba-smtp
-cd /opt/sendbaba-smtp
+# Check status of both environments
+workflow status
 
-# Clone repository
-git clone https://github.com/iamcoderisk/babaforge.git .
+# Commit changes in staging
+workflow commit
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+# Sync staging to production (with backup)
+workflow sync
 
-# Install dependencies
-pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
+# View production logs
+workflow logs
 
-# Verify installations
-pip list | grep Flask
-pip list | grep psycopg2
-pip list | grep redis
+# Restart production
+workflow restart
 ```
 
-#### 6. **Environment Configuration**
+### PM2 Commands
 ```bash
-# Create .env file
-cat > .env << 'ENVFILE'
-# Flask
-FLASK_APP=run.py
-FLASK_ENV=production
-SECRET_KEY=your-random-secret-key-here-change-this
+# List all processes
+pm2 list
 
-# Database
-DATABASE_URL=postgresql://sendbaba:YourSecurePassword123!@localhost/sendbaba
+# Start all stopped processes
+pm2 start all
 
-# Redis
-REDIS_URL=redis://localhost:6379/0
+# Stop all processes
+pm2 stop all
 
-# SMTP
-SMTP_HOST=0.0.0.0
-SMTP_PORT=25
-SMTP_TLS_PORT=587
+# Restart specific process
+pm2 restart sendbaba-smtp
 
-# Application
-APP_NAME=SendBaba
-APP_URL=https://yourdomain.com
+# View logs
+pm2 logs sendbaba-smtp --lines 50
 
-# Email
-MAIL_FROM=noreply@yourdomain.com
+# Monitor processes
+pm2 monit
 
-# Security
-SESSION_COOKIE_SECURE=True
-REMEMBER_COOKIE_SECURE=True
-ENVFILE
-
-# Generate secret key
-python3 -c "import secrets; print(secrets.token_hex(32))"
-# Copy output and update SECRET_KEY in .env
-
-# Secure .env file
-chmod 600 .env
-```
-
-#### 7. **Database Initialization**
-```bash
-# Activate virtual environment
-source /opt/sendbaba-smtp/venv/bin/activate
-
-# Initialize database
-cd /opt/sendbaba-smtp
-flask db upgrade
-
-# Verify tables created
-psql -h localhost -U sendbaba -d sendbaba -c "\dt"
-
-# Create admin user
-python3 << 'PYTHON'
-from app import create_app, db
-from app.models.user import User
-from app.models.organization import Organization
-
-app = create_app()
-with app.app_context():
-    # Create organization
-    org = Organization(name="Default Organization")
-    db.session.add(org)
-    db.session.flush()
-    
-    # Create admin user
-    admin = User(
-        email="admin@yourdomain.com",
-        organization_id=org.id
-    )
-    admin.set_password("ChangeThisPassword123!")
-    db.session.add(admin)
-    db.session.commit()
-    
-    print(f"✅ Admin created: admin@yourdomain.com")
-    print(f"📧 Organization ID: {org.id}")
-PYTHON
-```
-
-#### 8. **Nginx Configuration**
-```bash
-# Create Nginx config
-sudo nano /etc/nginx/sites-available/sendbaba
-
-# Add this configuration:
-```
-```nginx
-upstream sendbaba_flask {
-    server 127.0.0.1:5000;
-    server 127.0.0.1:5001;
-    server 127.0.0.1:5002;
-}
-
-server {
-    listen 80;
-    server_name yourdomain.com www.yourdomain.com;
-    
-    client_max_body_size 50M;
-    
-    location / {
-        proxy_pass http://sendbaba_flask;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_connect_timeout 300;
-        proxy_send_timeout 300;
-        proxy_read_timeout 300;
-    }
-    
-    location /static {
-        alias /opt/sendbaba-smtp/app/static;
-        expires 30d;
-    }
-}
-```
-```bash
-# Enable site
-sudo ln -s /etc/nginx/sites-available/sendbaba /etc/nginx/sites-enabled/
-
-# Test Nginx configuration
-sudo nginx -t
-
-# Restart Nginx
-sudo systemctl restart nginx
-
-# Check Nginx status
-sudo systemctl status nginx
-```
-
-#### 9. **SSL/TLS Setup (Let's Encrypt)**
-```bash
-# Install Certbot
-sudo apt install -y certbot python3-certbot-nginx
-
-# Obtain certificate
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
-
-# Test renewal
-sudo certbot renew --dry-run
-
-# Auto-renewal is set up automatically
-```
-
-#### 10. **PM2 Process Management**
-```bash
-# Create PM2 ecosystem file
-cat > /opt/sendbaba-smtp/ecosystem.config.js << 'JS'
-module.exports = {
-  apps: [
-    {
-      name: 'sendbaba-flask',
-      script: '/opt/sendbaba-smtp/venv/bin/python',
-      args: '/opt/sendbaba-smtp/run.py',
-      instances: 3,
-      exec_mode: 'cluster',
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '1G',
-      env: {
-        FLASK_ENV: 'production',
-        PORT: 5000
-      }
-    },
-    {
-      name: 'sendbaba-worker',
-      script: '/opt/sendbaba-smtp/venv/bin/python',
-      args: '/opt/sendbaba-smtp/worker.py',
-      instances: 5,
-      exec_mode: 'cluster',
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '1G'
-    }
-  ]
-};
-JS
-
-# Start applications
-cd /opt/sendbaba-smtp
-pm2 start ecosystem.config.js
-
-# Save PM2 configuration
+# Save current process list
 pm2 save
 
-# Setup PM2 startup script
+# Startup script (auto-start on reboot)
 pm2 startup
-# Run the command it suggests
+```
+
+### Celery Commands
+```bash
+# Start Celery worker
+celery -A celery_app worker --loglevel=info
+
+# Start Celery beat (scheduler)
+celery -A celery_app beat --loglevel=info
+
+# Start Flower (monitoring)
+celery -A celery_app flower --port=5555
+
+# Purge all tasks
+celery -A celery_app purge
+```
+
+### Database Commands
+```bash
+# Connect to PostgreSQL
+PGPASSWORD=SecurePassword123 psql -h 127.0.0.1 -U emailer emailer
+
+# Backup database
+PGPASSWORD=SecurePassword123 pg_dump -h 127.0.0.1 -U emailer emailer > backup.sql
+
+# Restore database
+PGPASSWORD=SecurePassword123 psql -h 127.0.0.1 -U emailer emailer < backup.sql
+
+# Quick queries
+PGPASSWORD=SecurePassword123 psql -h 127.0.0.1 -U emailer emailer -c "SELECT COUNT(*) FROM contacts;"
+PGPASSWORD=SecurePassword123 psql -h 127.0.0.1 -U emailer emailer -c "SELECT COUNT(*) FROM campaigns;"
+PGPASSWORD=SecurePassword123 psql -h 127.0.0.1 -U emailer emailer -c "SELECT COUNT(*) FROM emails;"
+```
+
+### Nginx Commands
+```bash
+# Test configuration
+nginx -t
+
+# Reload nginx
+systemctl reload nginx
+
+# View nginx error logs
+tail -f /var/log/nginx/error.log
+```
+
+### Git Commands (Staging)
+```bash
+cd /opt/sendbaba-staging
 
 # Check status
-pm2 status
-pm2 logs
-pm2 monit
+git status
+
+# View recent commits
+git log --oneline -10
+
+# Add and commit changes
+git add -A
+git commit -m "Your message"
+
+# View diff
+git diff
+```
+
+### File Management
+```bash
+# Upload file from local Mac to server
+scp /path/to/file.png root@156.67.29.186:/opt/sendbaba-staging/app/static/images/
+
+# Copy staging to production
+cp -r /opt/sendbaba-staging/app/templates/* /opt/sendbaba-smtp/app/templates/
+
+# Find files
+find /opt/sendbaba-staging -name "*.html" -type f
+
+# Delete backup files
+find /opt/sendbaba-staging -name "*.backup*" -type f -delete
+```
+
+### Health Checks
+```bash
+# Check staging
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5001/
+
+# Check production
+curl -s -o /dev/null -w "%{http_code}\n" https://sendbaba.com/
+
+# Check all routes
+curl -s -o /dev/null -w "Index: %{http_code}\n" https://sendbaba.com/
+curl -s -o /dev/null -w "About: %{http_code}\n" https://sendbaba.com/about
+curl -s -o /dev/null -w "Contact: %{http_code}\n" https://sendbaba.com/contact
+curl -s -o /dev/null -w "Features: %{http_code}\n" https://sendbaba.com/features
+curl -s -o /dev/null -w "Pricing: %{http_code}\n" https://sendbaba.com/pricing
+curl -s -o /dev/null -w "Docs: %{http_code}\n" https://sendbaba.com/docs
+curl -s -o /dev/null -w "Login: %{http_code}\n" https://sendbaba.com/login
+curl -s -o /dev/null -w "Dashboard: %{http_code}\n" https://sendbaba.com/dashboard/
 ```
 
 ---
 
-## 🔍 Monitoring & Health Checks
+## 🔐 API Endpoints
 
-### Check All Services
-```bash
-# System status script
-cat > /opt/sendbaba-smtp/check_status.sh << 'BASH'
-#!/bin/bash
-
-echo "======================================"
-echo "🔍 SENDBABA SYSTEM STATUS CHECK"
-echo "======================================"
-echo ""
-
-# Check Nginx
-echo "📡 Nginx Status:"
-sudo systemctl is-active nginx && echo "✅ Running" || echo "❌ Stopped"
-curl -I http://localhost 2>&1 | grep "HTTP" || echo "❌ Not responding"
-echo ""
-
-# Check PostgreSQL
-echo "🗄️  PostgreSQL Status:"
-sudo systemctl is-active postgresql && echo "✅ Running" || echo "❌ Stopped"
-psql -h localhost -U sendbaba -d sendbaba -c "SELECT version();" 2>&1 | grep PostgreSQL && echo "✅ Connected" || echo "❌ Connection failed"
-echo ""
-
-# Check Redis
-echo "💾 Redis Status:"
-sudo systemctl is-active redis && echo "✅ Running" || echo "❌ Stopped"
-redis-cli ping 2>&1 | grep PONG && echo "✅ Responding" || echo "❌ Not responding"
-echo ""
-
-# Check PM2
-echo "⚙️  PM2 Applications:"
-pm2 status
-echo ""
-
-# Check disk space
-echo "💿 Disk Usage:"
-df -h / | tail -1
-echo ""
-
-# Check memory
-echo "🧠 Memory Usage:"
-free -h
-echo ""
-
-# Check network
-echo "🌐 Network Ports:"
-sudo netstat -tulpn | grep -E ':(80|443|25|587|5000|6379|5432)'
-echo ""
-
-# Check recent logs
-echo "📋 Recent Errors (last 10):"
-pm2 logs --err --lines 10 --nostream
-echo ""
-
-echo "======================================"
-echo "✅ Status check complete!"
-echo "======================================"
-BASH
-
-chmod +x /opt/sendbaba-smtp/check_status.sh
-
-# Run status check
-bash /opt/sendbaba-smtp/check_status.sh
+### Authentication
+```
+POST /auth/login          - User login
+POST /auth/register       - User registration
+POST /auth/logout         - User logout
+POST /auth/forgot-password - Password reset request
 ```
 
-### Individual Service Checks
-```bash
-# Check Flask application
-curl -I http://localhost:5000/
+### Campaigns
+```
+GET  /dashboard/campaigns       - List campaigns
+GET  /dashboard/campaigns/create - Create campaign form
+POST /dashboard/campaigns/create - Create campaign
+GET  /dashboard/campaigns/<id>   - View campaign
+POST /dashboard/campaigns/<id>/send - Send campaign
+```
 
-# Check database connections
-psql -h localhost -U sendbaba -d sendbaba -c "SELECT count(*) FROM users;"
+### Contacts
+```
+GET  /dashboard/contacts         - List contacts
+POST /dashboard/contacts/import  - Import CSV
+GET  /dashboard/contacts/lists   - Contact lists
+POST /dashboard/contacts/lists   - Create list
+```
 
-# Check Redis
-redis-cli INFO stats
-redis-cli DBSIZE
+### API (Programmatic Access)
+```
+POST /api/v1/send           - Send single email
+POST /api/v1/send-bulk      - Send bulk emails
+GET  /api/v1/campaigns      - List campaigns
+POST /api/v1/campaigns      - Create campaign
+GET  /api/v1/contacts       - List contacts
+POST /api/v1/contacts       - Add contact
+```
 
-# Check email queue
-redis-cli LLEN outgoing_10
-
-# Check PM2 logs
-pm2 logs sendbaba-flask --lines 50
-pm2 logs sendbaba-worker --lines 50
-
-# Check system resources
-htop
-iotop
-netstat -an | grep :25
-netstat -an | grep :587
-
-# Check disk I/O
-iostat -x 1
-
-# Check PostgreSQL performance
-psql -h localhost -U sendbaba -d sendbaba -c "
-SELECT schemaname, tablename, n_live_tup 
-FROM pg_stat_user_tables 
-ORDER BY n_live_tup DESC;
-"
-
-# Check email statistics
-psql -h localhost -U sendbaba -d sendbaba -c "
-SELECT status, COUNT(*) 
-FROM emails 
-GROUP BY status;
-"
+### Webhooks
+```
+POST /webhooks/bounce       - Bounce notifications
+POST /webhooks/complaint    - Complaint notifications
+POST /webhooks/delivery     - Delivery notifications
 ```
 
 ---
 
-## 🔧 Configuration
+## 📧 Email Sending Example
 
-### DNS Records
+### Via Dashboard
+1. Go to Dashboard → Campaigns → Create
+2. Fill in campaign details
+3. Select contact list
+4. Design email with builder
+5. Send or schedule
 
-Add these records to your domain:
-```dns
-# MX Record
-MX      @       10      mail.yourdomain.com.
-
-# A Record
-A       mail    YOUR_SERVER_IP
-
-# SPF Record
-TXT     @       v=spf1 mx ip4:YOUR_SERVER_IP ~all
-
-# DMARC Record
-TXT     _dmarc  v=DMARC1; p=quarantine; rua=mailto:dmarc@yourdomain.com
-
-# DKIM Record (generated by application)
-TXT     default._domainkey      v=DKIM1; k=rsa; p=YOUR_PUBLIC_KEY
-```
-
-### Verify DNS
+### Via API (cURL)
 ```bash
-# Check MX records
-dig MX yourdomain.com +short
-
-# Check SPF
-dig TXT yourdomain.com +short | grep spf
-
-# Check DMARC
-dig TXT _dmarc.yourdomain.com +short
-
-# Check DKIM
-dig TXT default._domainkey.yourdomain.com +short
-```
-
----
-
-## 🎯 Usage
-
-### Web Interface
-
-1. Navigate to `https://yourdomain.com`
-2. Login with admin credentials
-3. Access dashboard at `/dashboard`
-
-### API Usage
-
-#### Send Single Email
-```bash
-curl -X POST https://yourdomain.com/api/send-email \
-  -H "X-API-Key: your-api-key" \
+curl -X POST https://sendbaba.com/api/v1/send \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "to": "recipient@example.com",
-    "from": "sender@yourdomain.com",
-    "subject": "Test Email",
-    "html_body": "<h1>Hello World!</h1>"
+    "to": "user@example.com",
+    "subject": "Hello from SendBaba!",
+    "html": "<h1>Welcome!</h1><p>Thanks for signing up.</p>",
+    "from_email": "noreply@yourdomain.com",
+    "from_name": "Your Company"
   }'
 ```
 
-#### Send Bulk Campaign
-```bash
-curl -X POST https://yourdomain.com/api/campaigns/bulk-send \
-  -H "X-API-Key: your-api-key" \
-  -F "campaign_name=Newsletter" \
-  -F "subject=Monthly Update" \
-  -F "body=<p>Hello {{first_name}}</p>" \
-  -F "contact_ids=[1,2,3,4,5]"
-```
+### Via Python
+```python
+import requests
 
-#### Get Campaign Stats
-```bash
-curl -X GET https://yourdomain.com/api/campaigns/1/stats \
-  -H "X-API-Key: your-api-key"
+response = requests.post(
+    "https://sendbaba.com/api/v1/send",
+    headers={"Authorization": "Bearer YOUR_API_KEY"},
+    json={
+        "to": "user@example.com",
+        "subject": "Hello from SendBaba!",
+        "html": "<h1>Welcome!</h1>"
+    }
+)
+print(response.json())
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## 🛠️ Troubleshooting
 
-### Common Issues
-
-#### 1. Emails Not Sending
+### Production showing 502 error
 ```bash
-# Check worker is running
-pm2 status | grep worker
+# Check if PM2 process is running
+pm2 list
 
-# Check queue
-redis-cli LLEN outgoing_10
+# Check logs for errors
+pm2 logs sendbaba-smtp --lines 50
 
-# Check logs
-pm2 logs sendbaba-worker --lines 100
+# Restart production
+pm2 restart sendbaba-smtp
 
-# Restart worker
-pm2 restart sendbaba-worker
+# If run_production.py is missing
+cat > /opt/sendbaba-smtp/run_production.py << 'PYEOF'
+from app import create_app
+app = create_app()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
+PYEOF
+pm2 restart sendbaba-smtp
 ```
 
-#### 2. Database Connection Errors
+### Routes returning 404
 ```bash
-# Test connection
-psql -h localhost -U sendbaba -d sendbaba
+# Check if blueprint is registered
+grep -E "web_controller|web_bp" /opt/sendbaba-staging/app/__init__.py
 
-# Check PostgreSQL logs
-sudo tail -f /var/log/postgresql/postgresql-13-main.log
+# Add to blueprints list if missing
+# Look for the blueprints = [...] list and add:
+# ('web_controller', 'web_bp', 'Web'),
+```
+
+### Port already in use
+```bash
+# Find process using port
+fuser 5000/tcp
+fuser 5001/tcp
+
+# Kill process
+fuser -k 5000/tcp
+```
+
+### Database connection issues
+```bash
+# Check PostgreSQL status
+systemctl status postgresql
 
 # Restart PostgreSQL
-sudo systemctl restart postgresql
+systemctl restart postgresql
+
+# Test connection
+PGPASSWORD=SecurePassword123 psql -h 127.0.0.1 -U emailer emailer -c "SELECT 1;"
 ```
 
-#### 3. Redis Connection Errors
+### Celery workers not processing
 ```bash
-# Test Redis
+# Check Redis
 redis-cli ping
 
-# Check Redis logs
-sudo tail -f /var/log/redis/redis-server.log
+# Restart all Celery workers
+pm2 restart celery-high celery-default celery-bulk celery-beat
 
-# Restart Redis
-sudo systemctl restart redis
-```
-
-#### 4. Nginx Errors
-```bash
-# Check Nginx logs
-sudo tail -f /var/log/nginx/error.log
-sudo tail -f /var/log/nginx/access.log
-
-# Test configuration
-sudo nginx -t
-
-# Restart Nginx
-sudo systemctl restart nginx
-```
-
-#### 5. High Memory Usage
-```bash
-# Check memory
-free -h
-
-# Check PM2 apps
-pm2 monit
-
-# Restart apps
-pm2 restart all
-
-# Clear Redis if needed
-redis-cli FLUSHDB
+# Check Flower UI at port 5555
 ```
 
 ---
 
-## 📈 Scaling
+## 📝 Development Workflow
 
-### Horizontal Scaling
-```bash
-# Add more Flask instances
-pm2 scale sendbaba-flask +3
+1. **Make changes in staging** (`/opt/sendbaba-staging`)
+2. **Test on staging** (http://playmaster.sendbaba.com)
+3. **Commit changes**: `workflow commit`
+4. **Deploy to production**: `workflow sync`
+5. **Verify production**: https://sendbaba.com
 
-# Add more workers
-pm2 scale sendbaba-worker +5
+---
 
-# Check status
-pm2 status
+## 🏗️ Architecture
 ```
-
-### Database Optimization
-```bash
-# PostgreSQL tuning
-sudo nano /etc/postgresql/13/main/postgresql.conf
-
-# Recommended settings for production:
-shared_buffers = 4GB
-effective_cache_size = 12GB
-maintenance_work_mem = 1GB
-checkpoint_completion_target = 0.9
-wal_buffers = 16MB
-default_statistics_target = 100
-random_page_cost = 1.1
-effective_io_concurrency = 200
-work_mem = 10MB
-min_wal_size = 1GB
-max_wal_size = 4GB
-max_worker_processes = 8
-max_parallel_workers_per_gather = 4
-max_parallel_workers = 8
-
-# Restart PostgreSQL
-sudo systemctl restart postgresql
+                    ┌─────────────────────────────────────────┐
+                    │              NGINX (SSL)                │
+                    │         (sendbaba.com:443)              │
+                    └──────────────┬──────────────────────────┘
+                                   │
+                    ┌──────────────┴──────────────┐
+                    │                             │
+            ┌───────▼───────┐           ┌────────▼────────┐
+            │  Flask App    │           │  Flask App      │
+            │  Production   │           │  Staging        │
+            │  (Port 5000)  │           │  (Port 5001)    │
+            └───────┬───────┘           └────────┬────────┘
+                    │                            │
+        ┌───────────┴───────────┐               │
+        │                       │               │
+┌───────▼───────┐    ┌─────────▼─────────┐     │
+│  PostgreSQL   │    │      Redis        │     │
+│  (emailer)    │    │  (cache/queue)    │     │
+└───────────────┘    └─────────┬─────────┘     │
+                               │               │
+                    ┌──────────▼──────────┐    │
+                    │   Celery Workers    │    │
+                    │  (high/default/bulk)│    │
+                    └──────────┬──────────┘    │
+                               │               │
+                    ┌──────────▼──────────┐    │
+                    │   SMTP Relay        │    │
+                    │   (Gmail/Custom)    │    │
+                    └─────────────────────┘    │
 ```
 
 ---
 
-## 🔐 Security
-
-### Security Checklist
-```bash
-# 1. Change default passwords
-# 2. Enable UFW firewall
-# 3. Setup SSL/TLS
-# 4. Disable root SSH login
-# 5. Use SSH keys
-# 6. Keep system updated
-# 7. Configure fail2ban
-
-# Install fail2ban
-sudo apt install -y fail2ban
-
-# Configure fail2ban
-sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-sudo nano /etc/fail2ban/jail.local
-
-# Restart fail2ban
-sudo systemctl restart fail2ban
-sudo fail2ban-client status
+## 👥 Organization Info
 ```
-
----
-
-## 📚 Additional Commands
-
-### Backup
-```bash
-# Backup database
-pg_dump -h localhost -U sendbaba sendbaba > backup_$(date +%Y%m%d).sql
-
-# Backup Redis
-redis-cli SAVE
-cp /var/lib/redis/dump.rdb backup_redis_$(date +%Y%m%d).rdb
-
-# Backup application
-tar -czf backup_app_$(date +%Y%m%d).tar.gz /opt/sendbaba-smtp
+Organization ID: 34101503-860d-427d-9344-6a00ed732bda
+Primary User: prince.ekeminy@gmail.com
+Server IP: 156.67.29.186
 ```
-
-### Restore
-```bash
-# Restore database
-psql -h localhost -U sendbaba sendbaba < backup_20250103.sql
-
-# Restore Redis
-sudo systemctl stop redis
-sudo cp backup_redis_20250103.rdb /var/lib/redis/dump.rdb
-sudo chown redis:redis /var/lib/redis/dump.rdb
-sudo systemctl start redis
-```
-
-### Logs
-```bash
-# View all logs
-pm2 logs
-
-# View specific app logs
-pm2 logs sendbaba-flask
-pm2 logs sendbaba-worker
-
-# View system logs
-journalctl -u nginx -f
-journalctl -u postgresql -f
-journalctl -u redis -f
-
-# Clear PM2 logs
-pm2 flush
-```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
 
 ---
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+Proprietary - SendBaba © 2024
 
 ---
 
-## 🆘 Support
+## 🙏 Credits
 
-- **Issues**: https://github.com/iamcoderisk/babaforge/issues
-- **Documentation**: https://github.com/iamcoderisk/babaforge/wiki
-- **Email**: support@yourdomain.com
+Built with:
+- Python 3.10+
+- Flask
+- PostgreSQL
+- Redis
+- Celery
+- Tailwind CSS
+- Font Awesome
 
 ---
 
-## 🎉 Credits
-
-Built with ❤️ by the BabaForge Team
-
-**Star ⭐ this repository if you find it useful!**
-
+*Last Updated: December 2, 2025*
