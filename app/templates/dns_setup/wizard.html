@@ -1,248 +1,264 @@
-{% extends "base.html" %}
+{% extends "dashboard/base.html" %}
 
-{% block title %}DNS Setup Wizard - sendbaba.com{% endblock %}
+{% block title %}DNS Setup Wizard - SendBaba{% endblock %}
+{% block page_title %}DNS Setup Wizard{% endblock %}
+{% block page_subtitle %}Generate and configure DNS records for email authentication{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h2><i class="fas fa-magic"></i> DNS Setup Wizard for sendbaba.com</h2>
-        <p class="lead">Generate and configure DNS records for email authentication</p>
+<div class="max-w-4xl mx-auto">
+    <!-- DKIM Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-key text-white"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Step 1: DKIM Configuration</h2>
+                <p class="text-sm text-gray-500">Digitally sign your emails to prove authenticity</p>
+            </div>
+        </div>
+        
+        <button class="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:shadow-lg transition" id="generate-dkim">
+            <i class="fas fa-magic mr-2"></i>Generate DKIM Keys
+        </button>
+        
+        <div id="dkim-result" class="mt-6 hidden">
+            <div class="p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
+                <div class="flex items-center gap-2 text-green-700">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>DKIM Keys Generated Successfully!</strong>
+                </div>
+            </div>
+            
+            <p class="font-semibold text-gray-700 mb-3"><i class="fas fa-arrow-right text-orange-500 mr-2"></i>Add this TXT record to your DNS:</p>
+            <div class="overflow-x-auto">
+                <table class="w-full border border-gray-200 rounded-xl overflow-hidden">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name/Host</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Value</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">TTL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dkim-record"></tbody>
+                </table>
+            </div>
+            
+            <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <p class="font-semibold text-blue-800 mb-2">How to add this record:</p>
+                <ol class="text-blue-700 text-sm space-y-1 list-decimal list-inside">
+                    <li>Log in to your DNS provider (GoDaddy, Namecheap, Cloudflare, etc.)</li>
+                    <li>Go to DNS Management for your domain</li>
+                    <li>Add a new TXT record with the values shown above</li>
+                    <li>Wait 5-10 minutes for DNS propagation</li>
+                </ol>
+            </div>
+            
+            <button class="mt-4 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition" id="verify-dkim">
+                <i class="fas fa-check mr-2"></i>Verify DKIM Record
+            </button>
+            <div id="dkim-verify-result" class="mt-3"></div>
+        </div>
     </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <!-- DKIM Section -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5><i class="fas fa-key"></i> Step 1: DKIM Configuration</h5>
+    <!-- SPF Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-shield-alt text-white"></i>
             </div>
-            <div class="card-body">
-                <p>DKIM (DomainKeys Identified Mail) digitally signs your emails to prove they came from your domain.</p>
-                
-                <button class="btn btn-primary btn-lg" id="generate-dkim">
-                    <i class="fas fa-magic"></i> Generate DKIM Keys
-                </button>
-                
-                <div id="dkim-result" class="mt-4" style="display:none;">
-                    <div class="alert alert-success">
-                        <strong>✓ DKIM Keys Generated Successfully!</strong>
-                    </div>
-                    
-                    <h6><i class="fas fa-arrow-right"></i> Add this TXT record to your DNS:</h6>
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Name/Host</th>
-                                    <th>Value</th>
-                                    <th>TTL</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dkim-record">
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="alert alert-info">
-                        <strong>How to add this record:</strong>
-                        <ol>
-                            <li>Log in to your DNS provider (GoDaddy, Namecheap, Cloudflare, etc.)</li>
-                            <li>Go to DNS Management for sendbaba.com</li>
-                            <li>Add a new TXT record with the values shown above</li>
-                            <li>Wait 5-10 minutes for DNS propagation</li>
-                        </ol>
-                    </div>
-                    
-                    <button class="btn btn-success" id="verify-dkim">
-                        <i class="fas fa-check"></i> Verify DKIM Record
-                    </button>
-                    <div id="dkim-verify-result" class="mt-2"></div>
-                </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Step 2: SPF Configuration</h2>
+                <p class="text-sm text-gray-500">Specify which servers can send email for your domain</p>
             </div>
         </div>
-
-        <!-- SPF Section -->
-        <div class="card mb-4">
-            <div class="card-header bg-success text-white">
-                <h5><i class="fas fa-shield-alt"></i> Step 2: SPF Configuration</h5>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Your Sending IP Address:</label>
+            <input type="text" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-gray-50" id="spf-ip" value="156.67.29.186" readonly>
+        </div>
+        
+        <button class="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg transition" id="generate-spf">
+            <i class="fas fa-magic mr-2"></i>Generate SPF Record
+        </button>
+        
+        <div id="spf-result" class="mt-6 hidden">
+            <div class="p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
+                <div class="flex items-center gap-2 text-green-700">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>SPF Record Generated!</strong>
+                </div>
             </div>
-            <div class="card-body">
-                <p>SPF (Sender Policy Framework) specifies which servers can send email for your domain.</p>
-                
-                <div class="mb-3">
-                    <label>Your Sending IP Address:</label>
-                    <input type="text" class="form-control" id="spf-ip" value="156.67.29.186" readonly>
-                </div>
-                
-                <button class="btn btn-success btn-lg" id="generate-spf">
-                    <i class="fas fa-magic"></i> Generate SPF Record
-                </button>
-                
-                <div id="spf-result" class="mt-4" style="display:none;">
-                    <div class="alert alert-success">
-                        <strong>✓ SPF Record Generated!</strong>
-                    </div>
-                    
-                    <h6><i class="fas fa-arrow-right"></i> Add this TXT record to your DNS:</h6>
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Name/Host</th>
-                                    <th>Value</th>
-                                    <th>TTL</th>
-                                </tr>
-                            </thead>
-                            <tbody id="spf-record">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            
+            <p class="font-semibold text-gray-700 mb-3"><i class="fas fa-arrow-right text-orange-500 mr-2"></i>Add this TXT record to your DNS:</p>
+            <div class="overflow-x-auto">
+                <table class="w-full border border-gray-200 rounded-xl overflow-hidden">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name/Host</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Value</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">TTL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spf-record"></tbody>
+                </table>
             </div>
         </div>
+    </div>
 
-        <!-- DMARC Section -->
-        <div class="card mb-4">
-            <div class="card-header bg-warning text-dark">
-                <h5><i class="fas fa-lock"></i> Step 3: DMARC Configuration</h5>
+    <!-- DMARC Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-lock text-white"></i>
             </div>
-            <div class="card-body">
-                <p>DMARC tells receivers what to do with emails that fail SPF/DKIM checks.</p>
-                
-                <div class="mb-3">
-                    <label>Policy:</label>
-                    <select class="form-select" id="dmarc-policy">
-                        <option value="none">None - Monitor only (recommended for testing)</option>
-                        <option value="quarantine" selected>Quarantine - Send suspicious emails to spam</option>
-                        <option value="reject">Reject - Block unauthenticated emails</option>
-                    </select>
-                </div>
-                
-                <button class="btn btn-warning btn-lg" id="generate-dmarc">
-                    <i class="fas fa-magic"></i> Generate DMARC Record
-                </button>
-                
-                <div id="dmarc-result" class="mt-4" style="display:none;">
-                    <div class="alert alert-success">
-                        <strong>✓ DMARC Record Generated!</strong>
-                    </div>
-                    
-                    <h6><i class="fas fa-arrow-right"></i> Add this TXT record to your DNS:</h6>
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Name/Host</th>
-                                    <th>Value</th>
-                                    <th>TTL</th>
-                                </tr>
-                            </thead>
-                            <tbody id="dmarc-record">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Step 3: DMARC Configuration</h2>
+                <p class="text-sm text-gray-500">Tell receivers what to do with unauthenticated emails</p>
             </div>
         </div>
-
-        <!-- MX & A Records -->
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white">
-                <h5><i class="fas fa-server"></i> Step 4: MX and A Records</h5>
-            </div>
-            <div class="card-body">
-                <p>These records tell the internet where your mail server is located.</p>
-                
-                <h6><i class="fas fa-arrow-right"></i> Add these records to your DNS:</h6>
-                
-                <div class="table-responsive">
-                    <table class="table table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Type</th>
-                                <th>Name/Host</th>
-                                <th>Value</th>
-                                <th>Priority</th>
-                                <th>TTL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><span class="badge bg-primary">A</span></td>
-                                <td><code>@</code></td>
-                                <td><code>156.67.29.186</code></td>
-                                <td>-</td>
-                                <td>3600</td>
-                            </tr>
-                            <tr>
-                                <td><span class="badge bg-primary">A</span></td>
-                                <td><code>mail</code></td>
-                                <td><code>156.67.29.186</code></td>
-                                <td>-</td>
-                                <td>3600</td>
-                            </tr>
-                            <tr>
-                                <td><span class="badge bg-success">MX</span></td>
-                                <td><code>@</code></td>
-                                <td><code>mail.sendbaba.com</code></td>
-                                <td>10</td>
-                                <td>3600</td>
-                            </tr>
-                        </tbody>
-                    </table>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">Policy:</label>
+            <select class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500" id="dmarc-policy">
+                <option value="none">None - Monitor only (recommended for testing)</option>
+                <option value="quarantine" selected>Quarantine - Send suspicious emails to spam</option>
+                <option value="reject">Reject - Block unauthenticated emails</option>
+            </select>
+        </div>
+        
+        <button class="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-xl font-semibold hover:shadow-lg transition" id="generate-dmarc">
+            <i class="fas fa-magic mr-2"></i>Generate DMARC Record
+        </button>
+        
+        <div id="dmarc-result" class="mt-6 hidden">
+            <div class="p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
+                <div class="flex items-center gap-2 text-green-700">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>DMARC Record Generated!</strong>
                 </div>
+            </div>
+            
+            <p class="font-semibold text-gray-700 mb-3"><i class="fas fa-arrow-right text-orange-500 mr-2"></i>Add this TXT record to your DNS:</p>
+            <div class="overflow-x-auto">
+                <table class="w-full border border-gray-200 rounded-xl overflow-hidden">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name/Host</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Value</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">TTL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dmarc-record"></tbody>
+                </table>
             </div>
         </div>
+    </div>
 
-        <!-- PTR Record -->
-        <div class="card mb-4">
-            <div class="card-header bg-danger text-white">
-                <h5><i class="fas fa-exchange-alt"></i> Step 5: Reverse DNS (PTR Record) - CRITICAL!</h5>
+    <!-- MX & A Records -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-server text-white"></i>
             </div>
-            <div class="card-body">
-                <div class="alert alert-danger">
-                    <strong>⚠️ IMPORTANT:</strong> You CANNOT add PTR records yourself!
-                </div>
-                
-                <p><strong>You must contact your VPS hosting provider</strong> and request:</p>
-                
-                <div class="card bg-light p-3">
-                    <code>PTR Record: 156.67.29.186 → mail.sendbaba.com</code>
-                </div>
-                
-                <h6 class="mt-3">How to request PTR record:</h6>
-                <ul>
-                    <li><strong>DigitalOcean:</strong> Settings → Networking → Edit Reverse DNS</li>
-                    <li><strong>Linode:</strong> Cloud Manager → Networking → Reverse DNS</li>
-                    <li><strong>Vultr:</strong> Server Settings → IPv4 → Reverse DNS</li>
-                    <li><strong>AWS:</strong> Submit support ticket</li>
-                    <li><strong>Other:</strong> Contact support and request PTR record setup</li>
-                </ul>
-                
-                <p class="text-muted"><em>This is essential for email deliverability!</em></p>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Step 4: MX and A Records</h2>
+                <p class="text-sm text-gray-500">Configure where your mail server is located</p>
             </div>
         </div>
+        
+        <p class="font-semibold text-gray-700 mb-3"><i class="fas fa-arrow-right text-orange-500 mr-2"></i>Add these records to your DNS:</p>
+        <div class="overflow-x-auto">
+            <table class="w-full border border-gray-200 rounded-xl overflow-hidden">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Name/Host</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Value</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Priority</th>
+                        <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">TTL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-t border-gray-100">
+                        <td class="px-4 py-3"><span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">A</span></td>
+                        <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">@</code></td>
+                        <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">156.67.29.186</code></td>
+                        <td class="px-4 py-3 text-gray-400">-</td>
+                        <td class="px-4 py-3">3600</td>
+                    </tr>
+                    <tr class="border-t border-gray-100">
+                        <td class="px-4 py-3"><span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium">A</span></td>
+                        <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">mail</code></td>
+                        <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">156.67.29.186</code></td>
+                        <td class="px-4 py-3 text-gray-400">-</td>
+                        <td class="px-4 py-3">3600</td>
+                    </tr>
+                    <tr class="border-t border-gray-100">
+                        <td class="px-4 py-3"><span class="px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">MX</span></td>
+                        <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">@</code></td>
+                        <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">mail.sendbaba.com</code></td>
+                        <td class="px-4 py-3">10</td>
+                        <td class="px-4 py-3">3600</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-        <!-- Verify All -->
-        <div class="card">
-            <div class="card-header bg-dark text-white">
-                <h5><i class="fas fa-check-circle"></i> Step 6: Verify All Records</h5>
+    <!-- PTR Record -->
+    <div class="bg-white rounded-2xl shadow-sm border border-red-200 p-6 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
+                <i class="fas fa-exchange-alt text-white"></i>
             </div>
-            <div class="card-body">
-                <p>After adding all DNS records, verify they're working correctly:</p>
-                
-                <button class="btn btn-dark btn-lg" id="verify-all">
-                    <i class="fas fa-search"></i> Verify All DNS Records
-                </button>
-                
-                <div id="verify-result" class="mt-4" style="display:none;">
-                </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Step 5: Reverse DNS (PTR Record)</h2>
+                <p class="text-sm text-red-600 font-medium">CRITICAL for deliverability!</p>
             </div>
         </div>
+        
+        <div class="p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
+            <p class="text-red-700"><strong>⚠️ IMPORTANT:</strong> You CANNOT add PTR records yourself!</p>
+        </div>
+        
+        <p class="text-gray-700 mb-3"><strong>Contact your VPS hosting provider</strong> and request:</p>
+        
+        <div class="p-4 bg-gray-100 rounded-xl mb-4">
+            <code class="text-gray-800">PTR Record: 156.67.29.186 → mail.sendbaba.com</code>
+        </div>
+        
+        <p class="font-semibold text-gray-700 mb-2">How to request PTR record:</p>
+        <ul class="text-gray-600 text-sm space-y-1 list-disc list-inside mb-4">
+            <li><strong>DigitalOcean:</strong> Settings → Networking → Edit Reverse DNS</li>
+            <li><strong>Linode:</strong> Cloud Manager → Networking → Reverse DNS</li>
+            <li><strong>Vultr:</strong> Server Settings → IPv4 → Reverse DNS</li>
+            <li><strong>Contabo:</strong> Customer Control Panel → Reverse DNS Management</li>
+            <li><strong>Other:</strong> Contact support and request PTR record setup</li>
+        </ul>
+        <p class="text-gray-500 text-sm italic">This is essential for email deliverability!</p>
+    </div>
+
+    <!-- Verify All -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 bg-gradient-to-br from-gray-700 to-gray-900 rounded-xl flex items-center justify-center">
+                <i class="fas fa-check-circle text-white"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">Step 6: Verify All Records</h2>
+                <p class="text-sm text-gray-500">Check if all DNS records are configured correctly</p>
+            </div>
+        </div>
+        
+        <button class="px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-900 text-white rounded-xl font-semibold hover:shadow-lg transition" id="verify-all">
+            <i class="fas fa-search mr-2"></i>Verify All DNS Records
+        </button>
+        
+        <div id="verify-result" class="mt-6 hidden"></div>
     </div>
 </div>
 {% endblock %}
@@ -252,7 +268,7 @@
 $(document).ready(function() {
     // Generate DKIM
     $('#generate-dkim').click(function() {
-        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Generating...');
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Generating...');
         
         $.ajax({
             url: '/dns/generate-dkim',
@@ -261,24 +277,24 @@ $(document).ready(function() {
             data: JSON.stringify({domain: 'sendbaba.com'}),
             success: function(data) {
                 if (data.success) {
-                    $('#dkim-result').show();
+                    $('#dkim-result').removeClass('hidden');
                     $('#dkim-record').html(`
-                        <tr>
-                            <td><span class="badge bg-warning">TXT</span></td>
-                            <td><code>${data.dns_record.name}</code></td>
-                            <td><small><code>${data.dns_record.value}</code></small></td>
-                            <td>${data.dns_record.ttl}</td>
+                        <tr class="border-t border-gray-100">
+                            <td class="px-4 py-3"><span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-sm font-medium">TXT</span></td>
+                            <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded text-sm">${data.dns_record.name}</code></td>
+                            <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded text-xs break-all">${data.dns_record.value}</code></td>
+                            <td class="px-4 py-3">${data.dns_record.ttl}</td>
                         </tr>
                     `);
-                    $('#generate-dkim').prop('disabled', false).html('<i class="fas fa-check"></i> Keys Generated');
+                    $('#generate-dkim').prop('disabled', false).html('<i class="fas fa-check mr-2"></i>Keys Generated');
                 } else {
                     alert('Error: ' + data.error);
-                    $('#generate-dkim').prop('disabled', false).html('<i class="fas fa-magic"></i> Generate DKIM Keys');
+                    $('#generate-dkim').prop('disabled', false).html('<i class="fas fa-magic mr-2"></i>Generate DKIM Keys');
                 }
             },
             error: function() {
                 alert('Error generating DKIM keys');
-                $('#generate-dkim').prop('disabled', false).html('<i class="fas fa-magic"></i> Generate DKIM Keys');
+                $('#generate-dkim').prop('disabled', false).html('<i class="fas fa-magic mr-2"></i>Generate DKIM Keys');
             }
         });
     });
@@ -286,14 +302,13 @@ $(document).ready(function() {
     // Generate SPF
     $('#generate-spf').click(function() {
         var ip = $('#spf-ip').val();
-        
-        $('#spf-result').show();
+        $('#spf-result').removeClass('hidden');
         $('#spf-record').html(`
-            <tr>
-                <td><span class="badge bg-warning">TXT</span></td>
-                <td><code>@</code> or <code>sendbaba.com</code></td>
-                <td><code>v=spf1 ip4:${ip} ~all</code></td>
-                <td>3600</td>
+            <tr class="border-t border-gray-100">
+                <td class="px-4 py-3"><span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-sm font-medium">TXT</span></td>
+                <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">@</code></td>
+                <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">v=spf1 ip4:${ip} ~all</code></td>
+                <td class="px-4 py-3">3600</td>
             </tr>
         `);
     });
@@ -301,21 +316,20 @@ $(document).ready(function() {
     // Generate DMARC
     $('#generate-dmarc').click(function() {
         var policy = $('#dmarc-policy').val();
-        
-        $('#dmarc-result').show();
+        $('#dmarc-result').removeClass('hidden');
         $('#dmarc-record').html(`
-            <tr>
-                <td><span class="badge bg-warning">TXT</span></td>
-                <td><code>_dmarc</code></td>
-                <td><code>v=DMARC1; p=${policy}; rua=mailto:dmarc@sendbaba.com</code></td>
-                <td>3600</td>
+            <tr class="border-t border-gray-100">
+                <td class="px-4 py-3"><span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-sm font-medium">TXT</span></td>
+                <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">_dmarc</code></td>
+                <td class="px-4 py-3"><code class="bg-gray-100 px-2 py-1 rounded">v=DMARC1; p=${policy}; rua=mailto:dmarc@sendbaba.com</code></td>
+                <td class="px-4 py-3">3600</td>
             </tr>
         `);
     });
 
     // Verify DKIM
     $('#verify-dkim').click(function() {
-        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Verifying...');
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Verifying...');
         
         $.ajax({
             url: '/dns/verify',
@@ -324,22 +338,22 @@ $(document).ready(function() {
             data: JSON.stringify({domain: 'sendbaba.com'}),
             success: function(data) {
                 if (data.success && data.results.dkim.valid) {
-                    $('#dkim-verify-result').html('<div class="alert alert-success">✓ DKIM record verified successfully!</div>');
+                    $('#dkim-verify-result').html('<div class="p-3 bg-green-50 border border-green-200 rounded-xl text-green-700"><i class="fas fa-check-circle mr-2"></i>DKIM record verified successfully!</div>');
                 } else {
-                    $('#dkim-verify-result').html('<div class="alert alert-warning">⚠ DKIM record not found. Wait 10-15 minutes for DNS propagation.</div>');
+                    $('#dkim-verify-result').html('<div class="p-3 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-700"><i class="fas fa-exclamation-triangle mr-2"></i>DKIM record not found. Wait 10-15 minutes for DNS propagation.</div>');
                 }
-                $('#verify-dkim').prop('disabled', false).html('<i class="fas fa-check"></i> Verify DKIM Record');
+                $('#verify-dkim').prop('disabled', false).html('<i class="fas fa-check mr-2"></i>Verify DKIM Record');
             },
             error: function() {
-                $('#dkim-verify-result').html('<div class="alert alert-danger">Error verifying DKIM record</div>');
-                $('#verify-dkim').prop('disabled', false).html('<i class="fas fa-check"></i> Verify DKIM Record');
+                $('#dkim-verify-result').html('<div class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700"><i class="fas fa-times-circle mr-2"></i>Error verifying DKIM record</div>');
+                $('#verify-dkim').prop('disabled', false).html('<i class="fas fa-check mr-2"></i>Verify DKIM Record');
             }
         });
     });
 
     // Verify All
     $('#verify-all').click(function() {
-        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Checking...');
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Checking...');
         
         $.ajax({
             url: '/dns/verify',
@@ -347,27 +361,31 @@ $(document).ready(function() {
             contentType: 'application/json',
             data: JSON.stringify({domain: 'sendbaba.com'}),
             success: function(data) {
-                var html = '<div class="alert alert-' + (data.all_valid ? 'success' : 'warning') + '">';
-                html += data.all_valid ? '✓ All Records Valid!' : '⚠ Some Records Need Attention';
-                html += '</div><ul class="list-group">';
+                var html = '<div class="p-4 rounded-xl mb-4 ' + (data.all_valid ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200') + '">';
+                html += '<div class="flex items-center gap-2 ' + (data.all_valid ? 'text-green-700' : 'text-yellow-700') + '">';
+                html += '<i class="fas fa-' + (data.all_valid ? 'check-circle' : 'exclamation-triangle') + '"></i>';
+                html += '<strong>' + (data.all_valid ? 'All Records Valid!' : 'Some Records Need Attention') + '</strong>';
+                html += '</div></div>';
                 
+                html += '<div class="space-y-2">';
                 for (var key in data.results) {
                     var result = data.results[key];
-                    var icon = result.valid ? '✓' : '✗';
-                    var color = result.valid ? 'success' : 'warning';
-                    html += '<li class="list-group-item list-group-item-' + color + '">';
-                    html += '<strong>' + key.toUpperCase() + ':</strong> ' + icon + ' ';
-                    html += result.valid ? 'Valid' : result.message;
-                    html += '</li>';
+                    var icon = result.valid ? 'check-circle' : 'times-circle';
+                    var color = result.valid ? 'green' : 'red';
+                    html += '<div class="flex items-center gap-3 p-3 bg-' + color + '-50 border border-' + color + '-200 rounded-xl">';
+                    html += '<i class="fas fa-' + icon + ' text-' + color + '-600"></i>';
+                    html += '<span class="font-semibold text-gray-700">' + key.toUpperCase() + ':</span>';
+                    html += '<span class="text-' + color + '-700">' + (result.valid ? 'Valid' : result.message) + '</span>';
+                    html += '</div>';
                 }
+                html += '</div>';
                 
-                html += '</ul>';
-                $('#verify-result').html(html).show();
-                $('#verify-all').prop('disabled', false).html('<i class="fas fa-search"></i> Verify All DNS Records');
+                $('#verify-result').html(html).removeClass('hidden');
+                $('#verify-all').prop('disabled', false).html('<i class="fas fa-search mr-2"></i>Verify All DNS Records');
             },
             error: function() {
-                $('#verify-result').html('<div class="alert alert-danger">Error checking DNS records</div>').show();
-                $('#verify-all').prop('disabled', false).html('<i class="fas fa-search"></i> Verify All DNS Records');
+                $('#verify-result').html('<div class="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700"><i class="fas fa-times-circle mr-2"></i>Error checking DNS records</div>').removeClass('hidden');
+                $('#verify-all').prop('disabled', false).html('<i class="fas fa-search mr-2"></i>Verify All DNS Records');
             }
         });
     });

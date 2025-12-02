@@ -1,8 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models.contact_list import ContactList
-from app.models.contact import Contact
+from app.models.contact import ContactList, Contact
 from app.models.campaign import Campaign
 from datetime import datetime
 

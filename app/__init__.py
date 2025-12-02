@@ -1,5 +1,5 @@
 """
-SendBaba Staging App - with Context Processor for Features
+SendBaba Staging App - Complete Blueprint Registration
 """
 from flask import Flask, redirect, session, render_template, g
 from flask_sqlalchemy import SQLAlchemy
@@ -26,8 +26,10 @@ def create_app():
     login_manager.login_view = 'auth.login'
     
     with app.app_context():
-        # Register blueprints
-        blueprints = [
+        # ===========================================
+        # CORE BLUEPRINTS (17)
+        # ===========================================
+        core_blueprints = [
             ('auth_controller', 'auth_bp', 'Auth'),
             ('billing_controller', 'billing_bp', 'Billing'),
             ('web_controller', 'web_bp', 'Web'),
@@ -47,7 +49,30 @@ def create_app():
             ('settings_controller', 'settings_bp', 'Settings'),
         ]
         
-        for module, bp_name, label in blueprints:
+        # ===========================================
+        # ADDITIONAL BLUEPRINTS (14)
+        # ===========================================
+        additional_blueprints = [
+            ('api_controller', 'api_bp', 'API'),
+            ('api_docs_controller', 'api_docs_bp', 'API Docs'),
+            ('api_keys_controller', 'api_keys_bp', 'API Keys'),
+            ('email_controller', 'email_bp', 'Emails'),
+            ('template_controller', 'template_bp', 'Templates'),
+            ('template_controller', 'template_api_bp', 'Template API'),
+            ('bulk_send_controller', 'bulk_send_bp', 'Bulk Send'),
+            ('tracking_controller', 'tracking_bp', 'Tracking'),
+            ('metrics_controller', 'metrics_bp', 'Metrics'),
+            ('suppression_controller', 'suppression_bp', 'Suppression'),
+            ('warmup_controller', 'warmup_bp', 'IP Warmup'),
+            ('validation_controller', 'validation_bp', 'Validation'),
+            ('webhook_controller', 'webhook_bp', 'Webhooks'),
+            ('team_invite_controller', 'team_invite_bp', 'Team Invites'),
+            ('dns_controller', 'dns_bp', 'DNS'),
+        ]
+        
+        all_blueprints = core_blueprints + additional_blueprints
+        
+        for module, bp_name, label in all_blueprints:
             try:
                 mod = __import__(f'app.controllers.{module}', fromlist=[bp_name])
                 bp = getattr(mod, bp_name)
@@ -56,32 +81,20 @@ def create_app():
             except Exception as e:
                 logger.error(f"❌ {label}: {e}")
     
-    # Context processor to inject features and subscription into all templates
     @app.context_processor
     def inject_features():
-        """Inject features and subscription into all templates"""
         from sqlalchemy import text
-        
-        # Default features
-        features = {
-            'workflows': True,
-            'segments': True,
-            'team': True,
-            'ai_reply': True
-        }
+        features = {'workflows': True, 'segments': True, 'team': True, 'ai_reply': True}
         subscription = None
-        
         try:
             if current_user.is_authenticated:
                 org_id = getattr(current_user, 'organization_id', None)
                 if org_id:
-                    # Get features from organization
                     result = db.session.execute(text("""
                         SELECT feature_workflows, feature_segments, feature_team, feature_ai_reply
                         FROM organizations WHERE id = :org_id
                     """), {'org_id': org_id})
                     row = result.fetchone()
-                    
                     if row:
                         features = {
                             'workflows': row[0] if row[0] is not None else True,
@@ -89,22 +102,15 @@ def create_app():
                             'team': row[2] if row[2] is not None else True,
                             'ai_reply': row[3] if row[3] is not None else True
                         }
-                    
-                    # Get subscription info
                     sub_result = db.session.execute(text("""
                         SELECT plan_name, status FROM subscriptions 
                         WHERE organization_id = :org_id ORDER BY created_at DESC LIMIT 1
                     """), {'org_id': org_id})
                     sub_row = sub_result.fetchone()
-                    
                     if sub_row:
-                        subscription = {
-                            'plan_name': sub_row[0] or 'Free Plan',
-                            'status': sub_row[1] or 'trial'
-                        }
+                        subscription = {'plan_name': sub_row[0] or 'Free Plan', 'status': sub_row[1] or 'trial'}
         except Exception as e:
             logger.error(f"Context processor error: {e}")
-        
         return dict(features=features, subscription=subscription)
     
     @login_manager.user_loader
@@ -131,22 +137,8 @@ def create_app():
     
     @app.route('/')
     def index():
-        """Home page - show landing for guests, redirect to dashboard for authenticated users"""
         if current_user.is_authenticated:
             return redirect('/dashboard/')
         return render_template('index.html')
     
     return app
-
-# Register additional blueprints for enterprise features
-try:
-    from app.controllers.tracking_controller import tracking_bp
-    from app.controllers.suppression_controller import suppression_bp
-    from app.controllers.warmup_controller import warmup_bp
-    from app.controllers.webhook_controller import webhook_bp
-    from app.controllers.web_controller import web_bp
-    from app.controllers.metrics_controller import metrics_bp
-    
-    # These will be registered in create_app
-except ImportError as e:
-    pass

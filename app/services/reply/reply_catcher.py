@@ -6,8 +6,8 @@ from aiosmtpd.smtp import SMTP as SMTPServer
 from app import create_app, db
 from app.models.reply import EmailReply
 from app.models.contact import Contact
-from app.services.reply_intelligence import reply_intelligence
-from app.services.email_service import send_email
+from app.services.reply.reply_intelligence import reply_intelligence
+from app.services.email.email_service import send_email
 import logging
 
 logger = logging.getLogger(__name__)

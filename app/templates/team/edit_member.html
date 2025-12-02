@@ -1,89 +1,129 @@
-{% extends "base.html" %}
+{% extends "dashboard/base.html" %}
 
-{% block title %}Invite Team Member - SendBaba{% endblock %}
+{% block title %}Edit Team Member - SendBaba{% endblock %}
+{% block page_title %}Edit Team Member{% endblock %}
+{% block page_subtitle %}Update member information and permissions{% endblock %}
 
 {% block content %}
-<div class="p-6 md:p-8">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Invite Team Member</h1>
-        <p class="text-gray-600">Add a new member to your team</p>
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <a href="/dashboard/team/members" class="text-orange-600 hover:text-orange-700 font-medium">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Members
+        </a>
     </div>
 
-    <div class="max-w-2xl bg-white rounded-lg shadow p-8">
-        <form method="POST" action="{{ url_for('team.invite_member') }}">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <div class="flex items-center gap-4 mb-8 pb-6 border-b">
+            <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                {{ member.first_name[0] if member.first_name else member.email[0]|upper }}
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-gray-900">{{ member.full_name or member.email }}</h2>
+                <p class="text-gray-500">{{ member.email }}</p>
+                {% if not member.invitation_accepted %}
+                <span class="inline-block mt-1 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+                    <i class="fas fa-clock mr-1"></i>Pending Invitation
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <form method="POST" action="{{ url_for('team.edit_member', member_id=member.id) }}">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                    <input type="text" name="first_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
+                    <input type="text" name="first_name" value="{{ member.first_name or '' }}" 
+                           class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 transition">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                    <input type="text" name="last_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
+                    <input type="text" name="last_name" value="{{ member.last_name or '' }}" 
+                           class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 transition">
                 </div>
             </div>
 
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                <input type="email" name="email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                <input type="email" value="{{ member.email }}" disabled
+                       class="w-full px-4 py-3 border-2 border-gray-100 rounded-xl bg-gray-50 text-gray-500">
+                <p class="text-xs text-gray-400 mt-1">Email cannot be changed</p>
             </div>
 
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                <select name="department_id" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+                <select name="department_id" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 transition">
                     <option value="">No Department</option>
                     {% for dept in departments %}
-                    <option value="{{ dept.id }}">{{ dept.name }}</option>
+                    <option value="{{ dept.id }}" {% if member.department_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                <select name="role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="member">Member</option>
-                    <option value="admin">Admin</option>
-                    <option value="owner">Owner</option>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                <select name="role" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-orange-500 transition">
+                    <option value="member" {% if member.role == 'member' %}selected{% endif %}>Member</option>
+                    <option value="admin" {% if member.role == 'admin' %}selected{% endif %}>Admin</option>
+                    <option value="owner" {% if member.role == 'owner' %}selected{% endif %}>Owner</option>
                 </select>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-4">Permissions</label>
-                <div class="space-y-2">
-                    <label class="flex items-center">
-                        <input type="checkbox" name="can_send_email" checked class="mr-2">
-                        <span>Can send emails</span>
+            <div class="mb-8">
+                <label class="block text-sm font-semibold text-gray-700 mb-4">Permissions</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <label class="flex items-center p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                        <input type="checkbox" name="can_send_email" {% if member.can_send_email %}checked{% endif %} 
+                               class="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                        <span class="ml-3 text-gray-700">Can send emails</span>
                     </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="can_manage_contacts" checked class="mr-2">
-                        <span>Can manage contacts</span>
+                    <label class="flex items-center p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                        <input type="checkbox" name="can_manage_contacts" {% if member.can_manage_contacts %}checked{% endif %}
+                               class="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                        <span class="ml-3 text-gray-700">Can manage contacts</span>
                     </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="can_manage_campaigns" checked class="mr-2">
-                        <span>Can manage campaigns</span>
+                    <label class="flex items-center p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                        <input type="checkbox" name="can_manage_campaigns" {% if member.can_manage_campaigns %}checked{% endif %}
+                               class="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                        <span class="ml-3 text-gray-700">Can manage campaigns</span>
                     </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="can_view_analytics" checked class="mr-2">
-                        <span>Can view analytics</span>
+                    <label class="flex items-center p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                        <input type="checkbox" name="can_view_analytics" {% if member.can_view_analytics %}checked{% endif %}
+                               class="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                        <span class="ml-3 text-gray-700">Can view analytics</span>
                     </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="can_manage_team" class="mr-2">
-                        <span>Can manage team</span>
+                    <label class="flex items-center p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                        <input type="checkbox" name="can_manage_team" {% if member.can_manage_team %}checked{% endif %}
+                               class="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                        <span class="ml-3 text-gray-700">Can manage team</span>
                     </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="can_manage_billing" class="mr-2">
-                        <span>Can manage billing</span>
+                    <label class="flex items-center p-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition">
+                        <input type="checkbox" name="can_manage_billing" {% if member.can_manage_billing %}checked{% endif %}
+                               class="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                        <span class="ml-3 text-gray-700">Can manage billing</span>
                     </label>
                 </div>
             </div>
 
             <div class="flex gap-4">
-                <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">
-                    <i class="fas fa-paper-plane mr-2"></i>Send Invitation
+                <button type="submit" class="flex-1 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:shadow-lg transition">
+                    <i class="fas fa-save mr-2"></i>Save Changes
                 </button>
-                <a href="{{ url_for('team.members') }}" class="bg-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-400 transition">
+                <a href="/dashboard/team/members" class="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition">
                     Cancel
                 </a>
             </div>
+        </form>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="mt-8 bg-red-50 border border-red-200 rounded-2xl p-6">
+        <h3 class="text-lg font-bold text-red-800 mb-2">Danger Zone</h3>
+        <p class="text-red-600 text-sm mb-4">Removing this member will revoke their access immediately.</p>
+        <form action="{{ url_for('team.delete_member', member_id=member.id) }}" method="POST" 
+              onsubmit="return confirm('Are you sure you want to remove this team member?');">
+            <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                <i class="fas fa-trash mr-2"></i>Remove Member
+            </button>
         </form>
     </div>
 </div>
