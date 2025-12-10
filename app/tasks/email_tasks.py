@@ -1,337 +1,121 @@
 """
-SendBaba Email Tasks
-Production-grade Celery tasks for bulk email
-Handles millions of emails with auto-retry
+SendBaba Email Tasks - Clean Rewrite
+Simple, working bulk email system
 """
-from app.celery_config import celery_app
-from celery import shared_task, group, chain, chord
-from celery.exceptions import Retry, MaxRetriesExceededError
-from datetime import datetime, timedelta
-import smtplib
-import dns.resolver
-import json
+import os
+import sys
 import uuid
-import time
+import smtplib
 import logging
+import dns.resolver
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-logging.basicConfig(level=logging.INFO)
+# Add path
+sys.path.insert(0, '/opt/sendbaba-staging')
+
+from celery_app import celery_app
+
 logger = logging.getLogger(__name__)
 
-# Database connection
-DB_CONFIG = {
-    'host': '127.0.0.1',
-    'database': 'emailer',
-    'user': 'emailer',
-    'password': 'SecurePassword123'
-}
-
-def get_db():
+# ============================================
+# DATABASE HELPER
+# ============================================
+def get_db_connection():
+    """Get direct database connection"""
     import psycopg2
-    return psycopg2.connect(**DB_CONFIG)
-
-def get_redis():
-    import redis
-    return redis.Redis(host='localhost', port=6379, decode_responses=True)
-
+    return psycopg2.connect(
+        host='localhost',
+        database='sendbaba',
+        user='sendbaba',
+        password='SB_Secure_2024!'
+    )
 
 # ============================================
-# MX LOOKUP WITH CACHING
+# EMAIL HELPERS  
 # ============================================
-
-MX_CACHE = {}
-MX_CACHE_TTL = 300  # 5 minutes
-
 def get_mx_server(domain):
-    """Get MX server with caching"""
-    now = time.time()
-    
-    # Check cache
-    if domain in MX_CACHE:
-        cached, timestamp = MX_CACHE[domain]
-        if now - timestamp < MX_CACHE_TTL:
-            return cached
-    
+    """Get MX server for domain"""
     try:
-        answers = dns.resolver.resolve(domain, 'MX')
-        mx_records = sorted([(r.preference, str(r.exchange).rstrip('.')) for r in answers])
-        
-        if mx_records:
-            mx_server = mx_records[0][1]
-            MX_CACHE[domain] = (mx_server, now)
-            return mx_server
+        records = dns.resolver.resolve(domain, 'MX')
+        mx_record = sorted(records, key=lambda x: x.preference)[0]
+        return str(mx_record.exchange).rstrip('.')
     except Exception as e:
-        logger.warning(f"MX lookup failed for {domain}: {e}")
-    
-    return None
+        logger.error(f"MX lookup failed for {domain}: {e}")
+        return None
 
-
-# ============================================
-# SINGLE EMAIL TASK
-# ============================================
-
-@celery_app.task(
-    bind=True,
-    max_retries=5,
-    default_retry_delay=60,
-    autoretry_for=(smtplib.SMTPException, ConnectionError, TimeoutError),
-    retry_backoff=True,
-    retry_backoff_max=3600,
-    retry_jitter=True
-)
-def send_single_email(self, email_data):
-    """
-    Send a single email with auto-retry
-    
-    Args:
-        email_data: dict with id, from, to, subject, html_body, text_body
-    
-    Returns:
-        dict with success status and details
-    """
-    email_id = email_data.get('id', 'unknown')
-    recipient = email_data.get('to')
-    
+def send_email_smtp(from_email, to_email, subject, html_body, text_body=None):
+    """Send single email via SMTP"""
     try:
-        # Extract domain
-        domain = recipient.split('@')[1]
-        
-        # Get MX server
+        domain = to_email.split('@')[1]
         mx_server = get_mx_server(domain)
+        
         if not mx_server:
-            # Hard bounce - no MX record
-            update_email_status(email_id, 'bounced', 'No MX record found')
-            return {'success': False, 'bounce': True, 'reason': 'No MX record'}
+            return False, "No MX record"
         
-        # Build message
         msg = MIMEMultipart('alternative')
-        msg['From'] = email_data.get('from', 'noreply@sendbaba.com')
-        msg['To'] = recipient
-        msg['Subject'] = email_data.get('subject', '')
-        msg['Message-ID'] = f"<{email_id}@sendbaba.com>"
-        msg['X-Campaign-ID'] = email_data.get('campaign_id', '')
+        msg['From'] = from_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg['Message-ID'] = f"<{uuid.uuid4()}@sendbaba.com>"
         
-        if email_data.get('reply_to'):
-            msg['Reply-To'] = email_data['reply_to']
+        if text_body:
+            msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+        if html_body:
+            msg.attach(MIMEText(html_body, 'html', 'utf-8'))
         
-        # Add body parts
-        if email_data.get('text_body'):
-            msg.attach(MIMEText(email_data['text_body'], 'plain', 'utf-8'))
-        if email_data.get('html_body'):
-            msg.attach(MIMEText(email_data['html_body'], 'html', 'utf-8'))
-        
-        # Send via SMTP
         with smtplib.SMTP(mx_server, 25, timeout=30) as server:
-            server.starttls()
-            server.sendmail(
-                email_data.get('from', 'noreply@sendbaba.com'),
-                [recipient],
-                msg.as_string()
-            )
-        
-        # Success - update database
-        update_email_status(email_id, 'sent')
-        
-        logger.info(f"✓ Sent to {recipient} via {mx_server}")
-        
-        return {
-            'success': True,
-            'email_id': email_id,
-            'recipient': recipient,
-            'mx_server': mx_server
-        }
-    
-    except smtplib.SMTPRecipientsRefused as e:
-        # Hard bounce
-        update_email_status(email_id, 'bounced', str(e))
-        logger.warning(f"✗ Hard bounce: {recipient}")
-        return {'success': False, 'bounce': True, 'reason': str(e)}
-    
-    except smtplib.SMTPResponseException as e:
-        if e.code >= 500 and e.code < 600:
-            # Permanent failure
-            update_email_status(email_id, 'bounced', f"{e.code}: {e.message}")
-            return {'success': False, 'bounce': True, 'reason': str(e)}
-        else:
-            # Temporary failure - retry
-            logger.warning(f"↻ Retry {self.request.retries + 1}/5: {recipient} - {e}")
-            raise self.retry(exc=e)
-    
-    except (smtplib.SMTPException, ConnectionError, TimeoutError) as e:
-        # Temporary failure - retry
-        logger.warning(f"↻ Retry {self.request.retries + 1}/5: {recipient} - {e}")
-        update_email_status(email_id, 'retrying', str(e))
-        raise self.retry(exc=e)
-    
-    except MaxRetriesExceededError:
-        # Max retries reached
-        update_email_status(email_id, 'failed', 'Max retries exceeded')
-        logger.error(f"✗ Failed after retries: {recipient}")
-        return {'success': False, 'reason': 'Max retries exceeded'}
-    
-    except Exception as e:
-        # Unexpected error
-        update_email_status(email_id, 'failed', str(e))
-        logger.error(f"✗ Error: {recipient} - {e}")
-        return {'success': False, 'reason': str(e)}
-
-
-def update_email_status(email_id, status, error=None):
-    """Update email status in database"""
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        if status == 'sent':
-            cursor.execute(
-                "UPDATE emails SET status = %s, sent_at = NOW() WHERE id = %s",
-                (status, email_id)
-            )
-        else:
-            cursor.execute(
-                "UPDATE emails SET status = %s, error_message = %s WHERE id = %s",
-                (status, error[:500] if error else None, email_id)
-            )
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        logger.error(f"DB update error: {e}")
-
-
-# ============================================
-# BULK BATCH TASK
-# ============================================
-
-@celery_app.task(bind=True)
-def send_bulk_batch(self, campaign_id, contact_batch, campaign_data):
-    """
-    Send batch of emails (up to 1000 contacts)
-    Creates individual tasks for each email
-    """
-    results = {'queued': 0, 'errors': 0}
-    
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        for contact in contact_batch:
+            server.ehlo('mail.sendbaba.com')
             try:
-                email_id = str(uuid.uuid4())
-                
-                # Personalize content
-                subject = personalize(campaign_data['subject'], contact)
-                html_body = personalize(campaign_data.get('html_body'), contact)
-                text_body = personalize(campaign_data.get('text_body'), contact)
-                
-                # Create email record
-                cursor.execute("""
-                    INSERT INTO emails (
-                        id, organization_id, campaign_id, sender, recipient,
-                        from_email, to_email, subject, html_body, text_body,
-                        status, created_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'queued', NOW())
-                """, (
-                    email_id,
-                    campaign_data['organization_id'],
-                    campaign_id,
-                    campaign_data['from_email'],
-                    contact['email'],
-                    campaign_data['from_email'],
-                    contact['email'],
-                    subject,
-                    html_body,
-                    text_body
-                ))
-                
-                # Queue individual email task
-                email_task_data = {
-                    'id': email_id,
-                    'from': f"{campaign_data.get('from_name', '')} <{campaign_data['from_email']}>".strip(),
-                    'to': contact['email'],
-                    'subject': subject,
-                    'html_body': html_body,
-                    'text_body': text_body,
-                    'reply_to': campaign_data.get('reply_to'),
-                    'campaign_id': campaign_id,
-                    'organization_id': campaign_data['organization_id']
-                }
-                
-                send_single_email.apply_async(
-                    args=[email_task_data],
-                    queue='default',
-                    priority=5
-                )
-                
-                results['queued'] += 1
-            
-            except Exception as e:
-                results['errors'] += 1
-                logger.error(f"Error queuing email to {contact.get('email')}: {e}")
+                server.starttls()
+                server.ehlo('mail.sendbaba.com')
+            except:
+                pass
+            server.sendmail(from_email, [to_email], msg.as_string())
         
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
-        logger.info(f"Batch complete: {results['queued']} queued, {results['errors']} errors")
-        
+        return True, "Sent"
     except Exception as e:
-        logger.error(f"Batch error: {e}")
-        results['errors'] = len(contact_batch)
-    
-    return results
-
+        return False, str(e)
 
 def personalize(content, contact):
-    """Replace merge tags with contact data"""
+    """Replace merge tags"""
     if not content:
         return content
     
-    first_name = contact.get('first_name', '')
-    last_name = contact.get('last_name', '')
-    email = contact.get('email', '')
-    
     replacements = {
-        '{{first_name}}': first_name,
-        '{{last_name}}': last_name,
-        '{{email}}': email,
-        '{{FIRST_NAME}}': first_name,
-        '{{LAST_NAME}}': last_name,
-        '{{EMAIL}}': email,
-        '*|FNAME|*': first_name,
-        '*|LNAME|*': last_name,
-        '*|EMAIL|*': email,
+        '{{first_name}}': contact.get('first_name', ''),
+        '{{last_name}}': contact.get('last_name', ''),
+        '{{email}}': contact.get('email', ''),
+        '{{FIRST_NAME}}': contact.get('first_name', ''),
+        '{{LAST_NAME}}': contact.get('last_name', ''),
+        '*|FNAME|*': contact.get('first_name', ''),
+        '*|LNAME|*': contact.get('last_name', ''),
     }
     
     for tag, value in replacements.items():
-        content = content.replace(tag, str(value))
+        content = content.replace(tag, str(value or ''))
     
     return content
 
-
 # ============================================
-# CAMPAIGN ORCHESTRATOR
+# MAIN CAMPAIGN TASK
 # ============================================
-
 @celery_app.task(bind=True)
 def send_campaign(self, campaign_id):
     """
-    Main campaign send task
-    Fetches contacts in batches and creates batch tasks
-    Handles 1M+ contacts
+    Main task to send a campaign
+    Fetches contacts and sends emails directly
     """
-    BATCH_SIZE = 1000  # Contacts per batch task
+    logger.info(f"🚀 Starting campaign {campaign_id}")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
     try:
-        conn = get_db()
-        cursor = conn.cursor()
-        
         # Get campaign
         cursor.execute("""
-            SELECT id, organization_id, name, from_name, from_email, reply_to,
-                   subject, html_body, text_body, status
+            SELECT id, organization_id, name, from_name, from_email, 
+                   subject, html_body, text_body, reply_to
             FROM campaigns WHERE id = %s
         """, (campaign_id,))
         
@@ -340,250 +124,219 @@ def send_campaign(self, campaign_id):
             logger.error(f"Campaign {campaign_id} not found")
             return {'success': False, 'error': 'Campaign not found'}
         
-        campaign_data = {
+        campaign = {
             'id': row[0],
             'organization_id': row[1],
             'name': row[2],
             'from_name': row[3],
             'from_email': row[4],
-            'reply_to': row[5],
-            'subject': row[6],
-            'html_body': row[7],
-            'text_body': row[8]
+            'subject': row[5],
+            'html_body': row[6],
+            'text_body': row[7],
+            'reply_to': row[8]
         }
         
-        org_id = campaign_data['organization_id']
+        org_id = campaign['organization_id']
+        from_email = f"{campaign['from_name']} <{campaign['from_email']}>" if campaign['from_name'] else campaign['from_email']
         
-        # Get total contacts
+        # Update status to sending
         cursor.execute("""
-            SELECT COUNT(*) FROM contacts 
+            UPDATE campaigns SET status = 'sending', started_at = NOW(), updated_at = NOW()
+            WHERE id = %s
+        """, (campaign_id,))
+        conn.commit()
+        
+        # Get contacts
+        cursor.execute("""
+            SELECT id, email, first_name, last_name 
+            FROM contacts 
             WHERE organization_id = %s AND status = 'active'
         """, (org_id,))
-        total_contacts = cursor.fetchone()[0]
         
-        if total_contacts == 0:
-            cursor.close()
-            conn.close()
-            return {'success': False, 'error': 'No contacts'}
+        contacts = cursor.fetchall()
+        total = len(contacts)
         
-        # Update campaign status
-        cursor.execute("""
-            UPDATE campaigns 
-            SET status = 'sending', total_recipients = %s, emails_sent = 0, updated_at = NOW()
-            WHERE id = %s
-        """, (total_contacts, campaign_id))
-        conn.commit()
+        logger.info(f"📧 Sending to {total} contacts")
         
-        logger.info(f"Campaign {campaign_id}: Starting send to {total_contacts} contacts")
+        sent = 0
+        failed = 0
         
-        # Process contacts in batches
-        offset = 0
-        batch_num = 0
-        total_batches = (total_contacts + BATCH_SIZE - 1) // BATCH_SIZE
-        
-        while offset < total_contacts:
-            # Fetch batch
-            cursor.execute("""
-                SELECT id, email, first_name, last_name
-                FROM contacts 
-                WHERE organization_id = %s AND status = 'active'
-                ORDER BY id
-                OFFSET %s LIMIT %s
-            """, (org_id, offset, BATCH_SIZE))
-            
-            rows = cursor.fetchall()
-            if not rows:
-                break
-            
-            # Convert to list of dicts
-            contact_batch = [
-                {'id': r[0], 'email': r[1], 'first_name': r[2], 'last_name': r[3]}
-                for r in rows
-            ]
-            
-            # Queue batch task
-            send_bulk_batch.apply_async(
-                args=[campaign_id, contact_batch, campaign_data],
-                queue='bulk',
-                priority=5
-            )
-            
-            batch_num += 1
-            offset += BATCH_SIZE
-            
-            logger.info(f"Campaign {campaign_id}: Queued batch {batch_num}/{total_batches}")
-        
-        cursor.close()
-        conn.close()
-        
-        logger.info(f"Campaign {campaign_id}: All {total_batches} batches queued")
-        
-        return {
-            'success': True,
-            'campaign_id': campaign_id,
-            'total_contacts': total_contacts,
-            'batches_queued': batch_num
-        }
-    
-    except Exception as e:
-        logger.error(f"Campaign {campaign_id} error: {e}")
-        
-        # Mark as failed
-        try:
-            conn = get_db()
-            cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE campaigns SET status = 'failed', updated_at = NOW() WHERE id = %s",
-                (campaign_id,)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
-        except:
-            pass
-        
-        return {'success': False, 'error': str(e)}
-
-
-# ============================================
-# RETRY FAILED EMAILS
-# ============================================
-
-@celery_app.task
-def process_retry_queue():
-    """Process emails that need retry"""
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        # Get emails to retry (failed in last hour, not bounced)
-        cursor.execute("""
-            SELECT id, organization_id, campaign_id, from_email, to_email,
-                   subject, html_body, text_body
-            FROM emails 
-            WHERE status = 'retrying' 
-            AND updated_at < NOW() - INTERVAL '5 minutes'
-            LIMIT 1000
-        """)
-        
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        
-        retried = 0
-        for row in rows:
-            email_data = {
-                'id': row[0],
-                'from': row[3],
-                'to': row[4],
-                'subject': row[5],
-                'html_body': row[6],
-                'text_body': row[7],
-                'campaign_id': row[2],
-                'organization_id': row[1]
+        for contact_row in contacts:
+            contact = {
+                'id': contact_row[0],
+                'email': contact_row[1],
+                'first_name': contact_row[2],
+                'last_name': contact_row[3]
             }
             
-            send_single_email.apply_async(
-                args=[email_data],
-                queue='retry',
-                priority=3
-            )
-            retried += 1
-        
-        if retried > 0:
-            logger.info(f"Retried {retried} emails")
-        
-        return {'retried': retried}
-    
-    except Exception as e:
-        logger.error(f"Retry queue error: {e}")
-        return {'error': str(e)}
-
-
-# ============================================
-# UPDATE CAMPAIGN STATS
-# ============================================
-
-@celery_app.task
-def update_campaign_stats():
-    """Update campaign statistics from email results"""
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        # Get campaigns that are sending
-        cursor.execute("""
-            SELECT id FROM campaigns WHERE status = 'sending'
-        """)
-        
-        campaign_ids = [row[0] for row in cursor.fetchall()]
-        
-        for campaign_id in campaign_ids:
-            # Count email statuses
+            to_email = contact['email']
+            if not to_email or '@' not in to_email:
+                failed += 1
+                continue
+            
+            # Personalize
+            subject = personalize(campaign['subject'], contact)
+            html_body = personalize(campaign['html_body'], contact)
+            text_body = personalize(campaign['text_body'], contact)
+            
+            # Create email record
+            email_id = str(uuid.uuid4())
             cursor.execute("""
-                SELECT 
-                    COUNT(*) FILTER (WHERE status = 'sent') as sent,
-                    COUNT(*) FILTER (WHERE status = 'bounced') as bounced,
-                    COUNT(*) FILTER (WHERE status = 'failed') as failed,
-                    COUNT(*) FILTER (WHERE status IN ('queued', 'retrying')) as pending
-                FROM emails WHERE campaign_id = %s
-            """, (campaign_id,))
+                INSERT INTO emails (id, organization_id, campaign_id, from_email, to_email,
+                                   sender, recipient, subject, html_body, text_body, 
+                                   status, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'sending', NOW())
+            """, (email_id, org_id, campaign_id, campaign['from_email'], to_email,
+                  campaign['from_email'], to_email, subject, html_body, text_body))
+            conn.commit()
             
-            stats = cursor.fetchone()
-            sent, bounced, failed, pending = stats
+            # Send email
+            success, message = send_email_smtp(from_email, to_email, subject, html_body, text_body)
             
-            # Update campaign
-            if pending == 0:
-                # All done
+            if success:
                 cursor.execute("""
-                    UPDATE campaigns 
-                    SET status = 'sent', emails_sent = %s, bounces = %s, 
-                        sent_at = NOW(), updated_at = NOW()
-                    WHERE id = %s
-                """, (sent, bounced, campaign_id))
+                    UPDATE emails SET status = 'sent', sent_at = NOW() WHERE id = %s
+                """, (email_id,))
+                sent += 1
+                logger.info(f"✅ Sent to {to_email}")
             else:
                 cursor.execute("""
-                    UPDATE campaigns 
-                    SET emails_sent = %s, bounces = %s, updated_at = NOW()
-                    WHERE id = %s
-                """, (sent, bounced, campaign_id))
+                    UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s
+                """, (message[:500], email_id))
+                failed += 1
+                logger.warning(f"❌ Failed {to_email}: {message}")
+            
+            conn.commit()
+            
+            # Update campaign progress every 10 emails
+            if (sent + failed) % 10 == 0:
+                cursor.execute("""
+                    UPDATE campaigns SET emails_sent = %s, updated_at = NOW() WHERE id = %s
+                """, (sent, campaign_id))
+                conn.commit()
         
+        # Mark complete
+        cursor.execute("""
+            UPDATE campaigns 
+            SET status = 'completed', emails_sent = %s, completed_at = NOW(), updated_at = NOW()
+            WHERE id = %s
+        """, (sent, campaign_id))
         conn.commit()
+        
+        logger.info(f"🎉 Campaign {campaign_id} complete: {sent} sent, {failed} failed")
+        
+        return {'success': True, 'sent': sent, 'failed': failed, 'total': total}
+        
+    except Exception as e:
+        logger.error(f"Campaign {campaign_id} error: {e}")
+        cursor.execute("""
+            UPDATE campaigns SET status = 'failed', updated_at = NOW() WHERE id = %s
+        """, (campaign_id,))
+        conn.commit()
+        return {'success': False, 'error': str(e)}
+    finally:
         cursor.close()
         conn.close()
-        
-        return {'updated': len(campaign_ids)}
+
+# ============================================
+# SINGLE EMAIL TASK (for Team Send)
+# ============================================
+@celery_app.task
+def send_single_email_task(email_id):
+    """Send a single email from the Team page"""
+    logger.info(f"📤 Sending single email {email_id}")
     
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT from_email, to_email, subject, html_body, text_body
+            FROM emails WHERE id = %s
+        """, (email_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            return {'success': False, 'error': 'Email not found'}
+        
+        from_email, to_email, subject, html_body, text_body = row
+        
+        cursor.execute("UPDATE emails SET status = 'sending' WHERE id = %s", (email_id,))
+        conn.commit()
+        
+        success, message = send_email_smtp(from_email, to_email, subject, html_body, text_body)
+        
+        if success:
+            cursor.execute("""
+                UPDATE emails SET status = 'sent', sent_at = NOW() WHERE id = %s
+            """, (email_id,))
+            logger.info(f"✅ Single email sent to {to_email}")
+        else:
+            cursor.execute("""
+                UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s
+            """, (message[:500], email_id))
+            logger.warning(f"❌ Single email failed to {to_email}: {message}")
+        
+        conn.commit()
+        return {'success': success, 'message': message}
+        
     except Exception as e:
-        logger.error(f"Stats update error: {e}")
-        return {'error': str(e)}
-
+        logger.error(f"Single email error: {e}")
+        return {'success': False, 'error': str(e)}
+    finally:
+        cursor.close()
+        conn.close()
 
 # ============================================
-# CLEANUP OLD RESULTS
+# PERIODIC TASKS
 # ============================================
+@celery_app.task
+def process_queued_campaigns():
+    """Process campaigns stuck in 'queued' status"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT id, name FROM campaigns WHERE status = 'queued'
+            ORDER BY created_at ASC LIMIT 5
+        """)
+        
+        campaigns = cursor.fetchall()
+        processed = 0
+        
+        for campaign_id, name in campaigns:
+            logger.info(f"🔄 Processing queued campaign: {name}")
+            send_campaign.delay(campaign_id)
+            processed += 1
+        
+        return {'processed': processed, 'found': len(campaigns)}
+    finally:
+        cursor.close()
+        conn.close()
 
 @celery_app.task
-def cleanup_old_results():
-    """Clean up old task results from Redis"""
-    try:
-        r = get_redis()
-        
-        # Clean celery results older than 1 hour
-        # This is handled by result_expires config, but we can force cleanup
-        
-        return {'status': 'ok'}
+def process_queued_single_emails():
+    """Process single emails in queued status"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
-    except Exception as e:
-        logger.error(f"Cleanup error: {e}")
-        return {'error': str(e)}
-
-
-# ============================================
-# HIGH PRIORITY EMAIL
-# ============================================
-
-@celery_app.task(bind=True, max_retries=3)
-def send_high_priority(self, email_data):
-    """Send high priority email (transactional)"""
-    return send_single_email(email_data)
+    try:
+        cursor.execute("""
+            SELECT id FROM emails 
+            WHERE status = 'queued' AND campaign_id IS NULL
+            ORDER BY created_at ASC LIMIT 50
+        """)
+        
+        emails = cursor.fetchall()
+        count = 0
+        
+        for (email_id,) in emails:
+            send_single_email_task.delay(email_id)
+            count += 1
+        
+        logger.info(f"Found {count} queued single emails to process")
+        return {'queued_count': count}
+    finally:
+        cursor.close()
+        conn.close()

@@ -1,55 +1,96 @@
 {% extends "dashboard/base.html" %}
 {% block title %}Team Members - SendBaba{% endblock %}
 {% block page_title %}Team Members{% endblock %}
+{% block page_subtitle %}Manage your team members and permissions{% endblock %}
+
+{% block extra_css %}
+<style>
+.member-card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E5E7EB; transition: all 0.2s; }
+.member-card:hover { border-color: #F97316; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-active { background: #DCFCE7; color: #166534; }
+.badge-pending { background: #FEF3C7; color: #92400E; }
+.dept-badge { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
     <div class="flex justify-between items-center mb-8">
-        <a href="{{ url_for('team.index') }}" class="text-gray-500 hover:text-orange-500"><i class="fas fa-arrow-left mr-2"></i>Back</a>
-        <a href="{{ url_for('team.invite_member') }}" class="bg-orange-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-orange-600"><i class="fas fa-plus mr-2"></i>Invite Member</a>
+        <a href="{{ url_for('team.index') }}" class="text-gray-500 hover:text-orange-500">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Team
+        </a>
+        <a href="{{ url_for('team.invite_member') }}" class="bg-orange-500 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-orange-600">
+            <i class="fas fa-user-plus mr-2"></i>Invite Member
+        </a>
     </div>
     
-    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <table class="w-full">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Member</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Role</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Status</th>
-                    <th class="px-6 py-4 text-right text-sm font-semibold text-gray-600">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-100">
-                {% for member in members %}
-                <tr class="hover:bg-orange-50">
-                    <td class="px-6 py-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold">{{ member.email[0]|upper }}</div>
-                            <div>
-                                <div class="font-semibold text-gray-900">{{ member.full_name }}</div>
-                                <div class="text-sm text-gray-500">{{ member.email }}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4"><span class="capitalize">{{ member.role }}</span></td>
-                    <td class="px-6 py-4">
-                        {% if member.invitation_accepted %}
-                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">Active</span>
-                        {% else %}
-                        <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">Pending</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        <form action="{{ url_for('team.delete_member', member_id=member.id) }}" method="POST" class="inline" onsubmit="return confirm('Remove this member?')">
-                            <button type="submit" class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
-                        </form>
-                    </td>
-                </tr>
+    {% if members %}
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for member in members %}
+        <div class="member-card">
+            <div class="flex items-start gap-4 mb-4">
+                <div class="avatar" style="background: {{ member.department_color }};">
+                    {{ member.email[0]|upper }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-gray-900 truncate">{{ member.full_name }}</h3>
+                    <p class="text-sm text-gray-500 truncate">{{ member.email }}</p>
+                </div>
+                {% if member.invitation_accepted %}
+                <span class="badge badge-active">Active</span>
                 {% else %}
-                <tr><td colspan="4" class="px-6 py-12 text-center text-gray-500">No team members</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                <span class="badge badge-pending">Pending</span>
+                {% endif %}
+            </div>
+            
+            <div class="mb-4">
+                <form action="{{ url_for('team.change_department', member_id=member.id) }}" method="POST">
+                    <label class="text-xs text-gray-500 block mb-1">Department</label>
+                    <select name="department_id" class="w-full p-2 border border-gray-200 rounded-lg text-sm" onchange="this.form.submit()">
+                        <option value="">Unassigned</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id == member.department_id %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-500 capitalize">{{ member.role }}</span>
+                <div class="flex gap-3">
+                    {% if not member.invitation_accepted %}
+                    <form action="{{ url_for('team.resend_invite', member_id=member.id) }}" method="POST" class="inline">
+                        <button type="submit" class="text-green-500 hover:text-green-700" title="Get invite link">
+                            <i class="fas fa-link"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{{ url_for('team.edit_member', member_id=member.id) }}" class="text-blue-500 hover:text-blue-700">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <form action="{{ url_for('team.delete_member', member_id=member.id) }}" method="POST" class="inline" onsubmit="return confirm('Remove this member?');">
+                        <button type="submit" class="text-red-400 hover:text-red-600">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
+    {% else %}
+    <div class="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+        <i class="fas fa-users text-5xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-bold text-gray-700 mb-2">No team members yet</h3>
+        <p class="text-gray-500 mb-4">Invite your first team member</p>
+        <a href="{{ url_for('team.invite_member') }}" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-orange-600">
+            <i class="fas fa-user-plus mr-2"></i>Invite Member
+        </a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

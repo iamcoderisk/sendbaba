@@ -1,0 +1,103 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Send Email - SendBaba{% endblock %}
+{% block page_title %}Send Email{% endblock %}
+{% block page_subtitle %}Send a single email with beautiful templates{% endblock %}
+
+{% block extra_css %}
+<style>
+.template-card { background: white; border-radius: 16px; border: 2px solid #E5E7EB; padding: 16px; cursor: pointer; transition: all 0.2s; }
+.template-card:hover { border-color: #F97316; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+.template-card.selected { border-color: #F97316; background: #FFF7ED; }
+.template-preview { height: 120px; background: #F9FAFB; border-radius: 8px; margin-bottom: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.template-preview img { max-height: 100%; max-width: 100%; }
+.template-preview .icon { font-size: 32px; color: #D1D5DB; }
+.category-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.recent-item { padding: 12px; border-radius: 10px; background: #F9FAFB; margin-bottom: 8px; }
+.status-badge { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.status-sent { background: #DCFCE7; color: #166534; }
+.status-queued { background: #FEF3C7; color: #92400E; }
+.status-failed { background: #FEE2E2; color: #991B1B; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Quick Actions -->
+    <div class="flex flex-wrap gap-3 mb-8">
+        <a href="{{ url_for('single_email.compose') }}" class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition">
+            <i class="fas fa-edit mr-2"></i>Compose New
+        </a>
+        <a href="{{ url_for('single_email.templates') }}" class="bg-white border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:border-orange-300 transition">
+            <i class="fas fa-palette mr-2"></i>My Templates
+        </a>
+        <a href="{{ url_for('single_email.history') }}" class="bg-white border border-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:border-orange-300 transition">
+            <i class="fas fa-history mr-2"></i>History
+        </a>
+    </div>
+    
+    <div class="grid lg:grid-cols-3 gap-8">
+        <!-- Templates Section -->
+        <div class="lg:col-span-2">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Choose a Template</h2>
+            
+            {% if templates %}
+            <div class="grid md:grid-cols-3 gap-4">
+                {% for template in templates %}
+                <a href="{{ url_for('single_email.compose', template_id=template.id) }}" class="template-card">
+                    <div class="template-preview">
+                        {% if template.thumbnail_url %}
+                        <img src="{{ template.thumbnail_url }}" alt="{{ template.name }}">
+                        {% else %}
+                        <i class="fas fa-envelope-open-text icon"></i>
+                        {% endif %}
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-1">{{ template.name }}</h3>
+                    <span class="category-badge" style="background: 
+                        {% if template.category == 'welcome' %}#DBEAFE; color: #1E40AF;
+                        {% elif template.category == 'followup' %}#FEF3C7; color: #92400E;
+                        {% elif template.category == 'thankyou' %}#DCFCE7; color: #166534;
+                        {% elif template.category == 'meeting' %}#EDE9FE; color: #5B21B6;
+                        {% else %}#F3F4F6; color: #4B5563;{% endif %}">
+                        {{ template.category }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                <i class="fas fa-palette text-4xl text-gray-300 mb-3"></i>
+                <p class="text-gray-500">No templates available</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Recent Emails -->
+        <div>
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Recent Emails</h2>
+            <div class="bg-white rounded-2xl border border-gray-200 p-4">
+                {% if recent_emails %}
+                {% for email in recent_emails %}
+                <div class="recent-item">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-medium text-gray-900 text-sm truncate" style="max-width: 150px;">
+                            {{ email.recipient_email }}
+                        </span>
+                        <span class="status-badge status-{{ email.status }}">{{ email.status }}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 truncate">{{ email.subject }}</p>
+                    <p class="text-xs text-gray-400 mt-1">
+                        {{ email.created_at.strftime('%b %d, %H:%M') if email.created_at else '' }}
+                    </p>
+                </div>
+                {% endfor %}
+                <a href="{{ url_for('single_email.history') }}" class="block text-center text-orange-500 font-semibold text-sm mt-4">
+                    View All →
+                </a>
+                {% else %}
+                <p class="text-gray-500 text-sm text-center py-8">No emails sent yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

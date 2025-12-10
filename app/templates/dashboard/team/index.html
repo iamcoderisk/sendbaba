@@ -1,74 +1,196 @@
 {% extends "dashboard/base.html" %}
-{% block title %}Team - SendBaba{% endblock %}
+{% block title %}Team Management - SendBaba{% endblock %}
 {% block page_title %}Team Management{% endblock %}
-{% block page_subtitle %}Manage your team members and departments{% endblock %}
+{% block page_subtitle %}Manage departments and team members{% endblock %}
 
 {% block extra_css %}
 <style>
-:root { --primary: #F97316; }
-.stat-card { background: white; border-radius: 16px; padding: 24px; border: 1px solid #E5E7EB; }
-.stat-value { font-size: 2.5rem; font-weight: 800; color: #111827; }
-.stat-label { font-size: 14px; color: #6B7280; margin-top: 4px; }
-.member-card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E5E7EB; transition: all 0.2s; }
-.member-card:hover { border-color: #FDBA74; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(249,115,22,0.1); }
-.avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), #EA580C); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 18px; }
-.badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.stat-card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E5E7EB; }
+.stat-value { font-size: 2rem; font-weight: 800; color: #111827; }
+.stat-label { font-size: 13px; color: #6B7280; margin-top: 4px; }
+.dept-card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E5E7EB; transition: all 0.2s; }
+.dept-card:hover { border-color: #F97316; box-shadow: 0 4px 20px rgba(249,115,22,0.1); }
+.member-row { background: white; border-radius: 12px; padding: 16px; border: 1px solid #E5E7EB; margin-bottom: 8px; }
+.member-row:hover { border-color: #FDBA74; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; }
+.badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .badge-active { background: #DCFCE7; color: #166534; }
 .badge-pending { background: #FEF3C7; color: #92400E; }
-.badge-admin { background: #EDE9FE; color: #5B21B6; }
-.btn-primary { background: linear-gradient(135deg, var(--primary), #EA580C); color: white; padding: 12px 24px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(249,115,22,0.3); }
-.empty-state { text-align: center; padding: 60px 20px; background: white; border-radius: 20px; border: 2px dashed #E5E7EB; }
+.badge-dept { color: white; }
+.tab-btn { padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.tab-btn.active { background: #F97316; color: white; }
+.tab-btn:not(.active) { background: #F3F4F6; color: #6B7280; }
+.btn-primary { background: linear-gradient(135deg, #F97316, #EA580C); color: white; padding: 10px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(249,115,22,0.3); }
+.dept-select { padding: 6px 10px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.section-title { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 16px; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
-    <div class="flex justify-between items-center mb-8">
-        <div></div>
-        <a href="{{ url_for('team.invite_member') }}" class="btn-primary"><i class="fas fa-plus"></i> Invite Member</a>
-    </div>
-    
+    <!-- Stats -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div class="stat-card"><div class="stat-value">{{ stats.total_members }}</div><div class="stat-label">Total Members</div></div>
-        <div class="stat-card"><div class="stat-value">{{ stats.active_members }}</div><div class="stat-label">Active</div></div>
-        <div class="stat-card"><div class="stat-value">{{ stats.pending_invitations }}</div><div class="stat-label">Pending</div></div>
-        <div class="stat-card"><div class="stat-value">{{ stats.total_departments }}</div><div class="stat-label">Departments</div></div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_departments }}</div>
+            <div class="stat-label">Departments</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_members }}</div>
+            <div class="stat-label">Team Members</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.active_members }}</div>
+            <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.pending_invitations }}</div>
+            <div class="stat-label">Pending Invites</div>
+        </div>
     </div>
     
-    <div class="flex gap-4 mb-6">
-        <a href="{{ url_for('team.members') }}" class="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg font-semibold">Members</a>
-        <a href="{{ url_for('team.departments') }}" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-semibold">Departments</a>
+    <!-- Action Buttons -->
+    <div class="flex flex-wrap gap-3 mb-8">
+        <a href="{{ url_for('team.create_department') }}" class="btn-primary">
+            <i class="fas fa-building"></i> New Department
+        </a>
+        <a href="{{ url_for('team.invite_member') }}" class="btn-primary">
+            <i class="fas fa-user-plus"></i> Invite Member
+        </a>
+        <a href="{{ url_for('team.send_single_email') }}" class="btn-primary" style="background: linear-gradient(135deg, #3B82F6, #1D4ED8);">
+            <i class="fas fa-envelope"></i> Send Email
+        </a>
     </div>
     
-    {% if members %}
-    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {% for member in members %}
-        <div class="member-card">
-            <div class="flex items-center gap-4">
-                <div class="avatar">{{ member.email[0]|upper }}</div>
-                <div class="flex-1 min-w-0">
-                    <h3 class="font-semibold text-gray-900 truncate">{{ member.full_name }}</h3>
-                    <p class="text-sm text-gray-500 truncate">{{ member.email }}</p>
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-6">
+        <button class="tab-btn active" onclick="showTab('departments')">Departments</button>
+        <button class="tab-btn" onclick="showTab('members')">All Members</button>
+    </div>
+    
+    <!-- Departments Tab -->
+    <div id="departments-tab">
+        <div class="section-title">Departments ({{ departments|length }})</div>
+        {% if departments %}
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {% for dept in departments %}
+            <div class="dept-card">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: {{ dept.color }}22;">
+                        <i class="fas fa-building text-xl" style="color: {{ dept.color }};"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-900">{{ dept.name }}</h3>
+                        <p class="text-sm text-gray-500">{{ dept.member_count }} member{{ 's' if dept.member_count != 1 else '' }}</p>
+                    </div>
+                    <a href="{{ url_for('team.edit_department', dept_id=dept.id) }}" class="text-gray-400 hover:text-orange-500">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                </div>
+                <p class="text-sm text-gray-600 mb-3">{{ dept.description or 'No description' }}</p>
+                <div class="flex justify-between text-xs text-gray-500">
+                    <span><i class="fas fa-envelope mr-1"></i>{{ dept.total_emails }} emails</span>
+                    <span><i class="fas fa-chart-line mr-1"></i>{{ dept.email_quota }}/mo quota</span>
                 </div>
             </div>
-            <div class="flex items-center gap-2 mt-4">
-                <span class="badge {% if member.role == 'admin' %}badge-admin{% elif member.invitation_accepted %}badge-active{% else %}badge-pending{% endif %}">
-                    {% if member.role == 'admin' %}Admin{% elif member.invitation_accepted %}Active{% else %}Pending{% endif %}
-                </span>
-            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-state">
-        <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-users text-3xl text-orange-400"></i>
+        {% else %}
+        <div class="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-gray-200 mb-8">
+            <i class="fas fa-building text-4xl text-gray-300 mb-3"></i>
+            <h3 class="font-bold text-gray-700 mb-2">No departments yet</h3>
+            <a href="{{ url_for('team.create_department') }}" class="text-orange-500 font-semibold">Create your first department →</a>
         </div>
-        <h3 class="text-xl font-bold text-gray-900 mb-2">No team members yet</h3>
-        <p class="text-gray-500 mb-6">Invite your first team member to get started</p>
-        <a href="{{ url_for('team.invite_member') }}" class="btn-primary"><i class="fas fa-plus"></i> Invite Member</a>
+        {% endif %}
     </div>
-    {% endif %}
+    
+    <!-- Members Tab -->
+    <div id="members-tab" style="display: none;">
+        <div class="section-title">Team Members ({{ members|length }})</div>
+        {% if members %}
+        <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Member</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for member in members %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                <div class="avatar" style="background: {{ member.department_color }};">
+                                    {{ member.email[0]|upper }}
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-gray-900">{{ member.full_name }}</div>
+                                    <div class="text-sm text-gray-500">{{ member.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <form action="{{ url_for('team.change_department', member_id=member.id) }}" method="POST" class="inline">
+                                <select name="department_id" class="dept-select" onchange="this.form.submit()">
+                                    <option value="">Unassigned</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.id }}" {% if dept.id == member.department_id %}selected{% endif %}>
+                                        {{ dept.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="text-sm font-medium text-gray-700 capitalize">{{ member.role }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if member.invitation_accepted %}
+                            <span class="badge badge-active">Active</span>
+                            {% else %}
+                            <span class="badge badge-pending">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <a href="{{ url_for('team.edit_member', member_id=member.id) }}" class="text-blue-500 hover:text-blue-700 mr-3">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form action="{{ url_for('team.delete_member', member_id=member.id) }}" method="POST" class="inline" onsubmit="return confirm('Remove this member?');">
+                                <button type="submit" class="text-red-400 hover:text-red-600">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+            <i class="fas fa-users text-4xl text-gray-300 mb-3"></i>
+            <h3 class="font-bold text-gray-700 mb-2">No team members yet</h3>
+            <a href="{{ url_for('team.invite_member') }}" class="text-orange-500 font-semibold">Invite your first member →</a>
+        </div>
+        {% endif %}
+    </div>
 </div>
+
+<script>
+function showTab(tab) {
+    document.getElementById('departments-tab').style.display = tab === 'departments' ? 'block' : 'none';
+    document.getElementById('members-tab').style.display = tab === 'members' ? 'block' : 'none';
+    
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(tab)) {
+            btn.classList.add('active');
+        }
+    });
+}
+</script>
 {% endblock %}

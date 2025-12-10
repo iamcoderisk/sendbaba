@@ -359,11 +359,7 @@ def api_send_campaign():
         # Queue the campaign for async processing via Celery
         try:
             from app.tasks.email_tasks import send_campaign
-            send_campaign.apply_async(
-                args=[campaign_id],
-                queue='bulk',
-                priority=5
-            )
+            send_campaign.delay(campaign_id)
             logger.info(f"Campaign {campaign_id} queued for {total} contacts")
             
             return jsonify({

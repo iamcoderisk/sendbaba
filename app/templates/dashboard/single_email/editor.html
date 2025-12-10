@@ -1,0 +1,197 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Compose Email - SendBaba{% endblock %}
+{% block page_title %}Compose Email{% endblock %}
+
+{% block extra_css %}
+<style>
+.editor-container { display: grid; grid-template-columns: 350px 1fr; gap: 24px; min-height: calc(100vh - 200px); }
+.sidebar { background: white; border-radius: 20px; border: 1px solid #E5E7EB; padding: 24px; }
+.preview-frame { background: white; border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; }
+.preview-header { background: #F9FAFB; padding: 16px 20px; border-bottom: 1px solid #E5E7EB; }
+.preview-body { padding: 20px; min-height: 400px; }
+.form-group { margin-bottom: 20px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+.form-input { width: 100%; padding: 12px 16px; border: 1px solid #E5E7EB; border-radius: 12px; font-size: 14px; transition: all 0.2s; }
+.form-input:focus { outline: none; border-color: #F97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }
+.contact-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); max-height: 200px; overflow-y: auto; z-index: 50; display: none; }
+.contact-dropdown.show { display: block; }
+.contact-item { padding: 10px 16px; cursor: pointer; }
+.contact-item:hover { background: #FFF7ED; }
+.btn-send { background: linear-gradient(135deg, #F97316, #EA580C); color: white; width: 100%; padding: 14px; border-radius: 12px; font-weight: 600; font-size: 16px; border: none; cursor: pointer; }
+.btn-send:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(249,115,22,0.3); }
+.toolbar { display: flex; gap: 8px; padding: 12px; background: #F9FAFB; border-radius: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.toolbar-btn { padding: 8px 12px; border: none; background: white; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.toolbar-btn:hover { background: #FFF7ED; color: #F97316; }
+.merge-tag { background: #EDE9FE; color: #5B21B6; padding: 2px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6">
+        <a href="{{ url_for('single_email.index') }}" class="text-gray-500 hover:text-orange-500">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Templates
+        </a>
+    </div>
+    
+    <form method="POST" action="{{ url_for('single_email.send') }}" id="emailForm">
+        <div class="editor-container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <h3 class="font-bold text-gray-900 mb-6">Email Details</h3>
+                
+                <div class="form-group" style="position: relative;">
+                    <label class="form-label">To *</label>
+                    <input type="email" name="recipient_email" id="recipientEmail" required
+                           class="form-input" placeholder="email@example.com"
+                           autocomplete="off">
+                    <div class="contact-dropdown" id="contactDropdown"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Recipient Name</label>
+                    <input type="text" name="recipient_name" id="recipientName"
+                           class="form-input" placeholder="John Doe">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Subject *</label>
+                    <input type="text" name="subject" id="emailSubject" required
+                           class="form-input" placeholder="Email subject"
+                           value="{{ template.subject if template else '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Merge Tags</label>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="merge-tag" onclick="insertMergeTag('{{first_name}}')">First Name</span>
+                        <span class="merge-tag" onclick="insertMergeTag('{{name}}')">Full Name</span>
+                        <span class="merge-tag" onclick="insertMergeTag('{{email}}')">Email</span>
+                        <span class="merge-tag" onclick="insertMergeTag('{{company}}')">Company</span>
+                    </div>
+                </div>
+                
+                <hr class="my-6 border-gray-200">
+                
+                <button type="submit" class="btn-send">
+                    <i class="fas fa-paper-plane mr-2"></i>Send Email
+                </button>
+                
+                <p class="text-xs text-gray-500 text-center mt-4">
+                    Email will be sent immediately
+                </p>
+            </div>
+            
+            <!-- Preview/Editor -->
+            <div class="preview-frame">
+                <div class="preview-header">
+                    <div class="toolbar">
+                        <button type="button" class="toolbar-btn" onclick="execCmd('bold')"><i class="fas fa-bold"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="execCmd('italic')"><i class="fas fa-italic"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="execCmd('underline')"><i class="fas fa-underline"></i></button>
+                        <span class="border-l border-gray-300 mx-2"></span>
+                        <button type="button" class="toolbar-btn" onclick="execCmd('justifyLeft')"><i class="fas fa-align-left"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="execCmd('justifyCenter')"><i class="fas fa-align-center"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="execCmd('justifyRight')"><i class="fas fa-align-right"></i></button>
+                        <span class="border-l border-gray-300 mx-2"></span>
+                        <button type="button" class="toolbar-btn" onclick="execCmd('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="execCmd('insertOrderedList')"><i class="fas fa-list-ol"></i></button>
+                        <span class="border-l border-gray-300 mx-2"></span>
+                        <button type="button" class="toolbar-btn" onclick="addLink()"><i class="fas fa-link"></i></button>
+                        <button type="button" class="toolbar-btn" onclick="addImage()"><i class="fas fa-image"></i></button>
+                    </div>
+                </div>
+                <div class="preview-body">
+                    <div id="emailEditor" contenteditable="true" 
+                         style="min-height: 400px; outline: none; font-family: Arial, sans-serif;">
+                        {% if template and template.html_content %}
+                        {{ template.html_content|safe }}
+                        {% else %}
+                        <p>Start writing your email here...</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <input type="hidden" name="html_body" id="htmlBody">
+        <input type="hidden" name="text_body" id="textBody">
+    </form>
+</div>
+
+<script>
+const contacts = {{ contacts|tojson|safe }};
+const emailInput = document.getElementById('recipientEmail');
+const nameInput = document.getElementById('recipientName');
+const dropdown = document.getElementById('contactDropdown');
+const editor = document.getElementById('emailEditor');
+const form = document.getElementById('emailForm');
+
+// Contact autocomplete
+emailInput.addEventListener('input', function() {
+    const query = this.value.toLowerCase();
+    if (query.length < 2) {
+        dropdown.classList.remove('show');
+        return;
+    }
+    
+    const matches = contacts.filter(c => 
+        c.email.toLowerCase().includes(query) || 
+        c.name.toLowerCase().includes(query)
+    ).slice(0, 5);
+    
+    if (matches.length > 0) {
+        dropdown.innerHTML = matches.map(c => 
+            `<div class="contact-item" data-email="${c.email}" data-name="${c.name}">
+                <div class="font-medium text-gray-900">${c.name}</div>
+                <div class="text-sm text-gray-500">${c.email}</div>
+            </div>`
+        ).join('');
+        dropdown.classList.add('show');
+    } else {
+        dropdown.classList.remove('show');
+    }
+});
+
+dropdown.addEventListener('click', function(e) {
+    const item = e.target.closest('.contact-item');
+    if (item) {
+        emailInput.value = item.dataset.email;
+        nameInput.value = item.dataset.name;
+        dropdown.classList.remove('show');
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (!emailInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove('show');
+    }
+});
+
+// Editor commands
+function execCmd(command, value = null) {
+    document.execCommand(command, false, value);
+    editor.focus();
+}
+
+function addLink() {
+    const url = prompt('Enter URL:');
+    if (url) execCmd('createLink', url);
+}
+
+function addImage() {
+    const url = prompt('Enter image URL:');
+    if (url) execCmd('insertImage', url);
+}
+
+function insertMergeTag(tag) {
+    execCmd('insertText', tag);
+}
+
+// Form submission
+form.addEventListener('submit', function(e) {
+    document.getElementById('htmlBody').value = editor.innerHTML;
+    document.getElementById('textBody').value = editor.innerText;
+});
+</script>
+{% endblock %}

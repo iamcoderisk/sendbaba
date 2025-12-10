@@ -85,3 +85,19 @@ def send_email():
     except Exception as e:
         logger.error(f"Send email error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================
+# EMAIL INFRASTRUCTURE STATS
+# ============================================
+
+@api_bp.route('/infrastructure/stats', methods=['GET'])
+@login_required
+def get_infrastructure_stats():
+    """Get email infrastructure stats"""
+    try:
+        from app.utils.email_infrastructure import get_infrastructure
+        infra = get_infrastructure()
+        stats = infra.get_stats()
+        return jsonify({'success': True, 'stats': stats})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

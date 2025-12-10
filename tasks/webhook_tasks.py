@@ -18,7 +18,7 @@ REDIS_PORT = 6379
 
 
 def get_redis():
-    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password='SendBaba2024SecureRedis', decode_responses=True)
 
 
 def sign_payload(payload: str, secret: str) -> str:
