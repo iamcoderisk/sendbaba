@@ -1,369 +1,1063 @@
 {% extends "dashboard/base.html" %}
 
 {% block title %}Contacts - SendBaba{% endblock %}
+{% block page_title %}Contacts{% endblock %}
+{% block page_subtitle %}Manage your email subscribers and contact lists{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --primary: #F97316;
+    --primary-dark: #EA580C;
+    --primary-light: #FDBA74;
+    --primary-bg: #FFF7ED;
+    --success: #22C55E;
+    --success-bg: #DCFCE7;
+    --danger: #EF4444;
+    --danger-bg: #FEE2E2;
+    --warning: #F59E0B;
+    --warning-bg: #FEF3C7;
+}
+
+/* Header Actions */
+.header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* Stats Cards */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #E5E7EB;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+}
+
+.stat-card:hover::before { opacity: 1; }
+
+.stat-card.orange::before { background: linear-gradient(90deg, #F97316, #FB923C); }
+.stat-card.green::before { background: linear-gradient(90deg, #22C55E, #4ADE80); }
+.stat-card.red::before { background: linear-gradient(90deg, #EF4444, #F87171); }
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+}
+
+.stat-icon.orange { background: linear-gradient(135deg, var(--primary-bg), #FED7AA); color: var(--primary); }
+.stat-icon.green { background: linear-gradient(135deg, var(--success-bg), #BBF7D0); color: var(--success); }
+.stat-icon.red { background: linear-gradient(135deg, var(--danger-bg), #FECACA); color: var(--danger); }
+
+.stat-value {
+    font-size: 36px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.stat-subtext {
+    font-size: 13px;
+    color: #9CA3AF;
+}
+
+/* Action Bar */
+.action-bar {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #E5E7EB;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+    max-width: 400px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    border: 2px solid #E5E7EB;
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.3s;
+    background: #F9FAFB;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1);
+}
+
+.search-box i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9CA3AF;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+}
+
+.btn-secondary {
+    background: white;
+    color: #374151;
+    border: 2px solid #E5E7EB;
+}
+
+.btn-secondary:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-bg);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger), #DC2626);
+    color: white;
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+.btn-sm {
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+/* Contacts Card */
+.contacts-card {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid #E5E7EB;
+    overflow: hidden;
+}
+
+.contacts-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #F3F4F6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.contacts-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.contacts-title-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--primary-bg), #FED7AA);
+    color: var(--primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.selected-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--primary-bg);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--primary-dark);
+    font-weight: 600;
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 0.3s;
+}
+
+.selected-info.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Table Styles */
+.contacts-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.contacts-table th {
+    padding: 14px 20px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #F9FAFB;
+    border-bottom: 2px solid #E5E7EB;
+}
+
+.contacts-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #F3F4F6;
+    font-size: 14px;
+    color: #374151;
+}
+
+.contacts-table tbody tr {
+    transition: all 0.2s;
+}
+
+.contacts-table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(249, 115, 22, 0.04), transparent);
+}
+
+.contacts-table tbody tr.selected {
+    background: var(--primary-bg);
+}
+
+.contact-checkbox {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.contact-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.contact-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.contact-details h4 {
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 2px;
+    font-size: 14px;
+}
+
+.contact-details p {
+    font-size: 12px;
+    color: #9CA3AF;
+}
+
+.contact-email {
+    color: var(--primary);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.contact-email:hover {
+    text-decoration: underline;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.active { background: var(--success-bg); color: #15803D; }
+.status-badge.unsubscribed { background: var(--warning-bg); color: #B45309; }
+.status-badge.bounced { background: var(--danger-bg); color: #DC2626; }
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.status-dot.active { background: var(--success); }
+.status-dot.unsubscribed { background: var(--warning); }
+.status-dot.bounced { background: var(--danger); }
+
+/* Action Buttons */
+.action-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #9CA3AF;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn:hover {
+    background: #F3F4F6;
+    color: #374151;
+}
+
+.action-btn.delete:hover {
+    background: var(--danger-bg);
+    color: var(--danger);
+}
+
+/* Pagination */
+.pagination-container {
+    padding: 20px 24px;
+    border-top: 1px solid #F3F4F6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: #FAFAFA;
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: #6B7280;
+}
+
+.pagination-info strong {
+    color: #111827;
+    font-weight: 700;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.page-btn {
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 2px solid #E5E7EB;
+    background: white;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.page-btn:hover:not(.disabled):not(.active) {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.page-btn.active {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-color: var(--primary);
+    color: white;
+}
+
+.page-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.page-ellipsis {
+    padding: 0 8px;
+    color: #9CA3AF;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, var(--primary-bg), #FED7AA);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    color: var(--primary);
+    margin: 0 auto 24px;
+}
+
+.empty-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 10px;
+}
+
+.empty-text {
+    font-size: 14px;
+    color: #6B7280;
+    margin-bottom: 28px;
+    max-width: 380px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    padding: 16px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    animation: slideIn 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.toast.success { background: linear-gradient(135deg, var(--success), #16A34A); color: white; }
+.toast.error { background: linear-gradient(135deg, var(--danger), #DC2626); color: white; }
+.toast.warning { background: linear-gradient(135deg, var(--warning), #D97706); color: white; }
+
+.toast-close {
+    margin-left: auto;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: white;
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 400px;
+    width: 90%;
+    transform: scale(0.9);
+    transition: all 0.3s;
+}
+
+.modal-overlay.active .modal {
+    transform: scale(1);
+}
+
+.modal-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--danger-bg);
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 20px;
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.modal-text {
+    font-size: 14px;
+    color: #6B7280;
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.modal-buttons .btn {
+    flex: 1;
+    justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .action-bar { flex-direction: column; }
+    .search-box { max-width: none; }
+    .contacts-table th:nth-child(4),
+    .contacts-table td:nth-child(4) { display: none; }
+    .pagination-container { flex-direction: column; }
+}
+</style>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('contact.import_page') }}" class="btn btn-primary">
+    <i class="fas fa-upload"></i> Import Contacts
+</a>
+{% endblock %}
 
 {% block content %}
-<div class="p-6 md:p-8">
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">👥 Contacts</h1>
-            <p class="text-gray-600">
-                {% if can_see_all %}
-                    Manage all organization contacts
-                {% else %}
-                    Manage your contacts
-                {% endif %}
-            </p>
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+        <div class="modal-icon">
+            <i class="fas fa-trash-alt"></i>
         </div>
-        <div class="flex gap-3">
-            <a href="{{ url_for('contact.import_page') }}" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition shadow-lg">
-                <i class="fas fa-upload mr-2"></i>Import Contacts
-            </a>
-            <a href="/dashboard/campaigns/create" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition shadow-lg">
-                <i class="fas fa-paper-plane mr-2"></i>Send Campaign
-            </a>
+        <h3 class="modal-title" id="modalTitle">Delete Contact?</h3>
+        <p class="modal-text" id="modalText">This action cannot be undone.</p>
+        <div class="modal-buttons">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" id="modalConfirmBtn">Delete</button>
         </div>
     </div>
-
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-            <div class="flex items-center justify-between mb-2">
-                <div class="text-sm font-medium opacity-90">Total Contacts</div>
-                <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                    <i class="fas fa-users"></i>
-                </div>
-            </div>
-            <div class="text-4xl font-bold">{{ stats.total }}</div>
-            <div class="text-sm opacity-75 mt-1">
-                {% if can_see_all %}All organization{% else %}Your{% endif %} contacts
-            </div>
-        </div>
-
-        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
-            <div class="flex items-center justify-between mb-2">
-                <div class="text-sm font-medium opacity-90">Active</div>
-                <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-            </div>
-            <div class="text-4xl font-bold">{{ stats.active }}</div>
-            <div class="text-sm opacity-75 mt-1">
-                {% if stats.total > 0 %}{{ (stats.active / stats.total * 100)|round(1) }}%{% else %}0%{% endif %} active rate
-            </div>
-        </div>
-
-        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg">
-            <div class="flex items-center justify-between mb-2">
-                <div class="text-sm font-medium opacity-90">Unsubscribed</div>
-                <div class="bg-white bg-opacity-20 p-2 rounded-lg">
-                    <i class="fas fa-user-slash"></i>
-                </div>
-            </div>
-            <div class="text-4xl font-bold">{{ stats.unsubscribed }}</div>
-            <div class="text-sm opacity-75 mt-1">
-                {% if stats.total > 0 %}{{ (stats.unsubscribed / stats.total * 100)|round(1) }}%{% else %}0%{% endif %} unsubscribe rate
-            </div>
-        </div>
-    </div>
-
-    {% if contacts and contacts|length > 0 %}
-    <!-- Search and Actions Bar -->
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div class="flex flex-col md:flex-row gap-4">
-            <div class="flex-1 relative">
-                <input 
-                    type="text" 
-                    id="searchInput" 
-                    placeholder="Search by name, email, or company..." 
-                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    onkeyup="searchContacts()"
-                >
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="selectAllContacts()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                    <i class="fas fa-check-square mr-2"></i>Select All
-                </button>
-                <button onclick="bulkDelete()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
-                    <i class="fas fa-trash mr-2"></i>Delete Selected
-                </button>
-            </div>
-        </div>
-        <div id="selectedCount" class="hidden mt-3 text-sm text-gray-600">
-            <span id="selectedNum">0</span> contact(s) selected
-        </div>
-    </div>
-
-    <!-- Contacts Table -->
-    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200" id="contactsTable">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-4 text-left w-12">
-                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
-                        </th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Contact
-                        </th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Email
-                        </th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Company
-                        </th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Status
-                        </th>
-                        <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Added
-                        </th>
-                        <th class="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for contact in contacts %}
-                    <tr class="hover:bg-gray-50 transition contact-row">
-                        <td class="px-6 py-4">
-                            <input type="checkbox" class="contact-checkbox rounded border-gray-300 text-purple-600 focus:ring-purple-500" value="{{ contact.id }}" onchange="updateSelectedCount()">
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">
-                                    {{ contact.first_name[0]|upper if contact.first_name else contact.email[0]|upper }}
-                                </div>
-                                <div>
-                                    <div class="font-medium text-gray-900">
-                                        {% if contact.first_name or contact.last_name %}
-                                            {{ contact.first_name }} {{ contact.last_name }}
-                                        {% else %}
-                                            <span class="text-gray-500">No name</span>
-                                        {% endif %}
-                                    </div>
-                                    {% if contact.phone %}
-                                    <div class="text-xs text-gray-500">
-                                        <i class="fas fa-phone mr-1"></i>{{ contact.phone }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <a href="mailto:{{ contact.email }}" class="text-purple-600 hover:text-purple-800 hover:underline">
-                                {{ contact.email }}
-                            </a>
-                        </td>
-                        <td class="px-6 py-4 text-gray-700">
-                            {{ contact.company if contact.company else '-' }}
-                        </td>
-                        <td class="px-6 py-4">
-                            {% if contact.status == 'active' %}
-                            <span class="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                <i class="fas fa-check-circle mr-1"></i>Active
-                            </span>
-                            {% elif contact.status == 'unsubscribed' %}
-                            <span class="px-3 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
-                                <i class="fas fa-user-slash mr-1"></i>Unsubscribed
-                            </span>
-                            {% elif contact.status == 'bounced' %}
-                            <span class="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                <i class="fas fa-exclamation-circle mr-1"></i>Bounced
-                            </span>
-                            {% else %}
-                            <span class="px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                                {{ contact.status|title }}
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-500">
-                            {% if contact.created_at %}
-                                {{ contact.created_at.strftime('%b %d, %Y') }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 text-center">
-                            <button onclick="deleteContact('{{ contact.id }}')" class="text-red-600 hover:text-red-900 hover:bg-red-50 p-2 rounded transition" title="Delete contact">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Pagination (if needed) -->
-    <div class="mt-6 flex justify-between items-center">
-        <div class="text-sm text-gray-600">
-            Showing {{ contacts|length }} contact(s)
-        </div>
-    </div>
-
-    {% else %}
-    <!-- Empty State -->
-    <div class="bg-white rounded-xl shadow-sm p-12 text-center">
-        <div class="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <i class="fas fa-users text-5xl text-purple-600"></i>
-        </div>
-        <h3 class="text-2xl font-bold text-gray-800 mb-2">No contacts yet</h3>
-        <p class="text-gray-600 mb-8 max-w-md mx-auto">
-            Start building your contact list by importing from CSV or Excel file
-        </p>
-        <a href="{{ url_for('contact.import_page') }}" class="inline-block bg-purple-600 text-white px-8 py-4 rounded-lg hover:bg-purple-700 transition shadow-lg text-lg font-medium">
-            <i class="fas fa-upload mr-2"></i>Import Your First Contacts
-        </a>
-    </div>
-    {% endif %}
 </div>
 
-<script>
-// Search functionality
-function searchContacts() {
-    const input = document.getElementById('searchInput');
-    const filter = input.value.toLowerCase();
-    const rows = document.querySelectorAll('.contact-row');
+<!-- Stats Cards -->
+<div class="stats-grid">
+    <div class="stat-card orange">
+        <div class="stat-header">
+            <div>
+                <div class="stat-label">Total Contacts</div>
+                <div class="stat-value">{{ "{:,}".format(stats.total) }}</div>
+                <div class="stat-subtext">All contacts in list</div>
+            </div>
+            <div class="stat-icon orange">
+                <i class="fas fa-users"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card green">
+        <div class="stat-header">
+            <div>
+                <div class="stat-label">Active Subscribers</div>
+                <div class="stat-value">{{ "{:,}".format(stats.active) }}</div>
+                <div class="stat-subtext">{% if stats.total > 0 %}{{ (stats.active / stats.total * 100)|round(1) }}%{% else %}0%{% endif %} active</div>
+            </div>
+            <div class="stat-icon green">
+                <i class="fas fa-user-check"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card red">
+        <div class="stat-header">
+            <div>
+                <div class="stat-label">Unsubscribed</div>
+                <div class="stat-value">{{ "{:,}".format(stats.unsubscribed) }}</div>
+                <div class="stat-subtext">{% if stats.total > 0 %}{{ (stats.unsubscribed / stats.total * 100)|round(1) }}%{% else %}0%{% endif %} rate</div>
+            </div>
+            <div class="stat-icon red">
+                <i class="fas fa-user-slash"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if contacts and contacts|length > 0 %}
+<!-- Action Bar -->
+<div class="action-bar">
+    <div class="search-box">
+        <i class="fas fa-search"></i>
+        <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Search by name, email, company..." 
+            value="{{ search if search else '' }}"
+        >
+    </div>
+    <div class="action-buttons">
+        <a href="{{ url_for('contact.import_page') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-upload"></i> Import
+        </a>
+        <a href="{{ url_for('contact.export_contacts') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-download"></i> Export CSV
+        </a>
+        <button class="btn btn-danger btn-sm" id="bulkDeleteBtn" disabled onclick="bulkDeleteContacts()">
+            <i class="fas fa-trash"></i> Delete Selected
+        </button>
+    </div>
+</div>
+
+<!-- Contacts Table -->
+<div class="contacts-card">
+    <div class="contacts-header">
+        <div class="contacts-title">
+            <div class="contacts-title-icon"><i class="fas fa-address-book"></i></div>
+            <span>Contact List</span>
+        </div>
+        <div class="selected-info" id="selectedInfo">
+            <i class="fas fa-check-circle"></i>
+            <span><strong id="selectedCount">0</strong> selected</span>
+        </div>
+    </div>
     
-    let visibleCount = 0;
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        if (text.includes(filter)) {
-            row.style.display = '';
-            visibleCount++;
+    <div style="overflow-x: auto;">
+        <table class="contacts-table" id="contactsTable">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">
+                        <input type="checkbox" class="contact-checkbox" id="selectAllCheckbox">
+                    </th>
+                    <th>Contact</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>Status</th>
+                    <th>Added</th>
+                    <th style="width: 80px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                <tr class="contact-row" data-id="{{ contact['id'] }}">
+                    <td>
+                        <input type="checkbox" class="contact-checkbox row-checkbox" value="{{ contact['id'] }}">
+                    </td>
+                    <td>
+                        <div class="contact-info">
+                            <div class="contact-avatar">
+                                {{ contact['first_name'][0]|upper if contact['first_name'] else contact['email'][0]|upper }}
+                            </div>
+                            <div class="contact-details">
+                                <h4>
+                                    {% if contact['first_name'] or contact['last_name'] %}
+                                        {{ contact['first_name'] }} {{ contact['last_name'] }}
+                                    {% else %}
+                                        <span style="color: #9CA3AF;">No name</span>
+                                    {% endif %}
+                                </h4>
+                                {% if contact['phone'] %}
+                                <p><i class="fas fa-phone" style="margin-right: 4px;"></i>{{ contact['phone'] }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="mailto:{{ contact['email'] }}" class="contact-email">{{ contact['email'] }}</a>
+                    </td>
+                    <td>{{ contact['company'] if contact['company'] else '—' }}</td>
+                    <td>
+                        {% set status = contact['status'] or 'active' %}
+                        <span class="status-badge {{ status }}">
+                            <span class="status-dot {{ status }}"></span>
+                            {{ status|title }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if contact['created_at'] %}
+                            {{ contact['created_at'].strftime('%b %d, %Y') }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                        <button class="action-btn delete" onclick="deleteContact('{{ contact['id'] }}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="pagination-container">
+        <div class="pagination-info">
+            Showing <strong>{{ ((page - 1) * per_page) + 1 }}</strong> to <strong>{{ [page * per_page, stats.total]|min }}</strong> of <strong>{{ "{:,}".format(stats.total) }}</strong> contacts
+        </div>
+        <div class="pagination-controls">
+            <a href="?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}" 
+               class="page-btn {% if page <= 1 %}disabled{% endif %}">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            
+            {% set start_page = [1, page - 2]|max %}
+            {% set end_page = [total_pages, page + 2]|min %}
+            
+            {% if start_page > 1 %}
+                <a href="?page=1{% if search %}&search={{ search }}{% endif %}" class="page-btn">1</a>
+                {% if start_page > 2 %}<span class="page-ellipsis">...</span>{% endif %}
+            {% endif %}
+            
+            {% for p in range(start_page, end_page + 1) %}
+                <a href="?page={{ p }}{% if search %}&search={{ search }}{% endif %}" 
+                   class="page-btn {% if p == page %}active{% endif %}">{{ p }}</a>
+            {% endfor %}
+            
+            {% if end_page < total_pages %}
+                {% if end_page < total_pages - 1 %}<span class="page-ellipsis">...</span>{% endif %}
+                <a href="?page={{ total_pages }}{% if search %}&search={{ search }}{% endif %}" class="page-btn">{{ total_pages }}</a>
+            {% endif %}
+            
+            <a href="?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}" 
+               class="page-btn {% if page >= total_pages %}disabled{% endif %}">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- Empty State -->
+<div class="contacts-card">
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <h3 class="empty-title">No contacts yet</h3>
+        <p class="empty-text">Start building your list by importing contacts from a CSV file.</p>
+        <a href="{{ url_for('contact.import_page') }}" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Import Your First Contacts
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// State
+let selectedContacts = new Set();
+let pendingDeleteId = null;
+
+// Elements
+const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+const selectedInfo = document.getElementById('selectedInfo');
+const selectedCountEl = document.getElementById('selectedCount');
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+const confirmModal = document.getElementById('confirmModal');
+const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+const searchInput = document.getElementById('searchInput');
+
+// Toast notification
+function showToast(type, message) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle' };
+    
+    toast.innerHTML = `
+        <i class="fas ${icons[type]}"></i>
+        <span>${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+// Update selection UI
+function updateSelectionUI() {
+    const count = selectedContacts.size;
+    selectedCountEl.textContent = count;
+    
+    if (count > 0) {
+        selectedInfo.classList.add('visible');
+        bulkDeleteBtn.disabled = false;
+    } else {
+        selectedInfo.classList.remove('visible');
+        bulkDeleteBtn.disabled = true;
+    }
+    
+    // Update select all state
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+    if (selectAllCheckbox) selectAllCheckbox.checked = allChecked;
+    
+    // Update row styles
+    document.querySelectorAll('.contact-row').forEach(row => {
+        row.classList.toggle('selected', selectedContacts.has(row.dataset.id));
+    });
+}
+
+// Select all handler
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        document.querySelectorAll('.row-checkbox').forEach(cb => {
+            cb.checked = this.checked;
+            if (this.checked) {
+                selectedContacts.add(cb.value);
+            } else {
+                selectedContacts.delete(cb.value);
+            }
+        });
+        updateSelectionUI();
+    });
+}
+
+// Row checkbox handlers
+document.querySelectorAll('.row-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+        if (this.checked) {
+            selectedContacts.add(this.value);
         } else {
-            row.style.display = 'none';
+            selectedContacts.delete(this.value);
+        }
+        updateSelectionUI();
+    });
+});
+
+// Search with debounce
+let searchTimeout;
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            const search = this.value.trim();
+            const url = new URL(window.location);
+            if (search) {
+                url.searchParams.set('search', search);
+            } else {
+                url.searchParams.delete('search');
+            }
+            url.searchParams.set('page', '1');
+            window.location = url.toString();
+        }, 600);
+    });
+}
+
+// Modal functions
+function openModal(title, text, onConfirm) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalText').textContent = text;
+    modalConfirmBtn.onclick = onConfirm;
+    confirmModal.classList.add('active');
+}
+
+function closeModal() {
+    confirmModal.classList.remove('active');
+}
+
+confirmModal.addEventListener('click', function(e) {
+    if (e.target === confirmModal) closeModal();
+});
+
+// Delete single contact
+function deleteContact(id) {
+    openModal('Delete Contact?', 'This contact will be permanently removed.', async function() {
+        closeModal();
+        try {
+            const res = await fetch(`/dashboard/contacts/api/${id}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                const row = document.querySelector(`tr[data-id="${id}"]`);
+                if (row) {
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(20px)';
+                    setTimeout(() => row.remove(), 300);
+                }
+                showToast('success', 'Contact deleted successfully');
+            } else {
+                showToast('error', data.error || 'Failed to delete');
+            }
+        } catch (err) {
+            showToast('error', 'Network error');
         }
     });
 }
 
-// Selection functionality
-function toggleSelectAll() {
-    const checked = document.getElementById('selectAllCheckbox').checked;
-    const visibleCheckboxes = Array.from(document.querySelectorAll('.contact-checkbox'))
-        .filter(cb => cb.closest('.contact-row').style.display !== 'none');
-    
-    visibleCheckboxes.forEach(cb => cb.checked = checked);
-    updateSelectedCount();
-}
-
-function selectAllContacts() {
-    document.getElementById('selectAllCheckbox').checked = true;
-    toggleSelectAll();
-}
-
-function updateSelectedCount() {
-    const selected = document.querySelectorAll('.contact-checkbox:checked').length;
-    const countDiv = document.getElementById('selectedCount');
-    const countNum = document.getElementById('selectedNum');
-    
-    if (selected > 0) {
-        countDiv.classList.remove('hidden');
-        countNum.textContent = selected;
-    } else {
-        countDiv.classList.add('hidden');
-    }
-}
-
-// Delete functionality
-function deleteContact(id) {
-    if (confirm('Are you sure you want to delete this contact?')) {
-        fetch(`/dashboard/contacts/api/${id}/delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('success', 'Contact deleted successfully');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                showNotification('error', data.error || 'Failed to delete contact');
-            }
-        })
-        .catch(err => {
-            showNotification('error', 'Network error');
-        });
-    }
-}
-
-function bulkDelete() {
-    const selected = Array.from(document.querySelectorAll('.contact-checkbox:checked')).map(cb => cb.value);
-    
-    if (selected.length === 0) {
-        showNotification('warning', 'Please select contacts to delete');
+// Bulk delete
+function bulkDeleteContacts() {
+    if (selectedContacts.size === 0) {
+        showToast('warning', 'Select contacts to delete');
         return;
     }
     
-    if (confirm(`Are you sure you want to delete ${selected.length} contact(s)? This cannot be undone.`)) {
-        fetch('/dashboard/contacts/api/bulk-delete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ids: selected})
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('success', data.message);
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showNotification('error', data.error || 'Failed to delete contacts');
+    openModal(
+        `Delete ${selectedContacts.size} contact${selectedContacts.size > 1 ? 's' : ''}?`,
+        'This action cannot be undone.',
+        async function() {
+            closeModal();
+            try {
+                const ids = Array.from(selectedContacts);
+                const res = await fetch('/dashboard/contacts/api/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    ids.forEach(id => {
+                        const row = document.querySelector(`tr[data-id="${id}"]`);
+                        if (row) row.remove();
+                    });
+                    selectedContacts.clear();
+                    updateSelectionUI();
+                    showToast('success', `${data.deleted} contact${data.deleted > 1 ? 's' : ''} deleted`);
+                } else {
+                    showToast('error', data.error || 'Failed to delete');
+                }
+            } catch (err) {
+                showToast('error', 'Network error');
             }
-        })
-        .catch(err => {
-            showNotification('error', 'Network error');
-        });
-    }
+        }
+    );
 }
 
-// Notification system
-function showNotification(type, message) {
-    const colors = {
-        success: 'bg-green-50 border-green-500 text-green-800',
-        error: 'bg-red-50 border-red-500 text-red-800',
-        warning: 'bg-yellow-50 border-yellow-500 text-yellow-800',
-        info: 'bg-blue-50 border-blue-500 text-blue-800'
-    };
-    
-    const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-    };
-    
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 ${colors[type]} border-l-4 p-4 rounded-lg shadow-xl z-50 max-w-md animate-slide-left`;
-    notification.innerHTML = `
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <i class="fas ${icons[type]} mr-3 text-xl"></i>
-                <p class="font-medium">${message}</p>
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-2xl hover:opacity-70">&times;</button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 5000);
-}
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
+
+console.log('✅ Contacts page loaded');
 </script>
-
-<style>
-@keyframes slide-left {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-.animate-slide-left {
-    animation: slide-left 0.3s ease-out;
-}
-</style>
 {% endblock %}

@@ -3,6 +3,10 @@
 {% block page_title %}Campaigns{% endblock %}
 {% block page_subtitle %}Create and manage your email campaigns{% endblock %}
 
+{% block header_actions %}
+<!-- Empty - no button in header for campaigns page -->
+{% endblock %}
+
 {% block extra_css %}
 <style>
     .campaigns-header {
@@ -429,13 +433,9 @@
 {% block extra_js %}
 <script>
 function showTab(tab) {
-    // Hide all content
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    // Reset all tabs
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    // Show selected content
     document.getElementById('content-' + tab).classList.add('active');
-    // Activate selected tab
     document.getElementById('tab-' + tab).classList.add('active');
 }
 
@@ -447,12 +447,8 @@ function deleteDraft(campaignId) {
         .then(data => {
             if (data.success) {
                 document.querySelector(`[data-draft-id="${campaignId}"]`).remove();
-                // Update badge count
                 const badge = document.querySelector('#tab-drafts .tab-badge');
-                if (badge) {
-                    const count = parseInt(badge.textContent) - 1;
-                    badge.textContent = count;
-                }
+                if (badge) badge.textContent = parseInt(badge.textContent) - 1;
             } else {
                 alert('Error: ' + (data.error || 'Could not delete draft'));
             }

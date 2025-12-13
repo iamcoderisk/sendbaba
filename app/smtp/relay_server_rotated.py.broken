@@ -1,0 +1,228 @@
+"""
+SendBaba SMTP Relay Server with IP Rotation
+============================================
+Enhanced relay server that uses IP rotation for sending.
+Falls back to default if rotation unavailable.
+"""
+
+import smtplib
+import ssl
+import dns.resolver
+import socket
+import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr, make_msgid, formatdate
+import dkim
+import os
+import sys
+
+# Add parent path for imports
+sys.path.insert(0, '/opt/sendbaba-staging')
+
+from app.utils.ip_rotation import get_ip_for_sending, get_ip_stats
+
+logger = logging.getLogger(__name__)
+
+# DKIM Configuration
+DKIM_SELECTOR = 'default'
+DKIM_DOMAIN = 'sendbaba.com'
+DKIM_PRIVATE_KEY_PATH = '/opt/sendbaba-staging/dkim_private.key'
+
+# Default sending IP (fallback)
+DEFAULT_IP = '156.67.29.186'
+
+
+def load_dkim_key():
+    """Load DKIM private key."""
+    try:
+        if os.path.exists(DKIM_PRIVATE_KEY_PATH):
+            with open(DKIM_PRIVATE_KEY_PATH, 'rb') as f:
+                return f.read()
+    except Exception as e:
+        logger.warning(f"Could not load DKIM key: {e}")
+    return None
+
+
+def sign_with_dkim(message_bytes, domain=DKIM_DOMAIN):
+    """Sign message with DKIM."""
+    private_key = load_dkim_key()
+    if not private_key:
+        return message_bytes
+    
+    try:
+        signature = dkim.sign(
+            message=message_bytes,
+            selector=DKIM_SELECTOR.encode(),
+            domain=domain.encode(),
+            privkey=private_key,
+            include_headers=[b'From', b'To', b'Subject', b'Date', b'Message-ID']
+        )
+        return signature + message_bytes
+    except Exception as e:
+        logger.warning(f"DKIM signing failed: {e}")
+        return message_bytes
+
+
+def get_mx_hosts(domain):
+    """Get MX hosts for domain, sorted by priority."""
+    try:
+        answers = dns.resolver.resolve(domain, 'MX')
+        mx_records = [(r.preference, str(r.exchange).rstrip('.')) for r in answers]
+        mx_records.sort(key=lambda x: x[0])
+        return [mx for _, mx in mx_records]
+    except Exception as e:
+        logger.warning(f"MX lookup failed for {domain}: {e}")
+        return [domain]
+
+
+def send_email_sync(email_data, use_rotation=True):
+    """
+    Send email synchronously with IP rotation.
+    
+    Args:
+        email_data: dict with from, to, subject, html_body, text_body
+        use_rotation: if True, use IP rotation; if False, use default IP
+    
+    Returns:
+        dict with success, mx_server, tls, source_ip, error
+    """
+    from_email = email_data.get('from', 'noreply@sendbaba.com')
+    from_name = email_data.get('from_name', 'SendBaba')
+    to_email = email_data['to']
+    subject = email_data['subject']
+    html_body = email_data.get('html_body', '')
+    text_body = email_data.get('text_body', '')
+    
+    # Get source IP from rotation or use default
+    source_ip = DEFAULT_IP
+    source_hostname = 'mail1.sendbaba.com'
+    
+    if use_rotation:
+        rotated_ip, rotated_hostname = get_ip_for_sending()
+        if rotated_ip:
+            source_ip = rotated_ip
+            source_hostname = rotated_hostname or f'mail.sendbaba.com'
+            logger.info(f"Using rotated IP: {source_ip} ({source_hostname})")
+        else:
+            logger.warning("IP rotation returned None, using default IP")
+    
+    # Build message
+    msg = MIMEMultipart('alternative')
+    msg['From'] = formataddr((from_name, from_email))
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg['Date'] = formatdate(localtime=True)
+    msg['Message-ID'] = make_msgid(domain='sendbaba.com')
+    msg['X-Mailer'] = 'SendBaba/1.0'
+    msg['X-SendBaba-IP'] = source_ip
+    
+    # Attach parts
+    if text_body:
+        msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+    if html_body:
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    
+    # Convert to bytes and sign with DKIM
+    message_bytes = msg.as_bytes()
+    signed_message = sign_with_dkim(message_bytes)
+    
+    # Get MX servers
+    to_domain = to_email.split('@')[1]
+    mx_hosts = get_mx_hosts(to_domain)
+    
+    if not mx_hosts:
+        return {'success': False, 'error': f'No MX records for {to_domain}'}
+    
+    # Try each MX server
+    last_error = None
+    for mx_host in mx_hosts:
+        try:
+            # Create socket bound to source IP
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(30)
+            
+            try:
+                sock.bind((source_ip, 0))
+            except OSError as e:
+                logger.warning(f"Could not bind to {source_ip}, using default: {e}")
+                # Continue without binding - will use default route
+            
+            sock.connect((mx_host, 25))
+            
+            # Create SMTP connection from socket
+            smtp = smtplib.SMTP()
+            smtp.sock = sock
+            smtp.file = sock.makefile('rb')
+            smtp._host = mx_host
+            
+            # Get greeting
+            code, msg_resp = smtp.getreply()
+            if code != 220:
+                raise smtplib.SMTPConnectError(code, msg_resp)
+            
+            smtp.ehlo(source_hostname)
+            
+            # Try STARTTLS
+            tls_used = False
+            if smtp.has_extn('STARTTLS'):
+                context = ssl.create_default_context()
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                smtp.starttls(context=context)
+                smtp.ehlo(source_hostname)
+                tls_used = True
+            
+            # Send email
+            smtp.sendmail(from_email, [to_email], signed_message)
+            smtp.quit()
+            
+            return {
+                'success': True,
+                'mx_server': mx_host,
+                'tls': tls_used,
+                'source_ip': source_ip
+            }
+            
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(f"Failed to send via {mx_host} from {source_ip}: {e}")
+            continue
+    
+    return {
+        'success': False,
+        'error': last_error,
+        'source_ip': source_ip
+    }
+
+
+def send_email_with_fallback(email_data):
+    """
+    Send email with rotation, fall back to default if rotation fails.
+    """
+    # Try with rotation first
+    result = send_email_sync(email_data, use_rotation=True)
+    
+    if result['success']:
+        return result
+    
+    # If failed and wasn't using default, try default
+    if result.get('source_ip') != DEFAULT_IP:
+        logger.warning(f"Rotation IP failed, trying default IP {DEFAULT_IP}")
+        return send_email_sync(email_data, use_rotation=False)
+    
+    return result
+
+
+# Test function
+if __name__ == '__main__':
+    print("\nCurrent IP Pool Status:")
+    print("=" * 80)
+    for ip in get_ip_stats():
+        status = "✓ ACTIVE" if ip['is_active'] else "✗ INACTIVE"
+        print(f"{ip['ip_address']:18} {ip['hostname']:25} Day {ip['warmup_day']:2} | {ip['sent_today']:5}/{ip['daily_limit']:5} | {status}")
+    
+    print("\n" + "=" * 80)
+    print("To test sending with rotation:")
+    print("  from app.smtp.relay_server_rotated import send_email_sync")
+    print("  result = send_email_sync({'to': 'test@example.com', 'subject': 'Test', 'html_body': '<p>Test</p>'})")

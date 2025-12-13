@@ -1,84 +1,53 @@
 """
-SendBaba Email Tasks - Clean Rewrite
-Simple, working bulk email system
+SendBaba Email Tasks - Production Ready
+=======================================
+Celery tasks for email campaigns with:
+- Email validation & auto-correction
+- Stuck campaign recovery  
+- Direct campaign execution (no queue issues)
 """
 import os
 import sys
 import uuid
-import smtplib
 import logging
-import dns.resolver
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import time
+from datetime import datetime, timedelta
 
-# Add path
 sys.path.insert(0, '/opt/sendbaba-staging')
 
 from celery_app import celery_app
+from app.smtp.relay_server import send_email_sync
+from app.services.email_tracker import prepare_email_for_tracking
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-# ============================================
-# DATABASE HELPER
-# ============================================
+
 def get_db_connection():
-    """Get direct database connection"""
+    """Get database connection"""
     import psycopg2
     return psycopg2.connect(
         host='localhost',
-        database='sendbaba',
-        user='sendbaba',
-        password='SB_Secure_2024!'
+        database='emailer',
+        user='emailer',
+        password='SecurePassword123'
     )
 
-# ============================================
-# EMAIL HELPERS  
-# ============================================
-def get_mx_server(domain):
-    """Get MX server for domain"""
-    try:
-        records = dns.resolver.resolve(domain, 'MX')
-        mx_record = sorted(records, key=lambda x: x.preference)[0]
-        return str(mx_record.exchange).rstrip('.')
-    except Exception as e:
-        logger.error(f"MX lookup failed for {domain}: {e}")
-        return None
 
-def send_email_smtp(from_email, to_email, subject, html_body, text_body=None):
-    """Send single email via SMTP"""
+def validate_and_fix_email(email):
+    """Validate and auto-correct email typos"""
     try:
-        domain = to_email.split('@')[1]
-        mx_server = get_mx_server(domain)
-        
-        if not mx_server:
-            return False, "No MX record"
-        
-        msg = MIMEMultipart('alternative')
-        msg['From'] = from_email
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg['Message-ID'] = f"<{uuid.uuid4()}@sendbaba.com>"
-        
-        if text_body:
-            msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
-        if html_body:
-            msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-        
-        with smtplib.SMTP(mx_server, 25, timeout=30) as server:
-            server.ehlo('mail.sendbaba.com')
-            try:
-                server.starttls()
-                server.ehlo('mail.sendbaba.com')
-            except:
-                pass
-            server.sendmail(from_email, [to_email], msg.as_string())
-        
-        return True, "Sent"
+        from app.utils.email_validator import validate_email
+        is_valid, corrected, reason = validate_email(email, check_mx=False, auto_fix=True)
+        return is_valid, corrected, reason
     except Exception as e:
-        return False, str(e)
+        if not email or '@' not in email:
+            return False, email, 'invalid_format'
+        return True, email.strip().lower(), None
 
-def personalize(content, contact):
-    """Replace merge tags"""
+
+def personalize(content: str, contact: dict) -> str:
+    """Replace merge tags with contact data"""
     if not content:
         return content
     
@@ -90,6 +59,7 @@ def personalize(content, contact):
         '{{LAST_NAME}}': contact.get('last_name', ''),
         '*|FNAME|*': contact.get('first_name', ''),
         '*|LNAME|*': contact.get('last_name', ''),
+        '*|EMAIL|*': contact.get('email', ''),
     }
     
     for tag, value in replacements.items():
@@ -97,24 +67,23 @@ def personalize(content, contact):
     
     return content
 
-# ============================================
-# MAIN CAMPAIGN TASK
-# ============================================
-@celery_app.task(bind=True)
-def send_campaign(self, campaign_id):
+
+def execute_campaign(campaign_id: str):
     """
-    Main task to send a campaign
-    Fetches contacts and sends emails directly
+    Execute a campaign directly (not as a Celery task).
+    This ensures the campaign runs on the main server.
     """
     logger.info(f"🚀 Starting campaign {campaign_id}")
     
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    stats = {'sent': 0, 'failed': 0, 'skipped': 0, 'corrected': 0, 'total': 0}
+    
     try:
         # Get campaign
         cursor.execute("""
-            SELECT id, organization_id, name, from_name, from_email, 
+            SELECT id, organization_id, name, from_name, from_email,
                    subject, html_body, text_body, reply_to
             FROM campaigns WHERE id = %s
         """, (campaign_id,))
@@ -136,30 +105,26 @@ def send_campaign(self, campaign_id):
             'reply_to': row[8]
         }
         
-        org_id = campaign['organization_id']
-        from_email = f"{campaign['from_name']} <{campaign['from_email']}>" if campaign['from_name'] else campaign['from_email']
-        
         # Update status to sending
         cursor.execute("""
-            UPDATE campaigns SET status = 'sending', started_at = NOW(), updated_at = NOW()
+            UPDATE campaigns 
+            SET status = 'sending', started_at = NOW(), updated_at = NOW()
             WHERE id = %s
         """, (campaign_id,))
         conn.commit()
         
         # Get contacts
         cursor.execute("""
-            SELECT id, email, first_name, last_name 
-            FROM contacts 
+            SELECT id, email, first_name, last_name
+            FROM contacts
             WHERE organization_id = %s AND status = 'active'
-        """, (org_id,))
+            ORDER BY id
+        """, (campaign['organization_id'],))
         
         contacts = cursor.fetchall()
-        total = len(contacts)
+        stats['total'] = len(contacts)
         
-        logger.info(f"📧 Sending to {total} contacts")
-        
-        sent = 0
-        failed = 0
+        logger.info(f"📧 Sending {campaign['name']} to {stats['total']} contacts")
         
         for contact_row in contacts:
             contact = {
@@ -169,117 +134,156 @@ def send_campaign(self, campaign_id):
                 'last_name': contact_row[3]
             }
             
-            to_email = contact['email']
-            if not to_email or '@' not in to_email:
-                failed += 1
+            original_email = (contact['email'] or '').strip()
+            is_valid, to_email, reason = validate_and_fix_email(original_email)
+            
+            if not is_valid:
+                stats['skipped'] += 1
                 continue
             
-            # Personalize
+            if to_email != original_email.lower():
+                stats['corrected'] += 1
+            
             subject = personalize(campaign['subject'], contact)
             html_body = personalize(campaign['html_body'], contact)
-            text_body = personalize(campaign['text_body'], contact)
+            text_body = personalize(campaign['text_body'], contact) if campaign['text_body'] else ''
             
-            # Create email record
             email_id = str(uuid.uuid4())
-            cursor.execute("""
-                INSERT INTO emails (id, organization_id, campaign_id, from_email, to_email,
-                                   sender, recipient, subject, html_body, text_body, 
-                                   status, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'sending', NOW())
-            """, (email_id, org_id, campaign_id, campaign['from_email'], to_email,
-                  campaign['from_email'], to_email, subject, html_body, text_body))
-            conn.commit()
             
-            # Send email
-            success, message = send_email_smtp(from_email, to_email, subject, html_body, text_body)
+            tracking_id = None
+            if html_body:
+                try:
+                    html_body, tracking_id = prepare_email_for_tracking(
+                        html_body=html_body,
+                        email_id=email_id,
+                        org_id=campaign['organization_id'],
+                        campaign_id=campaign_id,
+                        recipient=to_email
+                    )
+                except Exception as e:
+                    logger.warning(f"Tracking injection failed: {e}")
             
-            if success:
+            try:
                 cursor.execute("""
-                    UPDATE emails SET status = 'sent', sent_at = NOW() WHERE id = %s
-                """, (email_id,))
-                sent += 1
-                logger.info(f"✅ Sent to {to_email}")
-            else:
-                cursor.execute("""
-                    UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s
-                """, (message[:500], email_id))
-                failed += 1
-                logger.warning(f"❌ Failed {to_email}: {message}")
-            
-            conn.commit()
-            
-            # Update campaign progress every 10 emails
-            if (sent + failed) % 10 == 0:
-                cursor.execute("""
-                    UPDATE campaigns SET emails_sent = %s, updated_at = NOW() WHERE id = %s
-                """, (sent, campaign_id))
+                    INSERT INTO emails (id, organization_id, campaign_id, from_email, to_email,
+                                       sender, recipient, subject, html_body, text_body,
+                                       status, tracking_id, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'sending', %s, NOW())
+                    ON CONFLICT (id) DO NOTHING
+                """, (email_id, campaign['organization_id'], campaign_id,
+                      campaign['from_email'], to_email, campaign['from_email'], to_email,
+                      subject, html_body, text_body, tracking_id))
                 conn.commit()
+            except Exception as e:
+                logger.warning(f"DB insert error: {e}")
+                conn.rollback()
+            
+            try:
+                result = send_email_sync({
+                    'from': campaign['from_email'],
+                    'from_name': campaign['from_name'],
+                    'to': to_email,
+                    'subject': subject,
+                    'html_body': html_body,
+                    'text_body': text_body,
+                    'reply_to': campaign['reply_to']
+                })
+                
+                if result.get('success'):
+                    cursor.execute("UPDATE emails SET status = 'sent', sent_at = NOW() WHERE id = %s", (email_id,))
+                    stats['sent'] += 1
+                else:
+                    error_msg = result.get('message', 'Unknown error')[:500]
+                    cursor.execute("UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s", (error_msg, email_id))
+                    stats['failed'] += 1
+            except Exception as e:
+                logger.warning(f"❌ Send error {to_email}: {e}")
+                cursor.execute("UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s", (str(e)[:500], email_id))
+                stats['failed'] += 1
+            
+            conn.commit()
+            
+            if (stats['sent'] + stats['failed']) % 50 == 0:
+                cursor.execute("UPDATE campaigns SET sent_count = %s, updated_at = NOW() WHERE id = %s", (stats['sent'], campaign_id))
+                conn.commit()
+                logger.info(f"📊 Progress: {stats['sent']} sent, {stats['failed']} failed")
         
-        # Mark complete
+        final_status = 'completed' if stats['failed'] < stats['total'] * 0.5 else 'completed_with_errors'
         cursor.execute("""
-            UPDATE campaigns 
-            SET status = 'completed', emails_sent = %s, completed_at = NOW(), updated_at = NOW()
-            WHERE id = %s
-        """, (sent, campaign_id))
+            UPDATE campaigns SET status = %s, sent_count = %s, sent_at = NOW(), updated_at = NOW() WHERE id = %s
+        """, (final_status, stats['sent'], campaign_id))
         conn.commit()
         
-        logger.info(f"🎉 Campaign {campaign_id} complete: {sent} sent, {failed} failed")
+        logger.info(f"✅ Campaign {campaign['name']} completed: {stats['sent']} sent, {stats['failed']} failed")
         
-        return {'success': True, 'sent': sent, 'failed': failed, 'total': total}
+        return {'success': True, 'campaign_id': campaign_id, 'sent': stats['sent'], 'failed': stats['failed'], 'skipped': stats['skipped'], 'corrected': stats['corrected'], 'total': stats['total']}
         
     except Exception as e:
-        logger.error(f"Campaign {campaign_id} error: {e}")
-        cursor.execute("""
-            UPDATE campaigns SET status = 'failed', updated_at = NOW() WHERE id = %s
-        """, (campaign_id,))
-        conn.commit()
+        logger.error(f"Campaign error: {e}", exc_info=True)
+        try:
+            cursor.execute("UPDATE campaigns SET status = 'failed', updated_at = NOW() WHERE id = %s", (campaign_id,))
+            conn.commit()
+        except:
+            pass
         return {'success': False, 'error': str(e)}
     finally:
         cursor.close()
         conn.close()
 
-# ============================================
-# SINGLE EMAIL TASK (for Team Send)
-# ============================================
-@celery_app.task
-def send_single_email_task(email_id):
-    """Send a single email from the Team page"""
-    logger.info(f"📤 Sending single email {email_id}")
-    
+
+@celery_app.task(name='app.tasks.email_tasks.send_campaign', max_retries=3, soft_time_limit=3600)
+def send_campaign(campaign_id: str):
+    """Celery task wrapper for execute_campaign"""
+    return execute_campaign(campaign_id)
+
+
+@celery_app.task(name='app.tasks.email_tasks.send_single_email_task')
+def send_single_email_task(email_data):
+    """Send a single email - supports both ID (string) and data (dict) formats"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
-        cursor.execute("""
-            SELECT from_email, to_email, subject, html_body, text_body
-            FROM emails WHERE id = %s
-        """, (email_id,))
-        
-        row = cursor.fetchone()
-        if not row:
-            return {'success': False, 'error': 'Email not found'}
-        
-        from_email, to_email, subject, html_body, text_body = row
-        
-        cursor.execute("UPDATE emails SET status = 'sending' WHERE id = %s", (email_id,))
-        conn.commit()
-        
-        success, message = send_email_smtp(from_email, to_email, subject, html_body, text_body)
-        
-        if success:
+        if isinstance(email_data, str):
             cursor.execute("""
-                UPDATE emails SET status = 'sent', sent_at = NOW() WHERE id = %s
-            """, (email_id,))
-            logger.info(f"✅ Single email sent to {to_email}")
+                SELECT id, recipient_email, subject, html_body, body, organization_id
+                FROM single_emails WHERE id = %s
+            """, (email_data,))
+            
+            row = cursor.fetchone()
+            if not row:
+                return {'success': False, 'error': 'Email not found'}
+            
+            email_info = {'id': row[0], 'to': row[1], 'subject': row[2], 'html_body': row[3], 'text_body': row[4], 'org_id': row[5]}
+            
+            cursor.execute("SELECT domain_name FROM domains WHERE organization_id = %s LIMIT 1", (email_info['org_id'],))
+            domain_row = cursor.fetchone()
+            from_email = f"noreply@{domain_row[0]}" if domain_row else 'noreply@sendbaba.com'
+            from_name = 'SendBaba'
+        elif isinstance(email_data, dict):
+            email_info = email_data
+            from_email = email_data.get('from_email') or email_data.get('from') or 'noreply@sendbaba.com'
+            from_name = email_data.get('from_name') or 'SendBaba'
         else:
-            cursor.execute("""
-                UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s
-            """, (message[:500], email_id))
-            logger.warning(f"❌ Single email failed to {to_email}: {message}")
+            return {'success': False, 'error': f'Invalid email_data type: {type(email_data)}'}
         
-        conn.commit()
-        return {'success': success, 'message': message}
+        to_email = email_info.get('to') or email_info.get('to_email')
+        is_valid, to_email, reason = validate_and_fix_email(to_email)
         
+        if not is_valid:
+            return {'success': False, 'error': f'Invalid email: {reason}'}
+        
+        result = send_email_sync({
+            'from': from_email, 'from_name': from_name, 'to': to_email,
+            'subject': email_info.get('subject', ''), 'html_body': email_info.get('html_body', ''), 'text_body': email_info.get('text_body', '')
+        })
+        
+        if isinstance(email_data, str):
+            status = 'sent' if result.get('success') else 'failed'
+            cursor.execute("UPDATE single_emails SET status = %s, sent_at = NOW() WHERE id = %s", (status, email_data))
+            conn.commit()
+        
+        return result
     except Exception as e:
         logger.error(f"Single email error: {e}")
         return {'success': False, 'error': str(e)}
@@ -287,56 +291,220 @@ def send_single_email_task(email_id):
         cursor.close()
         conn.close()
 
-# ============================================
-# PERIODIC TASKS
-# ============================================
-@celery_app.task
+
+@celery_app.task(name='app.tasks.email_tasks.process_queued_campaigns')
 def process_queued_campaigns():
-    """Process campaigns stuck in 'queued' status"""
+    """
+    Process campaigns in 'queued' status.
+    RUNS CAMPAIGNS DIRECTLY - no async queue to avoid remote worker issues.
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
         cursor.execute("""
-            SELECT id, name FROM campaigns WHERE status = 'queued'
-            ORDER BY created_at ASC LIMIT 5
+            SELECT id, name FROM campaigns
+            WHERE status = 'queued'
+            ORDER BY created_at ASC
+            LIMIT 3
         """)
         
         campaigns = cursor.fetchall()
         processed = 0
         
         for campaign_id, name in campaigns:
-            logger.info(f"🔄 Processing queued campaign: {name}")
-            send_campaign.delay(campaign_id)
-            processed += 1
+            logger.info(f"🔄 Processing campaign: {name} ({campaign_id})")
+            
+            # Lock the campaign
+            cursor.execute("""
+                UPDATE campaigns 
+                SET status = 'sending', started_at = NOW(), updated_at = NOW()
+                WHERE id = %s AND status = 'queued'
+                RETURNING id
+            """, (campaign_id,))
+            
+            result = cursor.fetchone()
+            conn.commit()
+            
+            if result:
+                # Execute campaign DIRECTLY (not via queue)
+                try:
+                    execute_campaign(campaign_id)
+                    processed += 1
+                    logger.info(f"✅ Completed campaign: {name}")
+                except Exception as e:
+                    logger.error(f"❌ Campaign {name} failed: {e}")
+                    cursor.execute("UPDATE campaigns SET status = 'failed', updated_at = NOW() WHERE id = %s", (campaign_id,))
+                    conn.commit()
         
-        return {'processed': processed, 'found': len(campaigns)}
+        if processed > 0:
+            logger.info(f"📋 Processed {processed} campaigns")
+        
+        return {'processed': processed}
+        
+    except Exception as e:
+        logger.error(f"process_queued_campaigns error: {e}")
+        return {'processed': 0, 'error': str(e)}
     finally:
         cursor.close()
         conn.close()
 
-@celery_app.task
-def process_queued_single_emails():
-    """Process single emails in queued status"""
+
+@celery_app.task(name='app.tasks.email_tasks.recover_stuck_campaigns')
+def recover_stuck_campaigns():
+    """Recover campaigns stuck in 'sending' status for too long."""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
         cursor.execute("""
-            SELECT id FROM emails 
-            WHERE status = 'queued' AND campaign_id IS NULL
-            ORDER BY created_at ASC LIMIT 50
+            SELECT id, name, status, started_at FROM campaigns
+            WHERE status = 'sending'
+            AND (started_at < NOW() - INTERVAL '30 minutes' OR started_at IS NULL)
+            AND updated_at < NOW() - INTERVAL '5 minutes'
+            LIMIT 5
         """)
         
+        stuck = cursor.fetchall()
+        recovered = 0
+        
+        for campaign_id, name, status, started_at in stuck:
+            logger.warning(f"⚠️ Recovering stuck campaign: {name}")
+            
+            cursor.execute("""
+                SELECT COUNT(*) FILTER (WHERE status = 'sent') as sent,
+                       COUNT(*) FILTER (WHERE status = 'failed') as failed,
+                       COUNT(*) FILTER (WHERE status IN ('sending', 'queued')) as pending
+                FROM emails WHERE campaign_id = %s
+            """, (campaign_id,))
+            
+            stats = cursor.fetchone()
+            sent, failed, pending = stats if stats else (0, 0, 0)
+            
+            if pending > 0 or (sent == 0 and failed == 0):
+                cursor.execute("UPDATE campaigns SET status = 'queued', started_at = NULL, updated_at = NOW() WHERE id = %s", (campaign_id,))
+                logger.info(f"🔄 Re-queued campaign {name}")
+            else:
+                final_status = 'completed' if failed < sent else 'completed_with_errors'
+                cursor.execute("UPDATE campaigns SET status = %s, sent_count = %s, updated_at = NOW() WHERE id = %s", (final_status, sent, campaign_id))
+                logger.info(f"✅ Marked campaign {name} as {final_status}")
+            
+            conn.commit()
+            recovered += 1
+        
+        if recovered:
+            logger.info(f"🔧 Recovered {recovered} stuck campaigns")
+        
+        return {'recovered': recovered}
+        
+    except Exception as e:
+        logger.error(f"recover_stuck_campaigns error: {e}")
+        return {'recovered': 0, 'error': str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@celery_app.task(name='app.tasks.email_tasks.process_queued_single_emails')
+def process_queued_single_emails():
+    """Process single emails in 'queued' status"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT id FROM single_emails WHERE status = 'queued' ORDER BY created_at ASC LIMIT 50")
         emails = cursor.fetchall()
         count = 0
         
         for (email_id,) in emails:
-            send_single_email_task.delay(email_id)
+            celery_app.send_task('app.tasks.email_tasks.send_single_email_task', args=[email_id], queue='celery')
             count += 1
         
-        logger.info(f"Found {count} queued single emails to process")
+        if count > 0:
+            logger.info(f"📬 Queued {count} single emails")
+        
         return {'queued_count': count}
+    except Exception as e:
+        logger.error(f"process_queued_single_emails error: {e}")
+        return {'queued_count': 0, 'error': str(e)}
     finally:
         cursor.close()
         conn.close()
+
+
+@celery_app.task(name='app.tasks.email_tasks.reset_daily_counters')
+def reset_daily_counters():
+    """Reset daily email counters"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT COUNT(*) FROM ip_pools WHERE last_reset_at IS NULL OR last_reset_at::date < CURRENT_DATE")
+        needs_reset = cursor.fetchone()[0]
+        
+        if needs_reset > 0:
+            cursor.execute("UPDATE ip_pools SET sent_today = 0, last_reset_at = NOW() WHERE last_reset_at IS NULL OR last_reset_at::date < CURRENT_DATE")
+            conn.commit()
+            logger.info(f"🔄 Reset daily counters for {needs_reset} IPs")
+            return {'reset': needs_reset}
+        
+        return {'reset': 0}
+    except Exception as e:
+        logger.error(f"reset_daily_counters error: {e}")
+        return {'reset': 0, 'error': str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@celery_app.task(name='app.tasks.email_tasks.sync_tracking_to_db')
+def sync_tracking_to_db():
+    """Sync tracking data from Redis to PostgreSQL"""
+    import redis
+    
+    try:
+        r = redis.Redis(host='localhost', port=6379, password='SendBaba2024SecureRedis', decode_responses=True)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        keys = r.keys('track:*')
+        synced = 0
+        
+        for key in keys[:100]:
+            try:
+                data = r.hgetall(key)
+                if not data:
+                    continue
+                
+                email_id = data.get('email_id')
+                if not email_id:
+                    continue
+                
+                if data.get('opened'):
+                    cursor.execute("""
+                        UPDATE emails SET status = CASE WHEN status = 'sent' THEN 'opened' ELSE status END,
+                        opened_at = COALESCE(opened_at, NOW()), open_count = COALESCE(open_count, 0) + 1 WHERE id = %s
+                    """, (email_id,))
+                
+                if data.get('clicked'):
+                    cursor.execute("""
+                        UPDATE emails SET status = 'clicked', clicked_at = COALESCE(clicked_at, NOW()),
+                        click_count = COALESCE(click_count, 0) + 1 WHERE id = %s
+                    """, (email_id,))
+                
+                conn.commit()
+                r.delete(key)
+                synced += 1
+            except Exception as e:
+                logger.warning(f"Sync error for {key}: {e}")
+                conn.rollback()
+        
+        cursor.close()
+        conn.close()
+        
+        if synced > 0:
+            logger.info(f"📊 Synced {synced} tracking records")
+        return {'synced': synced}
+    except Exception as e:
+        logger.error(f"Tracking sync error: {e}")
+        return {'synced': 0, 'error': str(e)}

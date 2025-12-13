@@ -1,5 +1,4 @@
 #!/bin/bash
 cd /opt/sendbaba-staging
-export PYTHONPATH=/opt/sendbaba-staging:$PYTHONPATH
 source venv/bin/activate
-exec celery -A celery_app worker "$@"
+exec celery -A celery_app.celery_app worker --loglevel=info --concurrency=4 -Q celery

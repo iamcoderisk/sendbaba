@@ -1,7 +1,8 @@
 """
-SendBaba Dashboard Controller - COMPLETE FIX
+SendBaba Dashboard Controller
+Real-time statistics and overview
 """
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify
 from flask_login import login_required, current_user
 from app import db
 from sqlalchemy import text
@@ -33,17 +34,16 @@ def get_stats(org_id):
         'open_rate': 0,
         'click_rate': 0,
         'bounce_rate': 0,
-        'growth_percent': 0,
     }
     
     if not org_id:
         return stats
     
-    # EMAILS
+    # EMAILS - Count by status
     try:
         result = db.session.execute(text("""
             SELECT 
-                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'opened', 'clicked')) as sent,
+                COUNT(*) FILTER (WHERE status = 'sent') as sent,
                 COUNT(*) FILTER (WHERE status IN ('delivered', 'opened', 'clicked')) as delivered,
                 COUNT(*) FILTER (WHERE status IN ('failed', 'bounced', 'rejected', 'error')) as failed,
                 COUNT(*) FILTER (WHERE status IN ('opened', 'clicked')) as opened,
@@ -55,7 +55,7 @@ def get_stats(org_id):
         """), {'org_id': org_id}).fetchone()
         
         if result:
-            stats['emails_sent'] = result[0] or 0
+            stats['emails_sent'] = (result[0] or 0) + (result[1] or 0)
             stats['emails_delivered'] = result[1] or 0
             stats['emails_failed'] = result[2] or 0
             stats['opens_total'] = result[3] or 0
@@ -71,29 +71,7 @@ def get_stats(org_id):
                 stats['open_rate'] = round((stats['opens_total'] / stats['emails_sent']) * 100, 1)
                 stats['click_rate'] = round((stats['clicks_total'] / stats['emails_sent']) * 100, 1)
         
-        # Calculate growth (compare to previous period)
-        prev_result = db.session.execute(text("""
-            SELECT COUNT(*) FROM emails 
-            WHERE organization_id = :org_id 
-            AND created_at >= NOW() - INTERVAL '60 days'
-            AND created_at < NOW() - INTERVAL '30 days'
-        """), {'org_id': org_id}).fetchone()
-        
-        curr_result = db.session.execute(text("""
-            SELECT COUNT(*) FROM emails 
-            WHERE organization_id = :org_id 
-            AND created_at >= NOW() - INTERVAL '30 days'
-        """), {'org_id': org_id}).fetchone()
-        
-        prev_count = prev_result[0] if prev_result else 0
-        curr_count = curr_result[0] if curr_result else 0
-        
-        if prev_count > 0:
-            stats['growth_percent'] = round(((curr_count - prev_count) / prev_count) * 100, 1)
-        elif curr_count > 0:
-            stats['growth_percent'] = 100
-        
-        logger.info(f"[Dashboard] Emails: {stats['emails_sent']} sent / {stats['emails_total']} total, {stats['delivery_rate']}% delivery")
+        logger.info(f"[Dashboard] Emails: {stats['emails_sent']} sent / {stats['emails_total']} total")
     except Exception as e:
         logger.error(f"[Dashboard] Emails query error: {e}")
 
@@ -120,7 +98,7 @@ def get_stats(org_id):
         result = db.session.execute(text("""
             SELECT 
                 COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status IN ('sent', 'completed', 'completed_with_errors', 'sending')) as sent,
+                COUNT(*) FILTER (WHERE status IN ('sent', 'completed', 'completed_with_errors')) as sent,
                 COUNT(*) FILTER (WHERE status = 'draft') as draft
             FROM campaigns 
             WHERE organization_id = :org_id
@@ -131,7 +109,7 @@ def get_stats(org_id):
             stats['campaigns_sent'] = result[1] or 0
             stats['campaigns_draft'] = result[2] or 0
         
-        logger.info(f"[Dashboard] Campaigns: {stats['campaigns_total']} total, {stats['campaigns_sent']} sent")
+        logger.info(f"[Dashboard] Campaigns: {stats['campaigns_total']}")
     except Exception as e:
         logger.error(f"[Dashboard] Campaigns query error: {e}")
 
@@ -149,113 +127,11 @@ def get_stats(org_id):
             stats['domains_total'] = result[0] or 0
             stats['domains_verified'] = result[1] or 0
         
-        logger.info(f"[Dashboard] Domains: {stats['domains_total']} total, {stats['domains_verified']} verified")
+        logger.info(f"[Dashboard] Domains: {stats['domains_total']}")
     except Exception as e:
         logger.error(f"[Dashboard] Domains query error: {e}")
 
     return stats
-
-
-def get_email_trends(org_id, days=30):
-    """Get email trends for chart - SUPPORTS DIFFERENT PERIODS"""
-    if not org_id:
-        return []
-    
-    trends = []
-    
-    try:
-        start_date = datetime.utcnow() - timedelta(days=days)
-        
-        result = db.session.execute(text("""
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'opened', 'clicked')) as sent,
-                COUNT(*) FILTER (WHERE status IN ('delivered', 'opened', 'clicked')) as delivered,
-                COUNT(*) FILTER (WHERE status IN ('opened', 'clicked')) as opened,
-                COUNT(*) FILTER (WHERE status = 'failed') as failed
-            FROM emails
-            WHERE organization_id = :org_id 
-              AND created_at >= :start_date
-            GROUP BY DATE(created_at)
-            ORDER BY date
-        """), {'org_id': org_id, 'start_date': start_date}).fetchall()
-        
-        # Create a dict for quick lookup
-        data_by_date = {}
-        for row in result:
-            date_str = row[0].strftime('%Y-%m-%d') if row[0] else ''
-            data_by_date[date_str] = {
-                'sent': row[1] or 0,
-                'delivered': row[2] or 0,
-                'opened': row[3] or 0,
-                'failed': row[4] or 0
-            }
-        
-        # Fill in all days in range
-        for i in range(days - 1, -1, -1):
-            date = datetime.utcnow() - timedelta(days=i)
-            date_str = date.strftime('%Y-%m-%d')
-            day_data = data_by_date.get(date_str, {'sent': 0, 'delivered': 0, 'opened': 0, 'failed': 0})
-            
-            trends.append({
-                'date': date_str,
-                'label': date.strftime('%b %d'),
-                'sent': day_data['sent'],
-                'delivered': day_data['delivered'],
-                'opened': day_data['opened'],
-                'failed': day_data['failed']
-            })
-        
-        return trends
-        
-    except Exception as e:
-        logger.error(f"[Dashboard] Email trends error: {e}")
-        # Return empty data for all days
-        for i in range(days - 1, -1, -1):
-            date = datetime.utcnow() - timedelta(days=i)
-            trends.append({
-                'date': date.strftime('%Y-%m-%d'),
-                'label': date.strftime('%b %d'),
-                'sent': 0, 'delivered': 0, 'opened': 0, 'failed': 0
-            })
-        return trends
-
-
-def get_campaign_performance(org_id, limit=10):
-    """Get campaign performance data for chart"""
-    if not org_id:
-        return []
-    
-    try:
-        result = db.session.execute(text("""
-            SELECT 
-                c.name,
-                COALESCE(c.emails_sent, c.sent_count, 0) as sent,
-                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status IN ('opened', 'clicked')) as opens,
-                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status = 'clicked') as clicks
-            FROM campaigns c
-            WHERE c.organization_id = :org_id
-              AND c.status IN ('sent', 'completed', 'completed_with_errors', 'sending')
-            ORDER BY c.created_at DESC
-            LIMIT :limit
-        """), {'org_id': org_id, 'limit': limit}).fetchall()
-        
-        campaigns = []
-        for row in result:
-            sent = row[1] or 0
-            campaigns.append({
-                'name': (row[0] or 'Untitled')[:20],
-                'sent': sent,
-                'opens': row[2] or 0,
-                'clicks': row[3] or 0,
-                'open_rate': round((row[2] / sent * 100), 1) if sent > 0 else 0,
-                'click_rate': round((row[3] / sent * 100), 1) if sent > 0 else 0,
-            })
-        
-        return campaigns
-    except Exception as e:
-        logger.error(f"[Dashboard] Campaign performance error: {e}")
-        return []
 
 
 def get_recent_campaigns(org_id, limit=5):
@@ -284,7 +160,7 @@ def get_recent_campaigns(org_id, limit=5):
                 'id': str(row[0]),
                 'name': row[1] or 'Untitled',
                 'status': row[2] or 'draft',
-                'created_at': row[3].strftime('%b %d, %Y') if row[3] else '',
+                'created_at': row[3].isoformat() if row[3] else '',
                 'sent': sent,
                 'recipients': row[5] or 0,
                 'opens': row[6] or 0,
@@ -299,21 +175,85 @@ def get_recent_campaigns(org_id, limit=5):
         return []
 
 
+def get_email_trends(org_id, days=30):
+    """Get email trends for chart (last N days)"""
+    if not org_id:
+        return []
+    
+    try:
+        result = db.session.execute(text("""
+            SELECT 
+                DATE(created_at) as date,
+                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'opened', 'clicked')) as sent,
+                COUNT(*) FILTER (WHERE status IN ('delivered', 'opened', 'clicked')) as delivered,
+                COUNT(*) FILTER (WHERE status IN ('opened', 'clicked')) as opened,
+                COUNT(*) FILTER (WHERE status = 'failed') as failed
+            FROM emails
+            WHERE organization_id = :org_id 
+              AND created_at >= CURRENT_DATE - :days
+            GROUP BY DATE(created_at)
+            ORDER BY date
+        """), {'org_id': org_id, 'days': days}).fetchall()
+        
+        return [{
+            'date': row[0].strftime('%Y-%m-%d') if row[0] else '',
+            'sent': row[1] or 0,
+            'delivered': row[2] or 0,
+            'opened': row[3] or 0,
+            'failed': row[4] or 0
+        } for row in result]
+    except Exception as e:
+        logger.error(f"[Dashboard] Email trends error: {e}")
+        return []
+
+
+def get_campaign_performance(org_id, limit=10):
+    """Get campaign performance data for chart"""
+    if not org_id:
+        return []
+    
+    try:
+        result = db.session.execute(text("""
+            SELECT 
+                c.name,
+                COALESCE(c.emails_sent, c.sent_count, 0) as sent,
+                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status IN ('opened', 'clicked')) as opens,
+                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status = 'clicked') as clicks
+            FROM campaigns c
+            WHERE c.organization_id = :org_id
+              AND c.status IN ('sent', 'completed', 'completed_with_errors')
+            ORDER BY c.created_at DESC
+            LIMIT :limit
+        """), {'org_id': org_id, 'limit': limit}).fetchall()
+        
+        campaigns = []
+        for row in result:
+            sent = row[1] or 0
+            campaigns.append({
+                'name': (row[0] or 'Untitled')[:20],
+                'sent': sent,
+                'opens': row[2] or 0,
+                'clicks': row[3] or 0,
+                'open_rate': round((row[2] / sent * 100), 1) if sent > 0 else 0,
+                'click_rate': round((row[3] / sent * 100), 1) if sent > 0 else 0,
+            })
+        
+        return campaigns
+    except Exception as e:
+        logger.error(f"[Dashboard] Campaign performance error: {e}")
+        return []
+
+
 @dashboard_bp.route('/')
 @login_required
 def index():
     """Dashboard home page"""
     try:
         org_id = current_user.organization_id
-        days = request.args.get('days', 30, type=int)
-        
-        # Validate days
-        if days not in [7, 14, 30]:
-            days = 30
         
         stats = get_stats(org_id)
         recent_campaigns = get_recent_campaigns(org_id)
-        email_trends = get_email_trends(org_id, days)
+        email_trends = get_email_trends(org_id)
         campaign_performance = get_campaign_performance(org_id)
         
         return render_template('dashboard/index.html',
@@ -321,7 +261,7 @@ def index():
             recent_campaigns=recent_campaigns,
             email_trends=email_trends,
             campaign_performance=campaign_performance,
-            days=days
+            email_activity=email_trends  # Alias for backwards compatibility
         )
     except Exception as e:
         logger.error(f"[Dashboard] Index error: {e}", exc_info=True)
@@ -330,7 +270,7 @@ def index():
             recent_campaigns=[],
             email_trends=[],
             campaign_performance=[],
-            days=30
+            email_activity=[]
         )
 
 
@@ -350,17 +290,11 @@ def api_stats():
 @dashboard_bp.route('/api/trends')
 @login_required
 def api_trends():
-    """API endpoint for email trends - SUPPORTS DIFFERENT PERIODS"""
+    """API endpoint for email trends"""
     try:
         org_id = current_user.organization_id
-        days = request.args.get('days', 30, type=int)
-        
-        # Validate days
-        if days not in [7, 14, 30]:
-            days = 30
-        
-        trends = get_email_trends(org_id, days)
-        return jsonify({'success': True, 'trends': trends, 'days': days})
+        trends = get_email_trends(org_id)
+        return jsonify({'success': True, 'trends': trends})
     except Exception as e:
         logger.error(f"[Dashboard API] Trends error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

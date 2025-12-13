@@ -53,6 +53,7 @@ def create_app():
         # ADDITIONAL BLUEPRINTS (14)
         # ===========================================
         additional_blueprints = [
+            ('engine_controller', 'engine_bp', 'Engine'),
             ('api_controller', 'api_bp', 'API'),
             ('api_docs_controller', 'api_docs_bp', 'API Docs'),
             ('api_keys_controller', 'api_keys_bp', 'API Keys'),
@@ -87,7 +88,7 @@ def create_app():
         features = {'workflows': True, 'segments': True, 'team': True, 'ai_reply': True}
         subscription = None
         try:
-            if current_user.is_authenticated:
+            if current_user and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
                 org_id = getattr(current_user, 'organization_id', None)
                 if org_id:
                     result = db.session.execute(text("""
