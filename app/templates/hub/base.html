@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SendBaba Hub - {% block title %}Dashboard{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .sidebar-open { transform: translateX(0); }
+        .sidebar-closed { transform: translateX(-100%); }
+        @media (min-width: 1024px) {
+            .sidebar-closed { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Mobile Header -->
+    <header class="lg:hidden fixed top-0 left-0 right-0 bg-gray-900 text-white z-40 px-4 py-3 flex items-center justify-between">
+        <button onclick="toggleSidebar()" class="text-white p-2">
+            <i class="fas fa-bars text-xl"></i>
+        </button>
+        <div class="flex items-center space-x-2">
+            <span class="text-xl">📧</span>
+            <span class="font-bold">SendBaba Hub</span>
+        </div>
+        <a href="/hub/logout" class="p-2">
+            <i class="fas fa-sign-out-alt"></i>
+        </a>
+    </header>
+
+    <!-- Overlay for mobile -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 text-white z-50 transition-transform duration-300 sidebar-closed lg:sidebar-open">
+        <div class="p-6 border-b border-gray-800">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="text-3xl">📧</span>
+                    <div>
+                        <h1 class="font-bold text-lg">SendBaba</h1>
+                        <p class="text-xs text-gray-400">Admin Hub</p>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        
+        <nav class="p-4 space-y-2">
+            <a href="/hub/" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'dashboard' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
+                <i class="fas fa-home w-5"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/hub/users" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'users' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
+                <i class="fas fa-users w-5"></i>
+                <span>Users</span>
+            </a>
+            <a href="/hub/organizations" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'organizations' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
+                <i class="fas fa-building w-5"></i>
+                <span>Organizations</span>
+            </a>
+            <a href="/hub/orders" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'orders' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
+                <i class="fas fa-shopping-cart w-5"></i>
+                <span>Orders</span>
+                <span id="pending-badge" class="ml-auto bg-red-500 text-xs px-2 py-1 rounded-full hidden">0</span>
+            </a>
+            <a href="/hub/servers" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'servers' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
+                <i class="fas fa-server w-5"></i>
+                <span>Servers</span>
+            </a>
+            <a href="/hub/admins" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'admins' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
+                <i class="fas fa-user-shield w-5"></i>
+                <span>Admins</span>
+            </a>
+        </nav>
+        
+        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm">
+                        {{ admin.hub_admin_name[0] if admin.hub_admin_name else 'A' }}
+                    </div>
+                    <div class="text-sm">
+                        <p class="font-medium truncate max-w-[120px]">{{ admin.hub_admin_name or 'Admin' }}</p>
+                        <p class="text-xs text-gray-400">{{ admin.hub_admin_role }}</p>
+                    </div>
+                </div>
+                <a href="/hub/logout" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
+        <div class="p-4 lg:p-8">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (sidebar.classList.contains('sidebar-closed')) {
+                sidebar.classList.remove('sidebar-closed');
+                sidebar.classList.add('sidebar-open');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.remove('sidebar-open');
+                sidebar.classList.add('sidebar-closed');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        // Close sidebar when clicking nav links on mobile
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 1024) {
+                    toggleSidebar();
+                }
+            });
+        });
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num/1000).toFixed(1) + 'K';
+            return num?.toLocaleString() || '0';
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

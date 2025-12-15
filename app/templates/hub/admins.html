@@ -1,0 +1,199 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'admins' %}
+
+{% block title %}Admins{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+        <h1 class="text-xl lg:text-2xl font-bold text-gray-800">Admin Management</h1>
+        <p class="text-gray-500 text-sm">Manage hub administrators</p>
+    </div>
+    <button onclick="showAddModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+        <i class="fas fa-plus mr-2"></i>Add Admin
+    </button>
+</div>
+
+<!-- Admins Table -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full min-w-[500px]">
+            <thead class="bg-gray-50">
+                <tr class="text-left text-xs lg:text-sm text-gray-500">
+                    <th class="px-4 lg:px-6 py-3 lg:py-4">Admin</th>
+                    <th class="px-4 lg:px-6 py-3 lg:py-4">Role</th>
+                    <th class="px-4 lg:px-6 py-3 lg:py-4">Status</th>
+                    <th class="px-4 lg:px-6 py-3 lg:py-4 hidden sm:table-cell">Last Login</th>
+                    <th class="px-4 lg:px-6 py-3 lg:py-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="admins-table" class="text-sm">
+                <!-- Admins populated by JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Admin Modal -->
+<div id="admin-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl w-full max-w-md p-4 lg:p-6 max-h-[90vh] overflow-y-auto">
+        <h3 id="modal-title" class="text-lg lg:text-xl font-bold mb-4">Add Admin</h3>
+        <form id="admin-form">
+            <input type="hidden" id="edit-admin-id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="admin-email" class="w-full px-4 py-2 border rounded-lg" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" id="admin-name" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="admin-password" class="w-full px-4 py-2 border rounded-lg">
+                    <p class="text-xs text-gray-500 mt-1">Leave blank to keep current (edit)</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                        <select id="admin-role" class="w-full px-4 py-2 border rounded-lg">
+                            <option value="admin">Admin</option>
+                            <option value="superadmin">Super Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="admin-active" class="w-full px-4 py-2 border rounded-lg">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let isEditMode = false;
+
+    async function loadAdmins() {
+        try {
+            const res = await fetch('/hub/api/admins');
+            const data = await res.json();
+            
+            if (data.success) {
+                const table = document.getElementById('admins-table');
+                table.innerHTML = data.admins.map(a => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-4 lg:px-6 py-3 lg:py-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 lg:w-10 lg:h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <span class="text-purple-600 font-medium text-sm">${(a.name || a.email)[0].toUpperCase()}</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-medium text-sm truncate">${a.name || 'Unnamed'}</p>
+                                    <p class="text-xs text-gray-500 truncate">${a.email}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-4 lg:px-6 py-3 lg:py-4">
+                            <span class="px-2 py-0.5 rounded-full text-xs ${a.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}">
+                                ${a.role}
+                            </span>
+                        </td>
+                        <td class="px-4 lg:px-6 py-3 lg:py-4">
+                            <span class="px-2 py-0.5 rounded-full text-xs ${a.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                ${a.is_active ? 'Active' : 'Off'}
+                            </span>
+                        </td>
+                        <td class="px-4 lg:px-6 py-3 lg:py-4 text-xs text-gray-500 hidden sm:table-cell">${a.last_login ? new Date(a.last_login).toLocaleString() : 'Never'}</td>
+                        <td class="px-4 lg:px-6 py-3 lg:py-4">
+                            <button onclick="editAdmin(${a.id}, '${a.email}', '${a.name || ''}', '${a.role}', ${a.is_active})" class="text-blue-600 hover:text-blue-800 p-1">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteAdmin(${a.id})" class="text-red-600 hover:text-red-800 p-1 ml-1">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-500">No admins found</td></tr>';
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function showAddModal() {
+        isEditMode = false;
+        document.getElementById('modal-title').textContent = 'Add Admin';
+        document.getElementById('edit-admin-id').value = '';
+        document.getElementById('admin-email').value = '';
+        document.getElementById('admin-email').disabled = false;
+        document.getElementById('admin-name').value = '';
+        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-password').required = true;
+        document.getElementById('admin-role').value = 'admin';
+        document.getElementById('admin-active').value = 'true';
+        document.getElementById('admin-modal').classList.remove('hidden');
+        document.getElementById('admin-modal').classList.add('flex');
+    }
+
+    function editAdmin(id, email, name, role, isActive) {
+        isEditMode = true;
+        document.getElementById('modal-title').textContent = 'Edit Admin';
+        document.getElementById('edit-admin-id').value = id;
+        document.getElementById('admin-email').value = email;
+        document.getElementById('admin-email').disabled = true;
+        document.getElementById('admin-name').value = name;
+        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-password').required = false;
+        document.getElementById('admin-role').value = role;
+        document.getElementById('admin-active').value = isActive ? 'true' : 'false';
+        document.getElementById('admin-modal').classList.remove('hidden');
+        document.getElementById('admin-modal').classList.add('flex');
+    }
+
+    function closeModal() {
+        document.getElementById('admin-modal').classList.add('hidden');
+        document.getElementById('admin-modal').classList.remove('flex');
+    }
+
+    document.getElementById('admin-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const adminId = document.getElementById('edit-admin-id').value;
+        const data = {
+            email: document.getElementById('admin-email').value,
+            name: document.getElementById('admin-name').value,
+            role: document.getElementById('admin-role').value,
+            is_active: document.getElementById('admin-active').value === 'true'
+        };
+        const password = document.getElementById('admin-password').value;
+        if (password) data.password = password;
+        
+        const url = isEditMode ? `/hub/api/admins/${adminId}` : '/hub/api/admins';
+        const method = isEditMode ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        const result = await res.json();
+        if (result.success) { closeModal(); loadAdmins(); }
+        else alert(result.error || 'Failed');
+    });
+
+    async function deleteAdmin(adminId) {
+        if (confirm('Delete this admin?')) {
+            const res = await fetch(`/hub/api/admins/${adminId}`, { method: 'DELETE' });
+            const result = await res.json();
+            if (result.success) loadAdmins();
+            else alert(result.error || 'Failed');
+        }
+    }
+
+    loadAdmins();
+</script>
+{% endblock %}

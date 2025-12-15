@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 TRACKING_DOMAIN = 'https://playmaster.sendbaba.com'
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-REDIS_PASSWORD = 'SendBaba2024SecureRedis'
+REDIS_PASSWORD = 'SendBabaRedis2024!'
 
 
 def get_redis():

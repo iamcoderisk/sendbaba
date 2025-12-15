@@ -1,16 +1,19 @@
 """
-SendBaba Email Tasks - Production Ready
-=======================================
-Celery tasks for email campaigns with:
+SendBaba Email Tasks - Production Ready v2
+==========================================
+Features:
 - Email validation & auto-correction
-- Stuck campaign recovery  
-- Direct campaign execution (no queue issues)
+- Gmail throttling protection
+- Real-time progress monitoring
+- Stuck campaign recovery
+- Direct campaign execution
 """
 import os
 import sys
 import uuid
 import logging
 import time
+import redis
 from datetime import datetime, timedelta
 
 sys.path.insert(0, '/opt/sendbaba-staging')
@@ -21,6 +24,16 @@ from app.services.email_tracker import prepare_email_for_tracking
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+# Redis for progress tracking
+redis_client = redis.Redis(host='localhost', port=6379, password='SendBabaRedis2024!', decode_responses=True)
+
+# Gmail throttling settings
+GMAIL_THROTTLE = {
+    'per_minute': 60,      # Max Gmail emails per minute per IP
+    'per_hour': 1500,      # Max Gmail emails per hour per IP
+    'delay_ms': 100,       # Delay between Gmail sends (milliseconds)
+}
 
 
 def get_db_connection():
@@ -68,17 +81,45 @@ def personalize(content: str, contact: dict) -> str:
     return content
 
 
+def is_gmail(email):
+    """Check if email is Gmail/Google"""
+    domain = email.split('@')[-1].lower()
+    return domain in ['gmail.com', 'googlemail.com'] or 'google' in domain
+
+
+def check_gmail_throttle():
+    """Check if we should throttle Gmail sends"""
+    key = f"gmail_throttle:{datetime.now().strftime('%Y%m%d%H%M')}"
+    count = redis_client.incr(key)
+    redis_client.expire(key, 120)  # 2 minute TTL
+    
+    if count > GMAIL_THROTTLE['per_minute'] * 4:  # Across all IPs
+        return True, count
+    return False, count
+
+
+def update_progress(campaign_id, sent, failed, total, status='sending'):
+    """Update campaign progress in Redis for real-time monitoring"""
+    key = f"campaign_progress:{campaign_id}"
+    redis_client.hset(key, mapping={
+        'sent': sent,
+        'failed': failed,
+        'total': total,
+        'status': status,
+        'percent': int((sent + failed) / total * 100) if total > 0 else 0,
+        'updated_at': datetime.now().isoformat()
+    })
+    redis_client.expire(key, 86400)  # 24 hour TTL
+
+
 def execute_campaign(campaign_id: str):
-    """
-    Execute a campaign directly (not as a Celery task).
-    This ensures the campaign runs on the main server.
-    """
+    """Execute a campaign with Gmail throttling and progress tracking"""
     logger.info(f"🚀 Starting campaign {campaign_id}")
     
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    stats = {'sent': 0, 'failed': 0, 'skipped': 0, 'corrected': 0, 'total': 0}
+    stats = {'sent': 0, 'failed': 0, 'skipped': 0, 'corrected': 0, 'total': 0, 'gmail_count': 0}
     
     try:
         # Get campaign
@@ -126,7 +167,12 @@ def execute_campaign(campaign_id: str):
         
         logger.info(f"📧 Sending {campaign['name']} to {stats['total']} contacts")
         
-        for contact_row in contacts:
+        # Initialize progress
+        update_progress(campaign_id, 0, 0, stats['total'], 'sending')
+        
+        start_time = time.time()
+        
+        for i, contact_row in enumerate(contacts):
             contact = {
                 'id': contact_row[0],
                 'email': contact_row[1],
@@ -143,6 +189,16 @@ def execute_campaign(campaign_id: str):
             
             if to_email != original_email.lower():
                 stats['corrected'] += 1
+            
+            # Gmail throttling
+            if is_gmail(to_email):
+                stats['gmail_count'] += 1
+                should_throttle, count = check_gmail_throttle()
+                if should_throttle:
+                    logger.warning(f"⏳ Gmail throttle active ({count}/min), waiting...")
+                    time.sleep(1)  # Wait 1 second
+                else:
+                    time.sleep(GMAIL_THROTTLE['delay_ms'] / 1000)  # Small delay for Gmail
             
             subject = personalize(campaign['subject'], contact)
             html_body = personalize(campaign['html_body'], contact)
@@ -161,7 +217,7 @@ def execute_campaign(campaign_id: str):
                         recipient=to_email
                     )
                 except Exception as e:
-                    logger.warning(f"Tracking injection failed: {e}")
+                    pass
             
             try:
                 cursor.execute("""
@@ -175,7 +231,6 @@ def execute_campaign(campaign_id: str):
                       subject, html_body, text_body, tracking_id))
                 conn.commit()
             except Exception as e:
-                logger.warning(f"DB insert error: {e}")
                 conn.rollback()
             
             try:
@@ -197,32 +252,57 @@ def execute_campaign(campaign_id: str):
                     cursor.execute("UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s", (error_msg, email_id))
                     stats['failed'] += 1
             except Exception as e:
-                logger.warning(f"❌ Send error {to_email}: {e}")
                 cursor.execute("UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s", (str(e)[:500], email_id))
                 stats['failed'] += 1
             
             conn.commit()
             
-            if (stats['sent'] + stats['failed']) % 50 == 0:
+            # Update progress every 10 emails or every 100 for large campaigns
+            progress_interval = 10 if stats['total'] < 1000 else 100
+            if (stats['sent'] + stats['failed']) % progress_interval == 0:
+                update_progress(campaign_id, stats['sent'], stats['failed'], stats['total'])
+                
+                elapsed = time.time() - start_time
+                rate = (stats['sent'] + stats['failed']) / elapsed if elapsed > 0 else 0
+                remaining = stats['total'] - stats['sent'] - stats['failed'] - stats['skipped']
+                eta_seconds = remaining / rate if rate > 0 else 0
+                
                 cursor.execute("UPDATE campaigns SET sent_count = %s, updated_at = NOW() WHERE id = %s", (stats['sent'], campaign_id))
                 conn.commit()
-                logger.info(f"📊 Progress: {stats['sent']} sent, {stats['failed']} failed")
+                
+                logger.info(f"📊 Progress: {stats['sent']}/{stats['total']} sent ({rate:.1f}/sec, ETA: {int(eta_seconds)}s)")
         
+        # Final update
+        elapsed = time.time() - start_time
         final_status = 'completed' if stats['failed'] < stats['total'] * 0.5 else 'completed_with_errors'
+        
         cursor.execute("""
             UPDATE campaigns SET status = %s, sent_count = %s, sent_at = NOW(), updated_at = NOW() WHERE id = %s
         """, (final_status, stats['sent'], campaign_id))
         conn.commit()
         
-        logger.info(f"✅ Campaign {campaign['name']} completed: {stats['sent']} sent, {stats['failed']} failed")
+        update_progress(campaign_id, stats['sent'], stats['failed'], stats['total'], final_status)
         
-        return {'success': True, 'campaign_id': campaign_id, 'sent': stats['sent'], 'failed': stats['failed'], 'skipped': stats['skipped'], 'corrected': stats['corrected'], 'total': stats['total']}
+        logger.info(f"✅ Campaign {campaign['name']} completed in {elapsed:.1f}s: {stats['sent']} sent, {stats['failed']} failed, {stats['gmail_count']} Gmail")
+        
+        return {
+            'success': True, 
+            'campaign_id': campaign_id, 
+            'sent': stats['sent'], 
+            'failed': stats['failed'], 
+            'skipped': stats['skipped'], 
+            'corrected': stats['corrected'], 
+            'total': stats['total'],
+            'gmail_count': stats['gmail_count'],
+            'elapsed_seconds': int(elapsed)
+        }
         
     except Exception as e:
         logger.error(f"Campaign error: {e}", exc_info=True)
         try:
             cursor.execute("UPDATE campaigns SET status = 'failed', updated_at = NOW() WHERE id = %s", (campaign_id,))
             conn.commit()
+            update_progress(campaign_id, stats['sent'], stats['failed'], stats['total'], 'failed')
         except:
             pass
         return {'success': False, 'error': str(e)}
@@ -231,7 +311,7 @@ def execute_campaign(campaign_id: str):
         conn.close()
 
 
-@celery_app.task(name='app.tasks.email_tasks.send_campaign', max_retries=3, soft_time_limit=3600)
+@celery_app.task(name='app.tasks.email_tasks.send_campaign', max_retries=3, soft_time_limit=7200)
 def send_campaign(campaign_id: str):
     """Celery task wrapper for execute_campaign"""
     return execute_campaign(campaign_id)
@@ -239,7 +319,7 @@ def send_campaign(campaign_id: str):
 
 @celery_app.task(name='app.tasks.email_tasks.send_single_email_task')
 def send_single_email_task(email_data):
-    """Send a single email - supports both ID (string) and data (dict) formats"""
+    """Send a single email"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -265,7 +345,7 @@ def send_single_email_task(email_data):
             from_email = email_data.get('from_email') or email_data.get('from') or 'noreply@sendbaba.com'
             from_name = email_data.get('from_name') or 'SendBaba'
         else:
-            return {'success': False, 'error': f'Invalid email_data type: {type(email_data)}'}
+            return {'success': False, 'error': f'Invalid email_data type'}
         
         to_email = email_info.get('to') or email_info.get('to_email')
         is_valid, to_email, reason = validate_and_fix_email(to_email)
@@ -275,7 +355,9 @@ def send_single_email_task(email_data):
         
         result = send_email_sync({
             'from': from_email, 'from_name': from_name, 'to': to_email,
-            'subject': email_info.get('subject', ''), 'html_body': email_info.get('html_body', ''), 'text_body': email_info.get('text_body', '')
+            'subject': email_info.get('subject', ''), 
+            'html_body': email_info.get('html_body', ''), 
+            'text_body': email_info.get('text_body', '')
         })
         
         if isinstance(email_data, str):
@@ -294,10 +376,7 @@ def send_single_email_task(email_data):
 
 @celery_app.task(name='app.tasks.email_tasks.process_queued_campaigns')
 def process_queued_campaigns():
-    """
-    Process campaigns in 'queued' status.
-    RUNS CAMPAIGNS DIRECTLY - no async queue to avoid remote worker issues.
-    """
+    """Process campaigns in 'queued' status - executes DIRECTLY"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -315,7 +394,6 @@ def process_queued_campaigns():
         for campaign_id, name in campaigns:
             logger.info(f"🔄 Processing campaign: {name} ({campaign_id})")
             
-            # Lock the campaign
             cursor.execute("""
                 UPDATE campaigns 
                 SET status = 'sending', started_at = NOW(), updated_at = NOW()
@@ -327,7 +405,6 @@ def process_queued_campaigns():
             conn.commit()
             
             if result:
-                # Execute campaign DIRECTLY (not via queue)
                 try:
                     execute_campaign(campaign_id)
                     processed += 1
@@ -352,48 +429,41 @@ def process_queued_campaigns():
 
 @celery_app.task(name='app.tasks.email_tasks.recover_stuck_campaigns')
 def recover_stuck_campaigns():
-    """Recover campaigns stuck in 'sending' status for too long."""
+    """Recover campaigns stuck in 'sending' status"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
         cursor.execute("""
-            SELECT id, name, status, started_at FROM campaigns
+            SELECT id, name FROM campaigns
             WHERE status = 'sending'
-            AND (started_at < NOW() - INTERVAL '30 minutes' OR started_at IS NULL)
-            AND updated_at < NOW() - INTERVAL '5 minutes'
+            AND updated_at < NOW() - INTERVAL '30 minutes'
             LIMIT 5
         """)
         
         stuck = cursor.fetchall()
         recovered = 0
         
-        for campaign_id, name, status, started_at in stuck:
+        for campaign_id, name in stuck:
             logger.warning(f"⚠️ Recovering stuck campaign: {name}")
             
             cursor.execute("""
                 SELECT COUNT(*) FILTER (WHERE status = 'sent') as sent,
-                       COUNT(*) FILTER (WHERE status = 'failed') as failed,
-                       COUNT(*) FILTER (WHERE status IN ('sending', 'queued')) as pending
+                       COUNT(*) FILTER (WHERE status = 'failed') as failed
                 FROM emails WHERE campaign_id = %s
             """, (campaign_id,))
             
             stats = cursor.fetchone()
-            sent, failed, pending = stats if stats else (0, 0, 0)
+            sent, failed = stats if stats else (0, 0)
             
-            if pending > 0 or (sent == 0 and failed == 0):
-                cursor.execute("UPDATE campaigns SET status = 'queued', started_at = NULL, updated_at = NOW() WHERE id = %s", (campaign_id,))
-                logger.info(f"🔄 Re-queued campaign {name}")
+            if sent == 0 and failed == 0:
+                cursor.execute("UPDATE campaigns SET status = 'queued', started_at = NULL WHERE id = %s", (campaign_id,))
             else:
                 final_status = 'completed' if failed < sent else 'completed_with_errors'
-                cursor.execute("UPDATE campaigns SET status = %s, sent_count = %s, updated_at = NOW() WHERE id = %s", (final_status, sent, campaign_id))
-                logger.info(f"✅ Marked campaign {name} as {final_status}")
+                cursor.execute("UPDATE campaigns SET status = %s, sent_count = %s WHERE id = %s", (final_status, sent, campaign_id))
             
             conn.commit()
             recovered += 1
-        
-        if recovered:
-            logger.info(f"🔧 Recovered {recovered} stuck campaigns")
         
         return {'recovered': recovered}
         
@@ -439,16 +509,17 @@ def reset_daily_counters():
     cursor = conn.cursor()
     
     try:
-        cursor.execute("SELECT COUNT(*) FROM ip_pools WHERE last_reset_at IS NULL OR last_reset_at::date < CURRENT_DATE")
-        needs_reset = cursor.fetchone()[0]
+        cursor.execute("""
+            UPDATE ip_pools SET sent_today = 0, last_reset_at = NOW() 
+            WHERE last_reset_at IS NULL OR last_reset_at::date < CURRENT_DATE
+        """)
+        count = cursor.rowcount
+        conn.commit()
         
-        if needs_reset > 0:
-            cursor.execute("UPDATE ip_pools SET sent_today = 0, last_reset_at = NOW() WHERE last_reset_at IS NULL OR last_reset_at::date < CURRENT_DATE")
-            conn.commit()
-            logger.info(f"🔄 Reset daily counters for {needs_reset} IPs")
-            return {'reset': needs_reset}
+        if count > 0:
+            logger.info(f"🔄 Reset daily counters for {count} IPs")
         
-        return {'reset': 0}
+        return {'reset': count}
     except Exception as e:
         logger.error(f"reset_daily_counters error: {e}")
         return {'reset': 0, 'error': str(e)}
@@ -460,19 +531,16 @@ def reset_daily_counters():
 @celery_app.task(name='app.tasks.email_tasks.sync_tracking_to_db')
 def sync_tracking_to_db():
     """Sync tracking data from Redis to PostgreSQL"""
-    import redis
-    
     try:
-        r = redis.Redis(host='localhost', port=6379, password='SendBaba2024SecureRedis', decode_responses=True)
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        keys = r.keys('track:*')
+        keys = redis_client.keys('track:*')
         synced = 0
         
         for key in keys[:100]:
             try:
-                data = r.hgetall(key)
+                data = redis_client.hgetall(key)
                 if not data:
                     continue
                 
@@ -493,10 +561,9 @@ def sync_tracking_to_db():
                     """, (email_id,))
                 
                 conn.commit()
-                r.delete(key)
+                redis_client.delete(key)
                 synced += 1
             except Exception as e:
-                logger.warning(f"Sync error for {key}: {e}")
                 conn.rollback()
         
         cursor.close()

@@ -69,6 +69,9 @@ def create_app():
             ('webhook_controller', 'webhook_bp', 'Webhooks'),
             ('team_invite_controller', 'team_invite_bp', 'Team Invites'),
             ('dns_controller', 'dns_bp', 'DNS'),
+            ('bounce_controller', 'bounce_bp', 'Bounces'),
+            ('unsubscribe_controller', 'unsubscribe_bp', 'Unsubscribe'),
+            ('hub_controller', 'hub_bp', 'Hub'),
         ]
         
         all_blueprints = core_blueprints + additional_blueprints

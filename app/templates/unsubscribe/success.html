@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unsubscribed Successfully - SendBaba</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="bg-green-500 p-6 text-center">
+                <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-check text-white text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">Unsubscribed!</h1>
+            </div>
+            
+            <div class="p-8 text-center">
+                <p class="text-gray-600 mb-2">
+                    <strong class="text-gray-900">{{ email }}</strong>
+                </p>
+                <p class="text-gray-600 mb-6">
+                    has been removed from our mailing list.<br>
+                    You won't receive any more emails from us.
+                </p>
+                
+                <div class="bg-blue-50 rounded-xl p-4 mb-6">
+                    <p class="text-sm text-blue-700">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Changes may take up to 24 hours to fully process.
+                    </p>
+                </div>
+                
+                <div class="border-t border-gray-100 pt-6">
+                    <p class="text-sm text-gray-500 mb-4">Unsubscribed by mistake?</p>
+                    <button onclick="resubscribe()" id="resubscribeBtn" 
+                            class="px-6 py-2 border-2 border-green-500 text-green-600 rounded-xl font-medium hover:bg-green-50 transition">
+                        <i class="fas fa-undo mr-2"></i>Resubscribe
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <p class="text-center text-gray-400 text-sm mt-6">
+            Powered by <a href="https://sendbaba.com" class="text-purple-500 hover:underline">SendBaba</a>
+        </p>
+    </div>
+    
+    <script>
+    function resubscribe() {
+        const btn = document.getElementById('resubscribeBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+        
+        fetch('/unsubscribe/resubscribe', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email: '{{ email }}'})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                btn.innerHTML = '<i class="fas fa-check mr-2"></i>Resubscribed!';
+                btn.className = 'px-6 py-2 bg-green-500 text-white rounded-xl font-medium';
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-envelope mr-2"></i>You\'re back on the list!';
+                }, 1500);
+            } else {
+                btn.innerHTML = '<i class="fas fa-times mr-2"></i>Failed - Try again';
+                btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fas fa-times mr-2"></i>Error';
+            btn.disabled = false;
+        });
+    }
+    </script>
+</body>
+</html>

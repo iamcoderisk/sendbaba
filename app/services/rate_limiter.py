@@ -16,7 +16,7 @@ from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
-REDIS_URL = 'redis://:SendBaba2024SecureRedis@localhost:6379/0'
+REDIS_URL = 'redis://:SendBabaRedis2024!@localhost:6379/0'
 DB_CONFIG = {
     'host': 'localhost',
     'database': 'emailer',

@@ -1,6 +1,5 @@
 """
-SendBaba Analytics Controller - COMPLETE FIX
-All required template variables included
+SendBaba Analytics Controller - Simplified & Fixed
 """
 from flask import Blueprint, render_template, jsonify, request, Response
 from flask_login import login_required, current_user
@@ -23,128 +22,89 @@ def get_date_range(period='30d'):
         '24h': timedelta(hours=24),
         '7d': timedelta(days=7),
         '30d': timedelta(days=30),
-        '90d': timedelta(days=90),
-        '12m': timedelta(days=365)
+        '90d': timedelta(days=90)
     }
     delta = periods.get(period, timedelta(days=30))
     return now - delta, now
 
 
+def safe_query(query, params, default=None):
+    """Execute query safely with error handling"""
+    try:
+        result = db.session.execute(text(query), params)
+        return result.fetchone() if default is None else result.fetchall()
+    except Exception as e:
+        logger.error(f"[Analytics] Query error: {e}")
+        return default
+
+
 def get_overview_stats(org_id, start_date, end_date):
-    """Get overview statistics with ALL required fields"""
+    """Get overview statistics"""
     stats = {
-        'total_sent': 0,
-        'delivered': 0,
-        'opened': 0,
-        'clicked': 0,
-        'bounced': 0,
-        'failed': 0,
-        'pending': 0,
-        'unsubscribed': 0,
-        'delivery_rate': 0,
-        'open_rate': 0,
-        'click_rate': 0,
-        'bounce_rate': 0,
-        'spam_rate': 0,
-        'avg_daily': 0,
-        'total_contacts': 0,
-        'active_contacts': 0,
-        'total_growth': 0,
-        'open_growth': 0,
+        'total_sent': 0, 'delivered': 0, 'opened': 0, 'clicked': 0,
+        'bounced': 0, 'failed': 0, 'pending': 0, 'unsubscribed': 0,
+        'delivery_rate': 0, 'open_rate': 0, 'click_rate': 0,
+        'bounce_rate': 0, 'spam_rate': 0, 'avg_daily': 0,
+        'total_contacts': 0, 'active_contacts': 0,
+        'total_growth': 0, 'open_growth': 0,
     }
     
     if not org_id:
         return stats
     
     try:
-        # Email stats for current period
-        result = db.session.execute(text("""
+        # Main email stats - simplified query
+        result = safe_query("""
             SELECT 
-                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'opened', 'clicked')) as sent,
-                COUNT(*) FILTER (WHERE status IN ('delivered', 'opened', 'clicked')) as delivered,
-                COUNT(*) FILTER (WHERE status IN ('opened', 'clicked')) as opened,
-                COUNT(*) FILTER (WHERE status = 'clicked') as clicked,
-                COUNT(*) FILTER (WHERE status = 'bounced') as bounced,
-                COUNT(*) FILTER (WHERE status IN ('failed', 'rejected', 'error')) as failed,
-                COUNT(*) FILTER (WHERE status = 'queued' OR status = 'pending') as pending,
-                COUNT(*) FILTER (WHERE status = 'spam' OR status = 'complaint') as spam,
-                COUNT(*) as total
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'sent' THEN 1 END) as sent,
+                COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered,
+                COUNT(CASE WHEN status = 'opened' THEN 1 END) as opened,
+                COUNT(CASE WHEN status = 'clicked' THEN 1 END) as clicked,
+                COUNT(CASE WHEN status = 'bounced' THEN 1 END) as bounced,
+                COUNT(CASE WHEN status IN ('failed', 'error', 'rejected') THEN 1 END) as failed,
+                COUNT(CASE WHEN status IN ('queued', 'pending') THEN 1 END) as pending
             FROM emails 
             WHERE organization_id = :org_id 
-              AND created_at >= :start_date 
-              AND created_at <= :end_date
-        """), {'org_id': org_id, 'start_date': start_date, 'end_date': end_date}).fetchone()
+              AND created_at >= :start_date
+        """, {'org_id': org_id, 'start_date': start_date})
         
         if result:
-            sent = result[0] or 0
+            total = result[0] or 0
+            sent = (result[1] or 0) + (result[2] or 0) + (result[3] or 0) + (result[4] or 0)
+            
             stats['total_sent'] = sent
-            stats['delivered'] = result[1] or 0
-            stats['opened'] = result[2] or 0
-            stats['clicked'] = result[3] or 0
-            stats['bounced'] = result[4] or 0
-            stats['failed'] = result[5] or 0
-            stats['pending'] = result[6] or 0
-            spam = result[7] or 0
-            total = result[8] or 0
+            stats['delivered'] = (result[2] or 0) + (result[3] or 0) + (result[4] or 0)
+            stats['opened'] = (result[3] or 0) + (result[4] or 0)
+            stats['clicked'] = result[4] or 0
+            stats['bounced'] = result[5] or 0
+            stats['failed'] = result[6] or 0
+            stats['pending'] = result[7] or 0
             
             if total > 0:
-                stats['delivery_rate'] = round((sent / total) * 100, 1)
+                stats['delivery_rate'] = round((stats['delivered'] / total) * 100, 1)
                 stats['bounce_rate'] = round((stats['bounced'] / total) * 100, 1)
-                stats['spam_rate'] = round((spam / total) * 100, 2)
             
             if sent > 0:
                 stats['open_rate'] = round((stats['opened'] / sent) * 100, 1)
                 stats['click_rate'] = round((stats['clicked'] / sent) * 100, 1)
             
-            # Average daily
             days = max((end_date - start_date).days, 1)
-            stats['avg_daily'] = round(total / days, 0)
-        
-        # Get unsubscribed count
-        unsub_result = db.session.execute(text("""
-            SELECT COUNT(*) FROM contacts 
-            WHERE organization_id = :org_id AND status = 'unsubscribed'
-        """), {'org_id': org_id}).fetchone()
-        stats['unsubscribed'] = unsub_result[0] if unsub_result else 0
+            stats['avg_daily'] = int(total / days)
         
         # Contact stats
-        contacts = db.session.execute(text("""
-            SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'active' OR status IS NULL)
+        contacts = safe_query("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN status = 'active' OR status IS NULL THEN 1 END) as active,
+                COUNT(CASE WHEN status = 'unsubscribed' THEN 1 END) as unsub
             FROM contacts WHERE organization_id = :org_id
-        """), {'org_id': org_id}).fetchone()
+        """, {'org_id': org_id})
         
         if contacts:
             stats['total_contacts'] = contacts[0] or 0
             stats['active_contacts'] = contacts[1] or 0
-        
-        # Calculate growth (compare to previous period)
-        period_length = (end_date - start_date).days
-        prev_start = start_date - timedelta(days=period_length)
-        prev_end = start_date
-        
-        prev_result = db.session.execute(text("""
-            SELECT 
-                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'opened', 'clicked')) as sent,
-                COUNT(*) FILTER (WHERE status IN ('opened', 'clicked')) as opened
-            FROM emails 
-            WHERE organization_id = :org_id 
-              AND created_at >= :start_date 
-              AND created_at < :end_date
-        """), {'org_id': org_id, 'start_date': prev_start, 'end_date': prev_end}).fetchone()
-        
-        if prev_result:
-            prev_sent = prev_result[0] or 0
-            prev_opened = prev_result[1] or 0
-            
-            if prev_sent > 0:
-                stats['total_growth'] = round(((stats['total_sent'] - prev_sent) / prev_sent) * 100, 1)
-            elif stats['total_sent'] > 0:
-                stats['total_growth'] = 100
-            
-            if prev_opened > 0:
-                stats['open_growth'] = round(((stats['opened'] - prev_opened) / prev_opened) * 100, 1)
-            elif stats['opened'] > 0:
-                stats['open_growth'] = 100
+            stats['unsubscribed'] = contacts[2] or 0
             
     except Exception as e:
         logger.error(f"[Analytics] Overview error: {e}")
@@ -154,33 +114,29 @@ def get_overview_stats(org_id, start_date, end_date):
 
 def get_queue_stats(org_id):
     """Get current queue statistics"""
-    stats = {
-        'pending': 0,
-        'processing': 0,
-        'completed_today': 0,
-        'failed_today': 0
-    }
+    stats = {'pending': 0, 'processing': 0, 'completed_today': 0, 'failed_today': 0}
     
     if not org_id:
         return stats
     
     try:
-        result = db.session.execute(text("""
+        result = safe_query("""
             SELECT 
-                COUNT(*) FILTER (WHERE status = 'queued') as pending,
-                COUNT(*) FILTER (WHERE status = 'sending') as processing,
-                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered') AND DATE(sent_at) = CURRENT_DATE) as completed,
-                COUNT(*) FILTER (WHERE status IN ('failed', 'bounced') AND DATE(created_at) = CURRENT_DATE) as failed
+                COUNT(CASE WHEN status = 'queued' THEN 1 END) as pending,
+                COUNT(CASE WHEN status = 'sending' THEN 1 END) as processing,
+                COUNT(CASE WHEN status IN ('sent', 'delivered') AND DATE(created_at) = CURRENT_DATE THEN 1 END) as completed,
+                COUNT(CASE WHEN status IN ('failed', 'bounced') AND DATE(created_at) = CURRENT_DATE THEN 1 END) as failed
             FROM emails 
             WHERE organization_id = :org_id
-        """), {'org_id': org_id}).fetchone()
+        """, {'org_id': org_id})
         
         if result:
-            stats['pending'] = result[0] or 0
-            stats['processing'] = result[1] or 0
-            stats['completed_today'] = result[2] or 0
-            stats['failed_today'] = result[3] or 0
-            
+            stats = {
+                'pending': result[0] or 0,
+                'processing': result[1] or 0,
+                'completed_today': result[2] or 0,
+                'failed_today': result[3] or 0
+            }
     except Exception as e:
         logger.error(f"[Analytics] Queue stats error: {e}")
     
@@ -196,10 +152,9 @@ def get_email_trends(org_id, start_date, end_date):
         result = db.session.execute(text("""
             SELECT 
                 DATE(created_at) as date,
-                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'opened', 'clicked')) as sent,
-                COUNT(*) FILTER (WHERE status IN ('delivered', 'opened', 'clicked')) as delivered,
-                COUNT(*) FILTER (WHERE status IN ('opened', 'clicked')) as opened,
-                COUNT(*) FILTER (WHERE status IN ('failed', 'bounced')) as failed
+                COUNT(*) as total,
+                COUNT(CASE WHEN status IN ('sent', 'delivered', 'opened', 'clicked') THEN 1 END) as sent,
+                COUNT(CASE WHEN status IN ('failed', 'bounced') THEN 1 END) as failed
             FROM emails
             WHERE organization_id = :org_id 
               AND created_at >= :start_date
@@ -207,20 +162,25 @@ def get_email_trends(org_id, start_date, end_date):
             ORDER BY date
         """), {'org_id': org_id, 'start_date': start_date}).fetchall()
         
-        return [{
-            'date': row[0].strftime('%Y-%m-%d') if row[0] else '',
-            'sent': row[1] or 0,
-            'delivered': row[2] or 0,
-            'opened': row[3] or 0,
-            'failed': row[4] or 0
-        } for row in result]
+        trends = []
+        for row in result:
+            trends.append({
+                'label': row[0].strftime('%b %d') if row[0] else '',
+                'date': row[0].strftime('%Y-%m-%d') if row[0] else '',
+                'total': row[1] or 0,
+                'sent': row[2] or 0,
+                'delivered': row[2] or 0,
+                'failed': row[3] or 0,
+                'opened': 0
+            })
+        return trends
         
     except Exception as e:
         logger.error(f"[Analytics] Email trends error: {e}")
         return []
 
 
-def get_campaign_stats(org_id, start_date, end_date):
+def get_campaign_stats(org_id, start_date=None, end_date=None):
     """Get campaign statistics"""
     stats = {'total': 0, 'sent': 0, 'drafts': 0, 'scheduled': 0}
     
@@ -228,15 +188,15 @@ def get_campaign_stats(org_id, start_date, end_date):
         return stats
     
     try:
-        result = db.session.execute(text("""
+        result = safe_query("""
             SELECT 
                 COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status IN ('sent', 'completed', 'completed_with_errors')) as sent,
-                COUNT(*) FILTER (WHERE status = 'draft') as drafts,
-                COUNT(*) FILTER (WHERE status = 'scheduled') as scheduled
+                COUNT(CASE WHEN status IN ('sent', 'completed', 'completed_with_errors', 'sending') THEN 1 END) as sent,
+                COUNT(CASE WHEN status = 'draft' THEN 1 END) as drafts,
+                COUNT(CASE WHEN status = 'scheduled' THEN 1 END) as scheduled
             FROM campaigns
             WHERE organization_id = :org_id
-        """), {'org_id': org_id}).fetchone()
+        """, {'org_id': org_id})
         
         if result:
             stats = {
@@ -245,14 +205,13 @@ def get_campaign_stats(org_id, start_date, end_date):
                 'drafts': result[2] or 0,
                 'scheduled': result[3] or 0
             }
-            
     except Exception as e:
         logger.error(f"[Analytics] Campaign stats error: {e}")
     
     return stats
 
 
-def get_top_campaigns(org_id, start_date, end_date, limit=5):
+def get_top_campaigns(org_id, start_date=None, end_date=None, limit=5):
     """Get top performing campaigns"""
     if not org_id:
         return []
@@ -260,34 +219,30 @@ def get_top_campaigns(org_id, start_date, end_date, limit=5):
     try:
         result = db.session.execute(text("""
             SELECT 
-                c.id, c.name, c.status, c.created_at,
-                COALESCE(c.emails_sent, c.sent_count, 0) as sent,
-                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status IN ('opened', 'clicked')) as opens,
-                (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status = 'clicked') as clicks
-            FROM campaigns c
-            WHERE c.organization_id = :org_id
-              AND c.status IN ('sent', 'completed', 'completed_with_errors')
-            ORDER BY c.created_at DESC
+                id, name, status, created_at,
+                COALESCE(emails_sent, 0) as sent,
+                COALESCE(total_recipients, 0) as total
+            FROM campaigns
+            WHERE organization_id = :org_id
+              AND status IN ('sent', 'completed', 'completed_with_errors', 'sending')
+            ORDER BY created_at DESC
             LIMIT :limit
         """), {'org_id': org_id, 'limit': limit}).fetchall()
         
         campaigns = []
         for row in result:
             sent = row[4] or 0
-            opens = row[5] or 0
-            clicks = row[6] or 0
+            total = row[5] or sent or 1
             campaigns.append({
                 'id': str(row[0]),
                 'name': row[1] or 'Untitled',
                 'status': row[2] or 'draft',
-                'date': row[3].strftime('%Y-%m-%d') if row[3] else '',
+                'created_at': row[3].strftime('%b %d, %Y') if row[3] else '',
                 'sent': sent,
-                'opens': opens,
-                'clicks': clicks,
-                'open_rate': round((opens / sent * 100), 1) if sent > 0 else 0,
-                'click_rate': round((clicks / sent * 100), 1) if sent > 0 else 0
+                'total': total,
+                'delivery_rate': round((sent / total) * 100, 1) if total > 0 else 0,
+                'open_rate': 0
             })
-        
         return campaigns
         
     except Exception as e:
@@ -297,8 +252,10 @@ def get_top_campaigns(org_id, start_date, end_date, limit=5):
 
 def get_hourly_distribution(org_id, start_date, end_date):
     """Get hourly email distribution"""
+    hourly = [{'hour': f'{h:02d}:00', 'count': 0} for h in range(24)]
+    
     if not org_id:
-        return [{'hour': h, 'count': 0} for h in range(24)]
+        return hourly
     
     try:
         result = db.session.execute(text("""
@@ -312,16 +269,16 @@ def get_hourly_distribution(org_id, start_date, end_date):
             ORDER BY hour
         """), {'org_id': org_id, 'start_date': start_date}).fetchall()
         
-        # Fill in all 24 hours
-        hourly = {i: 0 for i in range(24)}
         for row in result:
-            hourly[row[0]] = row[1]
+            h = row[0] or 0
+            if 0 <= h < 24:
+                hourly[h]['count'] = row[1] or 0
         
-        return [{'hour': h, 'count': c} for h, c in hourly.items()]
+        return hourly
         
     except Exception as e:
         logger.error(f"[Analytics] Hourly distribution error: {e}")
-        return [{'hour': h, 'count': 0} for h in range(24)]
+        return hourly
 
 
 def get_domain_stats(org_id):
@@ -332,23 +289,30 @@ def get_domain_stats(org_id):
     try:
         result = db.session.execute(text("""
             SELECT 
-                COALESCE(domain, domain_name, 'Unknown') as name,
-                COALESCE(dns_verified, is_verified, false) as verified,
-                COALESCE(emails_sent, 0) as sent,
-                COALESCE(emails_delivered, 0) as delivered,
-                COALESCE(emails_bounced, 0) as bounced
+                domain,
+                dns_verified,
+                dkim_verified,
+                spf_verified
             FROM domains
             WHERE organization_id = :org_id
-            ORDER BY emails_sent DESC NULLS LAST
+            ORDER BY created_at DESC
         """), {'org_id': org_id}).fetchall()
         
-        return [{
-            'name': row[0] or 'Unknown',
-            'verified': row[1] or False,
-            'sent': row[2] or 0,
-            'delivered': row[3] or 0,
-            'bounced': row[4] or 0
-        } for row in result]
+        domains = []
+        for row in result:
+            dns = row[1] or False
+            dkim = row[2] or False
+            spf = row[3] or False
+            health = int((dns + dkim + spf) / 3 * 100)
+            
+            domains.append({
+                'domain': row[0] or 'Unknown',
+                'dns_verified': dns,
+                'dkim_verified': dkim,
+                'spf_verified': spf,
+                'health_score': health
+            })
+        return domains
         
     except Exception as e:
         logger.error(f"[Analytics] Domain stats error: {e}")
@@ -363,17 +327,17 @@ def get_engagement_funnel(org_id, start_date, end_date):
         return funnel
     
     try:
-        result = db.session.execute(text("""
+        result = safe_query("""
             SELECT 
-                COUNT(*) FILTER (WHERE status IN ('sent', 'delivered', 'opened', 'clicked')) as sent,
-                COUNT(*) FILTER (WHERE status IN ('delivered', 'opened', 'clicked')) as delivered,
-                COUNT(*) FILTER (WHERE status IN ('opened', 'clicked')) as opened,
-                COUNT(*) FILTER (WHERE status = 'clicked') as clicked,
-                COUNT(*) FILTER (WHERE status IN ('failed', 'bounced')) as failed
+                COUNT(CASE WHEN status IN ('sent', 'delivered', 'opened', 'clicked') THEN 1 END) as sent,
+                COUNT(CASE WHEN status IN ('delivered', 'opened', 'clicked') THEN 1 END) as delivered,
+                COUNT(CASE WHEN status IN ('opened', 'clicked') THEN 1 END) as opened,
+                COUNT(CASE WHEN status = 'clicked' THEN 1 END) as clicked,
+                COUNT(CASE WHEN status IN ('failed', 'bounced') THEN 1 END) as failed
             FROM emails
             WHERE organization_id = :org_id 
               AND created_at >= :start_date
-        """), {'org_id': org_id, 'start_date': start_date}).fetchone()
+        """, {'org_id': org_id, 'start_date': start_date})
         
         if result:
             funnel = {
@@ -383,33 +347,10 @@ def get_engagement_funnel(org_id, start_date, end_date):
                 'clicked': result[3] or 0,
                 'failed': result[4] or 0
             }
-            
     except Exception as e:
         logger.error(f"[Analytics] Engagement funnel error: {e}")
     
     return funnel
-
-
-def get_status_breakdown(org_id, start_date, end_date):
-    """Get email status breakdown"""
-    if not org_id:
-        return []
-    
-    try:
-        result = db.session.execute(text("""
-            SELECT status, COUNT(*) as count
-            FROM emails
-            WHERE organization_id = :org_id 
-              AND created_at >= :start_date
-            GROUP BY status
-            ORDER BY count DESC
-        """), {'org_id': org_id, 'start_date': start_date}).fetchall()
-        
-        return [{'status': row[0] or 'unknown', 'count': row[1] or 0} for row in result]
-        
-    except Exception as e:
-        logger.error(f"[Analytics] Status breakdown error: {e}")
-        return []
 
 
 @analytics_bp.route('/')
@@ -421,6 +362,8 @@ def index():
         period = request.args.get('period', '30d')
         start_date, end_date = get_date_range(period)
         
+        logger.info(f"[Analytics] Loading for org_id={org_id}, period={period}")
+        
         overview = get_overview_stats(org_id, start_date, end_date)
         queue_stats = get_queue_stats(org_id)
         email_trends = get_email_trends(org_id, start_date, end_date)
@@ -429,7 +372,8 @@ def index():
         hourly_dist = get_hourly_distribution(org_id, start_date, end_date)
         domain_stats = get_domain_stats(org_id)
         engagement_funnel = get_engagement_funnel(org_id, start_date, end_date)
-        status_breakdown = get_status_breakdown(org_id, start_date, end_date)
+        
+        logger.info(f"[Analytics] Data: sent={overview['total_sent']}, contacts={overview['total_contacts']}, campaigns={campaign_stats['total']}")
         
         return render_template('dashboard/analytics/index.html',
             overview=overview,
@@ -440,22 +384,17 @@ def index():
             hourly_dist=json.dumps(hourly_dist),
             domain_stats=domain_stats,
             engagement_funnel=engagement_funnel,
-            status_breakdown=json.dumps(status_breakdown),
             period=period
         )
         
     except Exception as e:
         logger.error(f"[Analytics] Index error: {e}", exc_info=True)
-        # Return with all default values
         return render_template('dashboard/analytics/index.html',
-            overview={
-                'total_sent': 0, 'delivered': 0, 'opened': 0, 'clicked': 0, 'bounced': 0, 
-                'failed': 0, 'pending': 0, 'unsubscribed': 0,
-                'delivery_rate': 0, 'open_rate': 0, 'click_rate': 0, 
-                'bounce_rate': 0, 'spam_rate': 0, 'avg_daily': 0, 
-                'total_contacts': 0, 'active_contacts': 0,
-                'total_growth': 0, 'open_growth': 0
-            },
+            overview={'total_sent': 0, 'delivered': 0, 'opened': 0, 'clicked': 0, 'bounced': 0, 
+                      'failed': 0, 'pending': 0, 'unsubscribed': 0, 'delivery_rate': 0, 
+                      'open_rate': 0, 'click_rate': 0, 'bounce_rate': 0, 'spam_rate': 0, 
+                      'avg_daily': 0, 'total_contacts': 0, 'active_contacts': 0,
+                      'total_growth': 0, 'open_growth': 0},
             queue_stats={'pending': 0, 'processing': 0, 'completed_today': 0, 'failed_today': 0},
             email_trends='[]',
             campaign_stats={'total': 0, 'sent': 0, 'drafts': 0, 'scheduled': 0},
@@ -463,9 +402,24 @@ def index():
             hourly_dist='[]',
             domain_stats=[],
             engagement_funnel={'sent': 0, 'delivered': 0, 'opened': 0, 'clicked': 0, 'failed': 0},
-            status_breakdown='[]',
             period='30d'
         )
+
+
+@analytics_bp.route('/api/realtime')
+@login_required
+def api_realtime():
+    """Real-time queue statistics"""
+    try:
+        org_id = current_user.organization_id
+        queue = get_queue_stats(org_id)
+        return jsonify({
+            'success': True,
+            'data': queue,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @analytics_bp.route('/api/overview')
@@ -486,21 +440,6 @@ def api_overview():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@analytics_bp.route('/api/realtime')
-@login_required
-def api_realtime():
-    """Real-time queue statistics"""
-    try:
-        org_id = current_user.organization_id
-        return jsonify({
-            'success': True,
-            'queue': get_queue_stats(org_id),
-            'timestamp': datetime.utcnow().isoformat()
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
 @analytics_bp.route('/api/export')
 @login_required
 def api_export():
@@ -510,29 +449,24 @@ def api_export():
         period = request.args.get('period', '30d')
         start_date, end_date = get_date_range(period)
         
-        # Get email data
         result = db.session.execute(text("""
-            SELECT created_at, to_email, subject, status, sent_at, opened_at, clicked_at
+            SELECT created_at, to_email, subject, status
             FROM emails
             WHERE organization_id = :org_id AND created_at >= :start_date
             ORDER BY created_at DESC
             LIMIT 10000
         """), {'org_id': org_id, 'start_date': start_date}).fetchall()
         
-        # Create CSV
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(['Created', 'Recipient', 'Subject', 'Status', 'Sent At', 'Opened At', 'Clicked At'])
+        writer.writerow(['Created', 'Recipient', 'Subject', 'Status'])
         
         for row in result:
             writer.writerow([
                 row[0].isoformat() if row[0] else '',
                 row[1] or '',
                 row[2] or '',
-                row[3] or '',
-                row[4].isoformat() if row[4] else '',
-                row[5].isoformat() if row[5] else '',
-                row[6].isoformat() if row[6] else ''
+                row[3] or ''
             ])
         
         output.seek(0)

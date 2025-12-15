@@ -17,7 +17,7 @@ tracking_bp = Blueprint('tracking', __name__, url_prefix='/track')
 # Configuration
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
-REDIS_PASSWORD = 'SendBaba2024SecureRedis'
+REDIS_PASSWORD = 'SendBabaRedis2024!'
 
 DB_CONFIG = {
     'host': '127.0.0.1',

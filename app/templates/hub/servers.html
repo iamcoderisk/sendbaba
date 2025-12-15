@@ -1,0 +1,133 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'servers' %}
+
+{% block title %}Servers{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+        <h1 class="text-xl lg:text-2xl font-bold text-gray-800">Server Infrastructure</h1>
+        <p class="text-gray-500 text-sm">Monitor all email sending servers</p>
+    </div>
+    <button onclick="loadServers()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+        <i class="fas fa-sync-alt mr-2"></i>Refresh
+    </button>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Total Servers</p>
+                <p id="total-servers" class="text-xl lg:text-3xl font-bold text-gray-800">11</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-server text-blue-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Online</p>
+                <p id="online-servers" class="text-xl lg:text-3xl font-bold text-green-600">--</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Capacity</p>
+                <p id="total-capacity" class="text-xl lg:text-3xl font-bold text-purple-600">--</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-chart-line text-purple-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Sent Today</p>
+                <p id="total-sent" class="text-xl lg:text-3xl font-bold text-orange-600">--</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-paper-plane text-orange-600"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Servers Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6" id="servers-grid">
+    <!-- Servers populated by JS -->
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadServers() {
+        try {
+            const res = await fetch('/hub/api/servers');
+            const data = await res.json();
+            
+            if (data.success) {
+                document.getElementById('online-servers').textContent = data.total_workers;
+                document.getElementById('total-capacity').textContent = formatNumber(data.total_capacity);
+                document.getElementById('total-sent').textContent = formatNumber(data.total_sent);
+                
+                const grid = document.getElementById('servers-grid');
+                grid.innerHTML = data.servers.map(s => `
+                    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 ${s.status === 'online' ? 'bg-green-100' : 'bg-red-100'} rounded-full flex items-center justify-center">
+                                    <i class="fas fa-server ${s.status === 'online' ? 'text-green-600' : 'text-red-600'}"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="font-bold text-sm lg:text-base truncate">${s.hostname}</p>
+                                    <p class="text-xs text-gray-500 font-mono">${s.ip}</p>
+                                </div>
+                            </div>
+                            <span class="w-3 h-3 rounded-full flex-shrink-0 ${s.status === 'online' ? 'bg-green-500' : 'bg-red-500'}"></span>
+                        </div>
+                        
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Status</span>
+                                <span class="font-medium ${s.status === 'online' ? 'text-green-600' : 'text-red-600'}">${s.status.toUpperCase()}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Warmup</span>
+                                <span class="px-2 py-0.5 rounded text-xs ${s.is_warmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+                                    ${s.is_warmed ? 'Warmed' : 'Day ' + s.warmup_day}
+                                </span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">Threads</span>
+                                <span class="font-medium">${s.concurrency || 0}</span>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-gray-500">Usage</span>
+                                    <span>${formatNumber(s.sent_today)} / ${formatNumber(s.daily_limit)}</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-600 h-2 rounded-full" style="width: ${s.usage_pct || 0}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    loadServers();
+    setInterval(loadServers, 30000);
+</script>
+{% endblock %}

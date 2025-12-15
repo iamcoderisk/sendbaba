@@ -356,24 +356,16 @@ def api_send_campaign():
         )
         db.session.commit()
         
-        # Queue the campaign for async processing via Celery
-        try:
-            from app.tasks.email_tasks import send_campaign
-            send_campaign.delay(campaign_id)
-            logger.info(f"Campaign {campaign_id} queued for {total} contacts")
-            
-            return jsonify({
-                'success': True, 
-                'queued': True,
-                'total': total,
-                'message': f'Campaign queued! Sending to {total:,} contacts in background.'
-            })
-        except ImportError as e:
-            logger.error(f"Celery import failed: {e}")
-            # Fallback to sync for small lists
-            if total <= 100:
-                return send_campaign_sync(campaign_id, campaign, total)
-            return jsonify({'success': False, 'error': 'Queue system unavailable'}), 500
+        # Campaign is now queued - process_queued_campaigns task will pick it up automatically
+        # The Celery beat scheduler runs process_queued_campaigns every 3 seconds
+        logger.info(f"Campaign {campaign_id} queued for {total} contacts - will be processed by scheduler")
+        
+        return jsonify({
+            'success': True,
+            'queued': True,
+            'total': total,
+            'message': f'Campaign queued! Sending to {total:,} contacts. Processing will start shortly.'
+        })
             
     except Exception as e:
         logger.error(f"Send error: {e}", exc_info=True)
@@ -443,4 +435,170 @@ def api_send_test_email():
         except ImportError:
             return jsonify({'success': True, 'message': f'Test queued for {test_email}'})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# CAMPAIGN CONTROL APIs - Pause/Resume/Resend
+# ============================================
+
+@campaign_bp.route('/campaigns/api/pause/<campaign_id>', methods=['POST'])
+@login_required
+def api_pause_campaign(campaign_id):
+    """Pause a running campaign"""
+    try:
+        result = db.session.execute(
+            text("""
+                UPDATE campaigns 
+                SET status = 'paused', updated_at = NOW()
+                WHERE id = :id AND organization_id = :org_id 
+                AND status IN ('sending', 'queued', 'processing')
+                RETURNING id, name
+            """),
+            {'id': campaign_id, 'org_id': current_user.organization_id}
+        )
+        row = result.fetchone()
+        if row:
+            db.session.commit()
+            logger.info(f"Campaign {row[1]} paused by user")
+            return jsonify({'success': True, 'message': f'Campaign "{row[1]}" paused'})
+        return jsonify({'success': False, 'error': 'Campaign not found or cannot be paused'}), 404
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Pause campaign error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@campaign_bp.route('/campaigns/api/resume/<campaign_id>', methods=['POST'])
+@login_required
+def api_resume_campaign(campaign_id):
+    """Resume a paused campaign"""
+    try:
+        result = db.session.execute(
+            text("""
+                UPDATE campaigns 
+                SET status = 'queued', updated_at = NOW()
+                WHERE id = :id AND organization_id = :org_id 
+                AND status = 'paused'
+                RETURNING id, name
+            """),
+            {'id': campaign_id, 'org_id': current_user.organization_id}
+        )
+        row = result.fetchone()
+        if row:
+            db.session.commit()
+            logger.info(f"Campaign {row[1]} resumed, queued for processing")
+            return jsonify({'success': True, 'message': f'Campaign "{row[1]}" resumed and queued'})
+        return jsonify({'success': False, 'error': 'Campaign not found or not paused'}), 404
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Resume campaign error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@campaign_bp.route('/campaigns/api/resend/<campaign_id>', methods=['POST'])
+@login_required
+def api_resend_campaign(campaign_id):
+    """Resend a failed or completed campaign (to unsent contacts only)"""
+    try:
+        result = db.session.execute(
+            text("""
+                SELECT id, name, status FROM campaigns 
+                WHERE id = :id AND organization_id = :org_id
+            """),
+            {'id': campaign_id, 'org_id': current_user.organization_id}
+        )
+        row = result.fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Campaign not found'}), 404
+        
+        campaign_name = row[1]
+        current_status = row[2]
+        
+        allowed_statuses = ['failed', 'completed', 'completed_with_errors', 'paused', 'sending']
+        if current_status not in allowed_statuses:
+            return jsonify({'success': False, 'error': f'Cannot resend campaign with status: {current_status}'}), 400
+        
+        db.session.execute(
+            text("UPDATE campaigns SET status = 'queued', updated_at = NOW() WHERE id = :id"),
+            {'id': campaign_id}
+        )
+        db.session.commit()
+        
+        logger.info(f"Campaign {campaign_name} queued for resend")
+        return jsonify({
+            'success': True, 
+            'message': f'Campaign "{campaign_name}" queued for resend. Will send to remaining contacts.'
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Resend campaign error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@campaign_bp.route('/campaigns/api/cancel/<campaign_id>', methods=['POST'])
+@login_required
+def api_cancel_campaign(campaign_id):
+    """Cancel a campaign completely"""
+    try:
+        result = db.session.execute(
+            text("""
+                UPDATE campaigns 
+                SET status = 'cancelled', updated_at = NOW()
+                WHERE id = :id AND organization_id = :org_id 
+                AND status IN ('sending', 'queued', 'paused', 'processing')
+                RETURNING id, name
+            """),
+            {'id': campaign_id, 'org_id': current_user.organization_id}
+        )
+        row = result.fetchone()
+        if row:
+            db.session.commit()
+            logger.info(f"Campaign {row[1]} cancelled")
+            return jsonify({'success': True, 'message': f'Campaign "{row[1]}" cancelled'})
+        return jsonify({'success': False, 'error': 'Campaign not found or cannot be cancelled'}), 404
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Cancel campaign error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@campaign_bp.route('/campaigns/api/progress/<campaign_id>')
+@login_required
+def api_campaign_progress(campaign_id):
+    """Get real-time campaign progress"""
+    try:
+        result = db.session.execute(
+            text("""
+                SELECT c.id, c.name, c.status, c.total_recipients,
+                       COALESCE(c.sent_count, 0) as sent_count,
+                       (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status = 'sent') as actual_sent,
+                       (SELECT COUNT(*) FROM emails WHERE campaign_id = c.id AND status = 'failed') as failed
+                FROM campaigns c
+                WHERE c.id = :id AND c.organization_id = :org_id
+            """),
+            {'id': campaign_id, 'org_id': current_user.organization_id}
+        )
+        row = result.fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Campaign not found'}), 404
+        
+        total = row[3] or 0
+        sent = row[5] or 0
+        failed = row[6] or 0
+        percent = int((sent + failed) / total * 100) if total > 0 else 0
+        
+        return jsonify({
+            'success': True,
+            'campaign_id': row[0],
+            'name': row[1],
+            'status': row[2],
+            'total': total,
+            'sent': sent,
+            'failed': failed,
+            'percent': percent,
+            'remaining': total - sent - failed
+        })
+    except Exception as e:
+        logger.error(f"Campaign progress error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

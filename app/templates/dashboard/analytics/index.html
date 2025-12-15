@@ -1,1022 +1,517 @@
 {% extends "dashboard/base.html" %}
 {% block title %}Analytics - SendBaba{% endblock %}
 {% block page_title %}Analytics{% endblock %}
-{% block page_subtitle %}Real-time email performance insights{% endblock %}
+{% block page_subtitle %}Email performance insights{% endblock %}
 
 {% block extra_css %}
 <style>
-:root {
-    --primary: #F97316;
-    --primary-dark: #EA580C;
-    --primary-light: #FDBA74;
-    --success: #22c55e;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --info: #3b82f6;
-}
-.analytics-container { max-width: 1400px; margin: 0 auto; }
+.analytics-grid { display: grid; gap: 1rem; }
 .stat-card {
-    background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+    background: white;
     border: 1px solid #e5e7eb;
-    border-radius: 20px;
-    padding: 24px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-}
-.stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, var(--primary), var(--primary-dark));
-    opacity: 0;
-    transition: opacity 0.3s;
+    border-radius: 16px;
+    padding: 1.25rem;
+    transition: all 0.2s;
 }
 .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px -12px rgba(249, 115, 22, 0.25);
-    border-color: var(--primary-light);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: #F97316;
 }
-.stat-card:hover::before { opacity: 1; }
 .stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 20px;
 }
 .stat-value {
-    font-size: 2.5rem;
-    font-weight: 800;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
     line-height: 1;
-    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
 }
-.stat-value.counting { 
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+}
+.queue-card {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 16px;
+    padding: 1.25rem;
+    color: white;
+}
+.queue-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #F97316;
 }
 .chart-card {
     background: white;
     border: 1px solid #e5e7eb;
-    border-radius: 20px;
-    padding: 28px;
-    transition: all 0.3s;
-}
-.chart-card:hover {
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
-}
-.period-selector {
-    display: flex;
-    background: #f3f4f6;
-    border-radius: 12px;
-    padding: 4px;
-    gap: 4px;
+    border-radius: 16px;
+    padding: 1.5rem;
 }
 .period-btn {
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-size: 13px;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
     font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: all 0.2s ease;
-    background: transparent;
+    transition: all 0.2s;
+    background: #f3f4f6;
     color: #6b7280;
 }
 .period-btn.active {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: #F97316;
     color: white;
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
 }
-.period-btn:not(.active):hover {
+.period-btn:hover:not(.active) {
     background: #e5e7eb;
-    color: #374151;
 }
-.live-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+.funnel-bar {
+    height: 8px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.funnel-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s ease;
+}
+.mini-stat {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+}
+.campaign-row {
+    padding: 0.75rem;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.campaign-row:hover {
+    background: #fff7ed;
+}
+.status-badge {
+    padding: 4px 10px;
     border-radius: 20px;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
-    color: #166534;
 }
+.status-badge.sending { background: #fef3c7; color: #92400e; }
+.status-badge.completed { background: #dcfce7; color: #166534; }
+.status-badge.sent { background: #dcfce7; color: #166534; }
+.status-badge.failed { background: #fee2e2; color: #991b1b; }
 .live-dot {
     width: 8px;
     height: 8px;
     background: #22c55e;
     border-radius: 50%;
-    animation: livePulse 2s infinite;
+    animation: pulse 2s infinite;
 }
-@keyframes livePulse {
-    0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-    50% { opacity: 0.8; transform: scale(0.9); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-}
-.queue-card {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    border-radius: 20px;
-    padding: 24px;
-    color: white;
-    position: relative;
-    overflow: hidden;
-}
-.queue-card::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle, rgba(249, 115, 22, 0.1) 0%, transparent 70%);
-}
-.queue-value {
-    font-size: 3rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-.funnel-item { margin-bottom: 16px; }
-.funnel-bar-bg {
-    height: 12px;
-    background: #f3f4f6;
-    border-radius: 6px;
-    overflow: hidden;
-}
-.funnel-bar {
-    height: 100%;
-    border-radius: 6px;
-    transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-}
-.funnel-bar::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-    animation: shimmer 2s infinite;
-}
-@keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-.campaign-row {
-    transition: all 0.2s;
-    border-radius: 12px;
-}
-.campaign-row:hover {
-    background: #fff7ed;
-}
-.status-pill {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.status-pill.delivered, .status-pill.sent, .status-pill.completed { background: #dcfce7; color: #166534; }
-.status-pill.failed { background: #fee2e2; color: #991b1b; }
-.status-pill.opened { background: #dbeafe; color: #1e40af; }
-.status-pill.clicked { background: #f3e8ff; color: #7c3aed; }
-.status-pill.pending { background: #fef3c7; color: #92400e; }
-.status-pill.sending { background: #fff7ed; color: #c2410c; }
-.growth-badge {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-.growth-badge.positive { background: #dcfce7; color: #166534; }
-.growth-badge.negative { background: #fee2e2; color: #991b1b; }
-.growth-badge.neutral { background: #f3f4f6; color: #6b7280; }
-.quick-stat {
-    padding: 16px 20px;
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: all 0.2s;
-}
-.quick-stat:hover { transform: translateX(4px); }
-.domain-card {
-    background: #f9fafb;
-    border-radius: 16px;
-    padding: 16px;
-    transition: all 0.2s;
-}
-.domain-card:hover {
-    background: #fff7ed;
-}
-.health-bar {
-    height: 6px;
-    background: #e5e7eb;
-    border-radius: 3px;
-    overflow: hidden;
-}
-.health-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 1s ease;
-}
-.btn-export {
-    padding: 12px 20px;
-    background: white;
-    border: 2px solid #e5e7eb;
-    border-radius: 12px;
-    font-weight: 600;
-    color: #374151;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-.btn-export:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: #fff7ed;
-}
-.btn-refresh {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
-    background: white;
-    border: 2px solid #e5e7eb;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    color: #6b7280;
-}
-.btn-refresh:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: #fff7ed;
-}
-.btn-refresh.spinning i { animation: spin 1s linear infinite; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-.toast-container {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column-reverse;
-    gap: 12px;
-}
-.toast {
-    background: white;
-    border-radius: 16px;
-    padding: 16px 20px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    min-width: 300px;
-}
-@keyframes toastIn {
-    from { opacity: 0; transform: translateY(20px) scale(0.9); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@media (max-width: 1024px) {
-    .stat-value { font-size: 2rem; }
-    .queue-value { font-size: 2.5rem; }
-}
-@media (max-width: 768px) {
-    .stat-card { padding: 16px; }
-    .chart-card { padding: 16px; }
-    .stat-value { font-size: 1.75rem; }
-    .stat-icon { width: 44px; height: 44px; font-size: 18px; }
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="analytics-container">
-    <!-- Header Section -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-        <div class="flex items-center gap-4">
-            <div class="live-indicator">
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full text-sm text-green-700 font-medium">
                 <span class="live-dot"></span>
-                <span>Live Updates</span>
+                Live
             </div>
-            <span class="text-sm text-gray-500">Last updated: <span id="lastUpdate">Just now</span></span>
+            <span class="text-sm text-gray-500">Updated just now</span>
         </div>
         
-        <div class="flex flex-wrap items-center gap-3">
-            <div class="period-selector">
-                <button onclick="changePeriod('24h')" class="period-btn {{ 'active' if period == '24h' else '' }}" data-period="24h">24h</button>
-                <button onclick="changePeriod('7d')" class="period-btn {{ 'active' if period == '7d' else '' }}" data-period="7d">7 Days</button>
-                <button onclick="changePeriod('30d')" class="period-btn {{ 'active' if period == '30d' else '' }}" data-period="30d">30 Days</button>
-                <button onclick="changePeriod('90d')" class="period-btn {{ 'active' if period == '90d' else '' }}" data-period="90d">90 Days</button>
+        <div class="flex items-center gap-2">
+            <div class="flex bg-gray-100 rounded-lg p-1">
+                <button onclick="changePeriod('24h')" class="period-btn {{ 'active' if period == '24h' }}">24h</button>
+                <button onclick="changePeriod('7d')" class="period-btn {{ 'active' if period == '7d' }}">7d</button>
+                <button onclick="changePeriod('30d')" class="period-btn {{ 'active' if period == '30d' }}">30d</button>
+                <button onclick="changePeriod('90d')" class="period-btn {{ 'active' if period == '90d' }}">90d</button>
             </div>
-            
-            <button onclick="refreshData()" id="refreshBtn" class="btn-refresh" title="Refresh Data">
-                <i class="fas fa-sync-alt"></i>
-            </button>
-            
-            <button onclick="exportData()" class="btn-export">
-                <i class="fas fa-download"></i>
-                Export CSV
+            <button onclick="exportData()" class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
+                <i class="fas fa-download"></i> Export
             </button>
         </div>
     </div>
 
-    <!-- Queue Status Section -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <!-- Queue Status (Dark Cards) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="queue-card">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center">
-                    <i class="fas fa-clock text-orange-400"></i>
-                </div>
-                <span class="text-gray-400 text-sm font-medium">Queue Pending</span>
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fas fa-clock text-orange-400"></i>
+                <span class="text-gray-400 text-sm">Pending</span>
             </div>
-            <div class="queue-value" id="queuePending">{{ queue_stats.pending|default(0) }}</div>
-            <div class="text-gray-500 text-xs mt-2">Emails waiting to send</div>
+            <div class="queue-value">{{ "{:,}".format(queue_stats.pending|default(0)) }}</div>
         </div>
-        
         <div class="queue-card">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                    <i class="fas fa-paper-plane text-blue-400"></i>
-                </div>
-                <span class="text-gray-400 text-sm font-medium">Processing</span>
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fas fa-spinner text-blue-400"></i>
+                <span class="text-gray-400 text-sm">Processing</span>
             </div>
-            <div class="queue-value" id="queueProcessing">{{ queue_stats.processing|default(0) }}</div>
-            <div class="text-gray-500 text-xs mt-2">Currently sending</div>
+            <div class="queue-value">{{ "{:,}".format(queue_stats.processing|default(0)) }}</div>
         </div>
-        
         <div class="queue-card">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-                    <i class="fas fa-check-circle text-green-400"></i>
-                </div>
-                <span class="text-gray-400 text-sm font-medium">Completed Today</span>
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fas fa-check text-green-400"></i>
+                <span class="text-gray-400 text-sm">Sent Today</span>
             </div>
-            <div class="queue-value" id="queueCompleted">{{ queue_stats.completed_today|default(0) }}</div>
-            <div class="text-gray-500 text-xs mt-2">Successfully sent</div>
+            <div class="queue-value">{{ "{:,}".format(queue_stats.completed_today|default(0)) }}</div>
         </div>
-        
         <div class="queue-card">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
-                    <i class="fas fa-exclamation-circle text-red-400"></i>
-                </div>
-                <span class="text-gray-400 text-sm font-medium">Failed Today</span>
+            <div class="flex items-center gap-2 mb-2">
+                <i class="fas fa-times text-red-400"></i>
+                <span class="text-gray-400 text-sm">Failed Today</span>
             </div>
-            <div class="queue-value" id="queueFailed">{{ queue_stats.failed_today|default(0) }}</div>
-            <div class="text-gray-500 text-xs mt-2">Delivery failures</div>
+            <div class="queue-value">{{ "{:,}".format(queue_stats.failed_today|default(0)) }}</div>
         </div>
     </div>
 
-    <!-- Main Stats Grid -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <!-- Main Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-4">
-                <div class="stat-icon bg-gradient-to-br from-orange-100 to-orange-50">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-orange-100">
                     <i class="fas fa-paper-plane text-orange-500"></i>
                 </div>
-                {% if overview.total_growth != 0 %}
-                <span class="growth-badge {{ 'positive' if overview.total_growth >= 0 else 'negative' }}">
-                    <i class="fas fa-arrow-{{ 'up' if overview.total_growth >= 0 else 'down' }} text-xs"></i>
-                    {{ overview.total_growth|abs }}%
-                </span>
-                {% endif %}
             </div>
-            <div class="stat-value" data-count="{{ overview.total_sent }}">0</div>
-            <div class="text-gray-500 mt-2 font-medium">Total Sent</div>
-            <div class="text-xs text-gray-400 mt-1">{{ "{:,}".format(overview.avg_daily|int) }}/day average</div>
+            <div class="stat-value">{{ "{:,}".format(overview.total_sent|default(0)) }}</div>
+            <div class="stat-label">Total Sent</div>
+            <div class="text-xs text-gray-400 mt-1">{{ "{:,}".format(overview.avg_daily|default(0)|int) }}/day avg</div>
         </div>
 
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-4">
-                <div class="stat-icon bg-gradient-to-br from-green-100 to-green-50">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-green-100">
                     <i class="fas fa-check-double text-green-500"></i>
                 </div>
-                <span class="growth-badge positive">{{ overview.delivery_rate }}%</span>
+                <span class="text-sm font-semibold text-green-600">{{ overview.delivery_rate|default(0) }}%</span>
             </div>
-            <div class="stat-value" data-count="{{ overview.delivered }}">0</div>
-            <div class="text-gray-500 mt-2 font-medium">Delivered</div>
-            <div class="text-xs text-gray-400 mt-1">Delivery Rate</div>
+            <div class="stat-value">{{ "{:,}".format(overview.delivered|default(0)) }}</div>
+            <div class="stat-label">Delivered</div>
         </div>
 
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-4">
-                <div class="stat-icon bg-gradient-to-br from-blue-100 to-blue-50">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-blue-100">
                     <i class="fas fa-envelope-open text-blue-500"></i>
                 </div>
-                {% if overview.open_growth != 0 %}
-                <span class="growth-badge {{ 'positive' if overview.open_growth >= 0 else 'negative' }}">
-                    <i class="fas fa-arrow-{{ 'up' if overview.open_growth >= 0 else 'down' }} text-xs"></i>
-                    {{ overview.open_growth|abs }}%
-                </span>
-                {% endif %}
+                <span class="text-sm font-semibold text-blue-600">{{ overview.open_rate|default(0) }}%</span>
             </div>
-            <div class="stat-value" data-count="{{ overview.opened }}">0</div>
-            <div class="text-gray-500 mt-2 font-medium">Opened</div>
-            <div class="text-xs text-gray-400 mt-1">{{ overview.open_rate }}% open rate</div>
+            <div class="stat-value">{{ "{:,}".format(overview.opened|default(0)) }}</div>
+            <div class="stat-label">Opened</div>
         </div>
 
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-4">
-                <div class="stat-icon bg-gradient-to-br from-purple-100 to-purple-50">
+            <div class="flex items-start justify-between mb-3">
+                <div class="stat-icon bg-purple-100">
                     <i class="fas fa-mouse-pointer text-purple-500"></i>
                 </div>
-                <span class="growth-badge neutral">{{ overview.click_rate }}%</span>
+                <span class="text-sm font-semibold text-purple-600">{{ overview.click_rate|default(0) }}%</span>
             </div>
-            <div class="stat-value" data-count="{{ overview.clicked }}">0</div>
-            <div class="text-gray-500 mt-2 font-medium">Clicked</div>
-            <div class="text-xs text-gray-400 mt-1">Click-through rate</div>
+            <div class="stat-value">{{ "{:,}".format(overview.clicked|default(0)) }}</div>
+            <div class="stat-label">Clicked</div>
         </div>
     </div>
 
-    <!-- Secondary Stats Row -->
-    <div class="grid grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
-            <div class="text-2xl font-bold text-gray-900" data-count="{{ overview.bounced }}">0</div>
-            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                <span class="w-2 h-2 bg-red-400 rounded-full"></span> Bounced
-            </div>
+    <!-- Secondary Stats -->
+    <div class="grid grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="mini-stat">
+            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.bounced|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-red-400 rounded-full mr-1"></span>Bounced</div>
         </div>
-        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
-            <div class="text-2xl font-bold text-gray-900">{{ overview.bounce_rate }}%</div>
-            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                <span class="w-2 h-2 bg-orange-400 rounded-full"></span> Bounce Rate
-            </div>
+        <div class="mini-stat">
+            <div class="text-xl font-bold text-gray-900">{{ overview.bounce_rate|default(0) }}%</div>
+            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-orange-400 rounded-full mr-1"></span>Bounce Rate</div>
         </div>
-        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
-            <div class="text-2xl font-bold text-gray-900" data-count="{{ overview.total_contacts }}">0</div>
-            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                <span class="w-2 h-2 bg-blue-400 rounded-full"></span> Contacts
-            </div>
+        <div class="mini-stat">
+            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.total_contacts|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-blue-400 rounded-full mr-1"></span>Contacts</div>
         </div>
-        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
-            <div class="text-2xl font-bold text-gray-900" data-count="{{ overview.active_contacts }}">0</div>
-            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                <span class="w-2 h-2 bg-green-400 rounded-full"></span> Active
-            </div>
+        <div class="mini-stat">
+            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.active_contacts|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-green-400 rounded-full mr-1"></span>Active</div>
         </div>
-        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
-            <div class="text-2xl font-bold text-gray-900">{{ campaign_stats.sent }}</div>
-            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                <span class="w-2 h-2 bg-purple-400 rounded-full"></span> Campaigns
-            </div>
+        <div class="mini-stat">
+            <div class="text-xl font-bold text-gray-900">{{ campaign_stats.sent|default(0) }}</div>
+            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-purple-400 rounded-full mr-1"></span>Campaigns</div>
         </div>
-        <div class="bg-white rounded-2xl p-4 border border-gray-100 hover:border-orange-200 transition-all hover:shadow-md">
-            <div class="text-2xl font-bold {% if overview.spam_rate < 0.1 %}text-green-600{% else %}text-red-600{% endif %}">{{ overview.spam_rate }}%</div>
-            <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
-                <span class="w-2 h-2 bg-yellow-400 rounded-full"></span> Spam Rate
-            </div>
+        <div class="mini-stat">
+            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.failed|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-red-400 rounded-full mr-1"></span>Failed</div>
         </div>
     </div>
 
-    <!-- Charts Section -->
-    <div class="grid lg:grid-cols-3 gap-6 mb-8">
+    <!-- Charts Row -->
+    <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Performance Chart -->
         <div class="lg:col-span-2 chart-card">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h3 class="text-lg font-bold text-gray-900">Email Performance</h3>
-                    <p class="text-sm text-gray-500">Delivery metrics over time</p>
+                    <h3 class="font-semibold text-gray-900">Email Performance</h3>
+                    <p class="text-sm text-gray-500">Delivery over time</p>
                 </div>
-                <div class="flex flex-wrap gap-4 text-xs font-medium">
-                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-orange-500 rounded-full"></span> Sent</span>
-                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Delivered</span>
-                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-blue-500 rounded-full"></span> Opened</span>
-                    <span class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Failed</span>
+                <div class="flex gap-4 text-xs">
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-orange-500 rounded-full"></span> Sent</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Failed</span>
                 </div>
             </div>
-            <div id="performanceChart" style="height: 320px;"></div>
+            <div id="performanceChart" style="height: 280px;"></div>
         </div>
 
+        <!-- Delivery Funnel -->
         <div class="chart-card">
-            <div class="mb-6">
-                <h3 class="text-lg font-bold text-gray-900">Delivery Funnel</h3>
-                <p class="text-sm text-gray-500">Email journey breakdown</p>
+            <h3 class="font-semibold text-gray-900 mb-4">Delivery Funnel</h3>
+            
+            <div class="space-y-4">
+                {% set max_val = [engagement_funnel.sent|default(0), 1]|max %}
+                
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600"><i class="fas fa-paper-plane text-orange-500 mr-2"></i>Sent</span>
+                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.sent|default(0)) }}</span>
+                    </div>
+                    <div class="funnel-bar">
+                        <div class="funnel-fill bg-orange-500" style="width: 100%;"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600"><i class="fas fa-check-double text-green-500 mr-2"></i>Delivered</span>
+                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.delivered|default(0)) }}</span>
+                    </div>
+                    <div class="funnel-bar">
+                        <div class="funnel-fill bg-green-500" style="width: {{ [(engagement_funnel.delivered|default(0) / max_val * 100)|int, 5]|max }}%;"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600"><i class="fas fa-envelope-open text-blue-500 mr-2"></i>Opened</span>
+                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.opened|default(0)) }}</span>
+                    </div>
+                    <div class="funnel-bar">
+                        <div class="funnel-fill bg-blue-500" style="width: {{ [(engagement_funnel.opened|default(0) / max_val * 100)|int, 3]|max }}%;"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600"><i class="fas fa-mouse-pointer text-purple-500 mr-2"></i>Clicked</span>
+                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.clicked|default(0)) }}</span>
+                    </div>
+                    <div class="funnel-bar">
+                        <div class="funnel-fill bg-purple-500" style="width: {{ [(engagement_funnel.clicked|default(0) / max_val * 100)|int, 2]|max }}%;"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600"><i class="fas fa-times-circle text-red-500 mr-2"></i>Failed</span>
+                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.failed|default(0)) }}</span>
+                    </div>
+                    <div class="funnel-bar">
+                        <div class="funnel-fill bg-red-500" style="width: {{ [(engagement_funnel.failed|default(0) / max_val * 100)|int, 2]|max }}%;"></div>
+                    </div>
+                </div>
             </div>
             
-            <div class="space-y-5">
-                {% set max_val = [engagement_funnel.sent, 1]|max %}
-                
-                <div class="funnel-item">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <i class="fas fa-paper-plane text-orange-500"></i> Sent
-                        </span>
-                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.sent) }}</span>
-                    </div>
-                    <div class="funnel-bar-bg">
-                        <div class="funnel-bar bg-gradient-to-r from-orange-500 to-orange-400" style="width: 100%;"></div>
-                    </div>
+            <div class="grid grid-cols-3 gap-2 mt-6 pt-4 border-t">
+                <div class="text-center p-2 bg-green-50 rounded-lg">
+                    <div class="text-lg font-bold text-green-600">{{ overview.delivery_rate|default(0) }}%</div>
+                    <div class="text-xs text-green-700">Delivery</div>
                 </div>
-                
-                <div class="funnel-item">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <i class="fas fa-check-double text-green-500"></i> Delivered
-                        </span>
-                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.delivered) }}</span>
-                    </div>
-                    <div class="funnel-bar-bg">
-                        <div class="funnel-bar bg-gradient-to-r from-green-500 to-green-400" data-width="{{ [(engagement_funnel.delivered / max_val * 100)|int, 3]|max }}"></div>
-                    </div>
+                <div class="text-center p-2 bg-blue-50 rounded-lg">
+                    <div class="text-lg font-bold text-blue-600">{{ overview.open_rate|default(0) }}%</div>
+                    <div class="text-xs text-blue-700">Open</div>
                 </div>
-                
-                <div class="funnel-item">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <i class="fas fa-envelope-open text-blue-500"></i> Opened
-                        </span>
-                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.opened) }}</span>
-                    </div>
-                    <div class="funnel-bar-bg">
-                        <div class="funnel-bar bg-gradient-to-r from-blue-500 to-blue-400" data-width="{{ [(engagement_funnel.opened / max_val * 100)|int, 3]|max }}"></div>
-                    </div>
-                </div>
-                
-                <div class="funnel-item">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <i class="fas fa-mouse-pointer text-purple-500"></i> Clicked
-                        </span>
-                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.clicked) }}</span>
-                    </div>
-                    <div class="funnel-bar-bg">
-                        <div class="funnel-bar bg-gradient-to-r from-purple-500 to-purple-400" data-width="{{ [(engagement_funnel.clicked / max_val * 100)|int, 3]|max }}"></div>
-                    </div>
-                </div>
-                
-                <div class="funnel-item">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <i class="fas fa-times-circle text-red-500"></i> Failed
-                        </span>
-                        <span class="font-bold text-gray-900">{{ "{:,}".format(engagement_funnel.failed) }}</span>
-                    </div>
-                    <div class="funnel-bar-bg">
-                        <div class="funnel-bar bg-gradient-to-r from-red-500 to-red-400" data-width="{{ [(engagement_funnel.failed / max_val * 100)|int, 3]|max }}"></div>
-                    </div>
+                <div class="text-center p-2 bg-purple-50 rounded-lg">
+                    <div class="text-lg font-bold text-purple-600">{{ overview.click_rate|default(0) }}%</div>
+                    <div class="text-xs text-purple-700">Click</div>
                 </div>
             </div>
-
-            <div class="mt-6 pt-6 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
-                <div class="p-3 bg-green-50 rounded-xl">
-                    <div class="text-xl font-bold text-green-600">{{ overview.delivery_rate }}%</div>
-                    <div class="text-xs text-green-700 font-medium">Delivery</div>
-                </div>
-                <div class="p-3 bg-blue-50 rounded-xl">
-                    <div class="text-xl font-bold text-blue-600">{{ overview.open_rate }}%</div>
-                    <div class="text-xs text-blue-700 font-medium">Open</div>
-                </div>
-                <div class="p-3 bg-purple-50 rounded-xl">
-                    <div class="text-xl font-bold text-purple-600">{{ overview.click_rate }}%</div>
-                    <div class="text-xs text-purple-700 font-medium">Click</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Second Row Charts -->
-    <div class="grid md:grid-cols-2 gap-6 mb-8">
-        <div class="chart-card">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-900">Send Time Analysis</h3>
-                    <p class="text-sm text-gray-500">Emails sent by hour of day</p>
-                </div>
-                <div class="text-sm text-gray-500">
-                    Peak: <span class="font-bold text-orange-600" id="peakHour">--:00</span>
-                </div>
-            </div>
-            <div id="hourlyChart" style="height: 280px;"></div>
-        </div>
-
-        <div class="chart-card">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-900">Delivery Status</h3>
-                    <p class="text-sm text-gray-500">Current period breakdown</p>
-                </div>
-            </div>
-            <div id="statusChart" style="height: 280px;"></div>
         </div>
     </div>
 
     <!-- Bottom Section -->
     <div class="grid lg:grid-cols-3 gap-6">
+        <!-- Hourly Chart -->
+        <div class="chart-card">
+            <h3 class="font-semibold text-gray-900 mb-4">Send Time Distribution</h3>
+            <div id="hourlyChart" style="height: 200px;"></div>
+        </div>
+
+        <!-- Recent Campaigns -->
         <div class="lg:col-span-2 chart-card">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-900">Recent Campaigns</h3>
-                    <p class="text-sm text-gray-500">Performance overview</p>
-                </div>
-                <a href="/dashboard/campaigns" class="text-sm text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1">
-                    View All <i class="fas fa-arrow-right text-xs"></i>
-                </a>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-900">Recent Campaigns</h3>
+                <a href="/dashboard/campaigns" class="text-sm text-orange-600 hover:text-orange-700 font-medium">View All →</a>
             </div>
             
             {% if top_campaigns %}
-            <div class="overflow-x-auto -mx-4 md:mx-0">
-                <table class="w-full min-w-[600px]">
-                    <thead>
-                        <tr class="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            <th class="pb-4 px-4 md:px-0">Campaign</th>
-                            <th class="pb-4 text-right">Sent</th>
-                            <th class="pb-4 text-right">Delivered</th>
-                            <th class="pb-4 text-right">Opens</th>
-                            <th class="pb-4 text-right pr-4 md:pr-0">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        {% for campaign in top_campaigns %}
-                        <tr class="campaign-row">
-                            <td class="py-4 px-4 md:px-0">
-                                <div class="font-semibold text-gray-900 truncate max-w-[200px]">{{ campaign.name }}</div>
-                                <div class="text-xs text-gray-500 mt-0.5">{{ campaign.created_at }}</div>
-                            </td>
-                            <td class="py-4 text-right">
-                                <span class="font-bold text-gray-900">{{ "{:,}".format(campaign.sent) }}</span>
-                            </td>
-                            <td class="py-4 text-right">
-                                <span class="font-semibold text-green-600">{{ campaign.delivery_rate|default(0) }}%</span>
-                            </td>
-                            <td class="py-4 text-right">
-                                <span class="font-semibold text-blue-600">{{ campaign.open_rate|default(0) }}%</span>
-                            </td>
-                            <td class="py-4 text-right pr-4 md:pr-0">
-                                <span class="status-pill {{ campaign.status }}">
-                                    {% if campaign.status == 'sending' %}
-                                    <i class="fas fa-spinner fa-spin text-xs"></i>
-                                    {% endif %}
-                                    {{ campaign.status|capitalize }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="space-y-2">
+                {% for campaign in top_campaigns[:5] %}
+                <div class="campaign-row flex items-center justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-gray-900 truncate">{{ campaign.name }}</div>
+                        <div class="text-xs text-gray-500">{{ campaign.created_at }}</div>
+                    </div>
+                    <div class="flex items-center gap-4 ml-4">
+                        <div class="text-right">
+                            <div class="font-semibold text-gray-900">{{ "{:,}".format(campaign.sent) }}</div>
+                            <div class="text-xs text-gray-500">sent</div>
+                        </div>
+                        <span class="status-badge {{ campaign.status }}">{{ campaign.status|capitalize }}</span>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
             {% else %}
-            <div class="text-center py-16">
-                <div class="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-paper-plane text-3xl text-orange-300"></i>
+            <div class="text-center py-8">
+                <div class="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-paper-plane text-orange-300 text-xl"></i>
                 </div>
-                <h4 class="font-semibold text-gray-900 mb-2">No campaigns yet</h4>
-                <p class="text-gray-500 text-sm mb-4">Create your first campaign to see analytics</p>
-                <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all shadow-lg shadow-orange-500/30">
+                <p class="text-gray-500 text-sm mb-3">No campaigns yet</p>
+                <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600">
                     <i class="fas fa-plus"></i> Create Campaign
                 </a>
             </div>
             {% endif %}
         </div>
+    </div>
 
-        <div class="space-y-6">
-            <div class="chart-card">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-gray-900">Domain Health</h3>
-                    <a href="/dashboard/domains" class="text-xs text-orange-600 hover:text-orange-700 font-semibold">Manage →</a>
+    <!-- Domain Health -->
+    {% if domain_stats %}
+    <div class="chart-card">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-900">Domain Health</h3>
+            <a href="/dashboard/domains" class="text-sm text-orange-600 hover:text-orange-700 font-medium">Manage →</a>
+        </div>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for domain in domain_stats[:3] %}
+            <div class="p-4 bg-gray-50 rounded-xl">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="font-medium text-gray-900 truncate">{{ domain.domain }}</span>
+                    <span class="text-sm font-bold {% if domain.health_score >= 90 %}text-green-600{% elif domain.health_score >= 50 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                        {{ domain.health_score }}%
+                    </span>
                 </div>
-                
-                {% if domain_stats %}
-                <div class="space-y-3">
-                    {% for domain in domain_stats[:3] %}
-                    <div class="domain-card">
-                        <div class="flex items-center justify-between mb-3">
-                            <span class="font-semibold text-gray-900 text-sm truncate max-w-[140px]">{{ domain.domain }}</span>
-                            <span class="text-sm font-bold {% if domain.health_score >= 90 %}text-green-600{% elif domain.health_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
-                                {{ domain.health_score }}%
-                            </span>
-                        </div>
-                        <div class="health-bar">
-                            <div class="health-fill {% if domain.health_score >= 90 %}bg-gradient-to-r from-green-500 to-green-400{% elif domain.health_score >= 60 %}bg-gradient-to-r from-yellow-500 to-yellow-400{% else %}bg-gradient-to-r from-red-500 to-red-400{% endif %}" style="width: {{ domain.health_score }}%;"></div>
-                        </div>
-                        <div class="flex gap-2 mt-3">
-                            <span class="text-xs px-2 py-1 rounded-lg font-medium {% if domain.dns_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
-                                <i class="fas fa-{% if domain.dns_verified %}check{% else %}times{% endif %} mr-1"></i>DNS
-                            </span>
-                            <span class="text-xs px-2 py-1 rounded-lg font-medium {% if domain.dkim_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
-                                <i class="fas fa-{% if domain.dkim_verified %}check{% else %}times{% endif %} mr-1"></i>DKIM
-                            </span>
-                            <span class="text-xs px-2 py-1 rounded-lg font-medium {% if domain.spf_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
-                                <i class="fas fa-{% if domain.spf_verified %}check{% else %}times{% endif %} mr-1"></i>SPF
-                            </span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="text-center py-8">
-                    <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <i class="fas fa-globe text-gray-400"></i>
-                    </div>
-                    <p class="text-gray-500 text-sm mb-2">No domains configured</p>
-                    <a href="/dashboard/domains" class="text-orange-600 text-sm font-semibold hover:text-orange-700">Add Domain →</a>
-                </div>
-                {% endif %}
-            </div>
-
-            <div class="chart-card">
-                <h3 class="font-bold text-gray-900 mb-4">Quick Stats</h3>
-                <div class="space-y-2">
-                    <div class="quick-stat bg-orange-50">
-                        <span class="text-sm font-medium text-orange-700 flex items-center gap-2">
-                            <i class="fas fa-users"></i> Active Contacts
-                        </span>
-                        <span class="font-bold text-orange-700">{{ "{:,}".format(overview.active_contacts) }}</span>
-                    </div>
-                    <div class="quick-stat bg-red-50">
-                        <span class="text-sm font-medium text-red-700 flex items-center gap-2">
-                            <i class="fas fa-user-minus"></i> Unsubscribed
-                        </span>
-                        <span class="font-bold text-red-700">{{ "{:,}".format(overview.unsubscribed) }}</span>
-                    </div>
-                    <div class="quick-stat bg-blue-50">
-                        <span class="text-sm font-medium text-blue-700 flex items-center gap-2">
-                            <i class="fas fa-file-alt"></i> Draft Campaigns
-                        </span>
-                        <span class="font-bold text-blue-700">{{ campaign_stats.drafts }}</span>
-                    </div>
-                    <div class="quick-stat bg-green-50">
-                        <span class="text-sm font-medium text-green-700 flex items-center gap-2">
-                            <i class="fas fa-calendar-check"></i> Scheduled
-                        </span>
-                        <span class="font-bold text-green-700">{{ campaign_stats.scheduled }}</span>
-                    </div>
+                <div class="flex gap-2">
+                    <span class="text-xs px-2 py-1 rounded {% if domain.dns_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        <i class="fas fa-{% if domain.dns_verified %}check{% else %}times{% endif %} mr-1"></i>DNS
+                    </span>
+                    <span class="text-xs px-2 py-1 rounded {% if domain.dkim_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        <i class="fas fa-{% if domain.dkim_verified %}check{% else %}times{% endif %} mr-1"></i>DKIM
+                    </span>
+                    <span class="text-xs px-2 py-1 rounded {% if domain.spf_verified %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                        <i class="fas fa-{% if domain.spf_verified %}check{% else %}times{% endif %} mr-1"></i>SPF
+                    </span>
                 </div>
             </div>
+            {% endfor %}
         </div>
     </div>
+    {% endif %}
 </div>
-
-<div id="toastContainer" class="toast-container"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
 <script>
-const AnalyticsDashboard = {
-    charts: {},
-    data: {
-        emailTrends: {{ email_trends|safe }},
-        hourlyDist: {{ hourly_dist|safe }},
-        statusBreakdown: {{ status_breakdown|safe if status_breakdown else '[]' }}
-    },
-    period: '{{ period }}',
-    refreshInterval: null,
-    
-    init() {
-        this.animateCounters();
-        this.animateFunnelBars();
-        this.initCharts();
-        this.startRealTimeUpdates();
-        this.findPeakHour();
-    },
-    
-    animateCounters() {
-        document.querySelectorAll('[data-count]').forEach(el => {
-            const target = parseInt(el.dataset.count) || 0;
-            const duration = 1500;
-            const start = Date.now();
-            
-            const animate = () => {
-                const elapsed = Date.now() - start;
-                const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
-                el.textContent = Math.floor(target * eased).toLocaleString();
-                if (progress < 1) requestAnimationFrame(animate);
-            };
-            
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        animate();
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, { threshold: 0.5 });
-            observer.observe(el);
-        });
-    },
-    
-    animateFunnelBars() {
-        setTimeout(() => {
-            document.querySelectorAll('.funnel-bar[data-width]').forEach(bar => {
-                bar.style.width = bar.dataset.width + '%';
-            });
-        }, 300);
-    },
-    
-    findPeakHour() {
-        if (this.data.hourlyDist && this.data.hourlyDist.length > 0) {
-            const peak = this.data.hourlyDist.reduce((max, item) => 
-                item.count > max.count ? item : max, this.data.hourlyDist[0]);
-            document.getElementById('peakHour').textContent = peak.label || peak.hour + ':00';
-        }
-    },
-    
-    initCharts() {
-        this.initPerformanceChart();
-        this.initHourlyChart();
-        this.initStatusChart();
-    },
-    
-    initPerformanceChart() {
-        const container = document.querySelector("#performanceChart");
-        if (!container) return;
-        const data = this.data.emailTrends;
-        if (!data || data.length === 0) {
-            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-chart-line mr-2"></i>No data available</div>';
-            return;
-        }
-        
-        this.charts.performance = new ApexCharts(container, {
-            series: [
-                { name: 'Sent', data: data.map(d => d.total || 0) },
-                { name: 'Delivered', data: data.map(d => d.delivered || 0) },
-                { name: 'Opened', data: data.map(d => d.opened || 0) },
-                { name: 'Failed', data: data.map(d => d.failed || d.bounced || 0) }
-            ],
-            chart: { type: 'area', height: 320, toolbar: { show: false }, fontFamily: 'Inter, system-ui, sans-serif' },
-            colors: ['#F97316', '#22c55e', '#3b82f6', '#ef4444'],
-            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 100] } },
-            stroke: { curve: 'smooth', width: 3 },
-            dataLabels: { enabled: false },
-            grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
-            xaxis: {
-                categories: data.map(d => d.label || ''),
-                labels: { style: { colors: '#9ca3af', fontSize: '11px' }, rotate: -45 },
-                axisBorder: { show: false },
-                axisTicks: { show: false }
-            },
-            yaxis: {
-                labels: {
-                    style: { colors: '#9ca3af', fontSize: '11px' },
-                    formatter: val => val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val)
-                }
-            },
-            legend: { show: false },
-            tooltip: { theme: 'light', shared: true, y: { formatter: val => val ? val.toLocaleString() : '0' } }
-        });
-        this.charts.performance.render();
-    },
-    
-    initHourlyChart() {
-        const container = document.querySelector("#hourlyChart");
-        if (!container) return;
-        const data = this.data.hourlyDist;
-        if (!data || data.length === 0) {
-            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-clock mr-2"></i>No data available</div>';
-            return;
-        }
-        
-        this.charts.hourly = new ApexCharts(container, {
-            series: [{ name: 'Emails Sent', data: data.map(d => d.count || 0) }],
-            chart: { type: 'bar', height: 280, toolbar: { show: false }, fontFamily: 'Inter, system-ui, sans-serif' },
-            colors: ['#F97316'],
-            plotOptions: { bar: { borderRadius: 6, columnWidth: '60%' } },
-            fill: { type: 'gradient', gradient: { shade: 'light', type: 'vertical', shadeIntensity: 0.25, opacityFrom: 1, opacityTo: 0.85 } },
-            dataLabels: { enabled: false },
-            grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
-            xaxis: {
-                categories: data.map(d => d.hour),
-                labels: { style: { colors: '#9ca3af', fontSize: '10px' } },
-                axisBorder: { show: false },
-                axisTicks: { show: false }
-            },
-            yaxis: {
-                labels: {
-                    style: { colors: '#9ca3af', fontSize: '11px' },
-                    formatter: val => val >= 1000 ? (val/1000).toFixed(1) + 'k' : Math.round(val)
-                }
-            },
-            tooltip: { theme: 'light', y: { formatter: val => val ? val.toLocaleString() : '0' } }
-        });
-        this.charts.hourly.render();
-    },
-    
-    initStatusChart() {
-        const container = document.querySelector("#statusChart");
-        if (!container) return;
-        const overview = {
-            delivered: {{ overview.delivered|default(0) }},
-            opened: {{ overview.opened|default(0) }},
-            clicked: {{ overview.clicked|default(0) }},
-            bounced: {{ overview.bounced|default(0) }},
-            pending: {{ queue_stats.pending|default(0) }}
-        };
-        const total = Object.values(overview).reduce((a, b) => a + b, 0);
-        if (total === 0) {
-            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-chart-pie mr-2"></i>No data available</div>';
-            return;
-        }
-        
-        this.charts.status = new ApexCharts(container, {
-            series: [overview.delivered, overview.opened, overview.clicked, overview.bounced, overview.pending],
-            chart: { type: 'donut', height: 280, fontFamily: 'Inter, system-ui, sans-serif' },
-            labels: ['Delivered', 'Opened', 'Clicked', 'Failed', 'Pending'],
-            colors: ['#22c55e', '#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b'],
-            plotOptions: {
-                pie: {
-                    donut: {
-                        size: '70%',
-                        labels: {
-                            show: true,
-                            total: { show: true, label: 'Total', fontSize: '14px', fontWeight: 600, color: '#6b7280', formatter: () => total.toLocaleString() },
-                            value: { fontSize: '24px', fontWeight: 700, color: '#1f2937' }
-                        }
-                    }
-                }
-            },
-            dataLabels: { enabled: false },
-            legend: { position: 'bottom', fontSize: '12px', fontWeight: 500, markers: { width: 10, height: 10, radius: 5 }, itemMargin: { horizontal: 10, vertical: 5 } },
-            tooltip: { y: { formatter: val => val ? val.toLocaleString() : '0' } }
-        });
-        this.charts.status.render();
-    },
-    
-    startRealTimeUpdates() {
-        this.refreshInterval = setInterval(() => this.fetchRealTimeData(), 30000);
-    },
-    
-    async fetchRealTimeData() {
-        try {
-            const response = await fetch('/dashboard/analytics/api/realtime');
-            const data = await response.json();
-            if (data.success) {
-                this.updateQueueStats(data.data);
-                document.getElementById('lastUpdate').textContent = 'Just now';
-            }
-        } catch (e) {}
-    },
-    
-    updateQueueStats(data) {
-        ['queuePending', 'queueProcessing', 'queueCompleted', 'queueFailed'].forEach(id => {
-            const el = document.getElementById(id);
-            const key = id.replace('queue', '').toLowerCase();
-            if (el && data[key] !== undefined) {
-                el.textContent = data[key].toLocaleString();
-            }
-        });
-    },
-    
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        const icons = { success: 'check-circle', error: 'times-circle', info: 'info-circle', warning: 'exclamation-circle' };
-        const colors = { success: 'text-green-500', error: 'text-red-500', info: 'text-blue-500', warning: 'text-yellow-500' };
-        toast.innerHTML = '<i class="fas fa-' + icons[type] + ' ' + colors[type] + ' text-xl"></i><span class="text-gray-700 font-medium">' + message + '</span>';
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
-    },
-    
-    destroy() {
-        if (this.refreshInterval) clearInterval(this.refreshInterval);
-        Object.values(this.charts).forEach(c => c && c.destroy());
-    }
-};
+const emailTrends = {{ email_trends|safe }};
+const hourlyDist = {{ hourly_dist|safe }};
 
-function changePeriod(period) { window.location.href = '/dashboard/analytics?period=' + period; }
-function refreshData() {
-    const btn = document.getElementById('refreshBtn');
-    btn.classList.add('spinning');
-    fetch('/dashboard/analytics/api/overview?period=' + AnalyticsDashboard.period)
+// Performance Chart
+const perfContainer = document.getElementById('performanceChart');
+if (perfContainer && emailTrends.length > 0) {
+    new ApexCharts(perfContainer, {
+        series: [
+            { name: 'Sent', data: emailTrends.map(d => d.sent || d.total || 0) },
+            { name: 'Failed', data: emailTrends.map(d => d.failed || 0) }
+        ],
+        chart: { type: 'area', height: 280, toolbar: { show: false }, fontFamily: 'inherit' },
+        colors: ['#F97316', '#ef4444'],
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
+        stroke: { curve: 'smooth', width: 2 },
+        dataLabels: { enabled: false },
+        grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
+        xaxis: {
+            categories: emailTrends.map(d => d.label || ''),
+            labels: { style: { colors: '#9ca3af', fontSize: '11px' } },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+        },
+        yaxis: {
+            labels: {
+                style: { colors: '#9ca3af', fontSize: '11px' },
+                formatter: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : Math.round(v)
+            }
+        },
+        legend: { show: false },
+        tooltip: { theme: 'light', y: { formatter: v => v ? v.toLocaleString() : '0' } }
+    }).render();
+} else if (perfContainer) {
+    perfContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-chart-area mr-2"></i>No data yet</div>';
+}
+
+// Hourly Chart
+const hourlyContainer = document.getElementById('hourlyChart');
+if (hourlyContainer && hourlyDist.some(d => d.count > 0)) {
+    new ApexCharts(hourlyContainer, {
+        series: [{ name: 'Emails', data: hourlyDist.map(d => d.count) }],
+        chart: { type: 'bar', height: 200, toolbar: { show: false }, fontFamily: 'inherit' },
+        colors: ['#F97316'],
+        plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
+        dataLabels: { enabled: false },
+        grid: { borderColor: '#f3f4f6' },
+        xaxis: {
+            categories: hourlyDist.map(d => d.hour),
+            labels: { style: { colors: '#9ca3af', fontSize: '9px' }, rotate: 0 },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+        },
+        yaxis: {
+            labels: {
+                style: { colors: '#9ca3af', fontSize: '10px' },
+                formatter: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : Math.round(v)
+            }
+        },
+        tooltip: { theme: 'light' }
+    }).render();
+} else if (hourlyContainer) {
+    hourlyContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm"><i class="fas fa-clock mr-2"></i>No data yet</div>';
+}
+
+function changePeriod(period) {
+    window.location.href = '/dashboard/analytics?period=' + period;
+}
+
+function exportData() {
+    window.location.href = '/dashboard/analytics/api/export?period={{ period }}';
+}
+
+// Auto-refresh every 60 seconds
+setInterval(() => {
+    fetch('/dashboard/analytics/api/realtime')
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                AnalyticsDashboard.showToast('Data refreshed', 'success');
-                setTimeout(() => location.reload(), 500);
+                // Could update queue stats here
             }
         })
-        .finally(() => setTimeout(() => btn.classList.remove('spinning'), 1000));
-}
-function exportData() {
-    AnalyticsDashboard.showToast('Preparing export...', 'info');
-    window.location.href = '/dashboard/analytics/api/export?period=' + AnalyticsDashboard.period;
-}
-
-document.addEventListener('DOMContentLoaded', () => AnalyticsDashboard.init());
-window.addEventListener('beforeunload', () => AnalyticsDashboard.destroy());
+        .catch(() => {});
+}, 60000);
 </script>
 {% endblock %}

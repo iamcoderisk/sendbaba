@@ -1,0 +1,409 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Recent Emails - SendBaba{% endblock %}
+{% block page_title %}Recent Emails{% endblock %}
+{% block page_subtitle %}Reuse a previous campaign design as your starting point{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    .back-btn {
+        color: #6b7280;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: color 0.2s;
+    }
+    .back-btn:hover {
+        color: #F97316;
+    }
+    
+    .campaigns-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+    
+    .campaign-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .campaign-card:hover {
+        border-color: #F97316;
+        box-shadow: 0 12px 40px rgba(249, 115, 22, 0.15);
+        transform: translateY(-4px);
+    }
+    
+    .campaign-preview {
+        height: 160px;
+        background: #f8fafc;
+        overflow: hidden;
+        position: relative;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .campaign-preview iframe {
+        width: 200%;
+        height: 200%;
+        transform: scale(0.5);
+        transform-origin: top left;
+        pointer-events: none;
+        border: none;
+    }
+    .campaign-preview-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, transparent 60%, rgba(255,255,255,0.9) 100%);
+    }
+    
+    .campaign-info {
+        padding: 20px;
+    }
+    .campaign-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .campaign-subject {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .campaign-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: #9ca3af;
+    }
+    .campaign-meta i {
+        margin-right: 4px;
+    }
+    .campaign-stats {
+        display: flex;
+        gap: 12px;
+    }
+    .stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .stat.success { color: #10b981; }
+    
+    .empty-state {
+        text-align: center;
+        padding: 80px 40px;
+        background: white;
+        border-radius: 16px;
+        border: 2px dashed #e5e7eb;
+    }
+    .empty-state i {
+        font-size: 64px;
+        color: #d1d5db;
+        margin-bottom: 20px;
+    }
+    .empty-state h3 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+    .empty-state p {
+        color: #9ca3af;
+        font-size: 15px;
+        margin-bottom: 24px;
+    }
+    .empty-state a {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #F97316, #EA580C);
+        color: white;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .empty-state a:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+    }
+    
+    /* Loading Modal */
+    .loading-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.8);
+        z-index: 1001;
+        align-items: center;
+        justify-content: center;
+    }
+    .loading-modal.show {
+        display: flex;
+    }
+    .loading-content {
+        background: white;
+        border-radius: 20px;
+        padding: 40px 60px;
+        text-align: center;
+    }
+    .loading-content i {
+        font-size: 48px;
+        color: #F97316;
+        margin-bottom: 16px;
+    }
+    .loading-content p {
+        font-size: 18px;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    /* Name Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .modal-overlay.show {
+        display: flex;
+        animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    .modal-content {
+        background: white;
+        border-radius: 24px;
+        width: 100%;
+        max-width: 440px;
+        padding: 32px;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+        animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .modal-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 8px;
+    }
+    .modal-desc {
+        color: #6b7280;
+        margin-bottom: 24px;
+    }
+    .modal-input {
+        width: 100%;
+        padding: 14px 18px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        font-size: 16px;
+        margin-bottom: 24px;
+        transition: border-color 0.2s;
+    }
+    .modal-input:focus {
+        outline: none;
+        border-color: #F97316;
+    }
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+    }
+    .btn-cancel {
+        flex: 1;
+        padding: 14px;
+        background: #f3f4f6;
+        color: #374151;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .btn-cancel:hover {
+        background: #e5e7eb;
+    }
+    .btn-continue {
+        flex: 1;
+        padding: 14px;
+        background: linear-gradient(135deg, #F97316, #EA580C);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
+        transition: all 0.2s;
+    }
+    .btn-continue:hover {
+        box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div></div>
+    <a href="/dashboard/campaigns/create" class="back-btn">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+</div>
+
+{% if campaigns %}
+<div class="campaigns-grid">
+    {% for campaign in campaigns %}
+    <div class="campaign-card" onclick="selectCampaign('{{ campaign.id }}', '{{ campaign.name|e }}')">
+        <div class="campaign-preview">
+            <iframe srcdoc="{{ campaign.html|e }}" scrolling="no"></iframe>
+            <div class="campaign-preview-overlay"></div>
+        </div>
+        <div class="campaign-info">
+            <h3 class="campaign-name">{{ campaign.name }}</h3>
+            <p class="campaign-subject">{{ campaign.subject }}</p>
+            <div class="campaign-meta">
+                <span>
+                    <i class="far fa-calendar"></i>
+                    {{ campaign.sent_at.strftime('%b %d, %Y') if campaign.sent_at else campaign.created_at.strftime('%b %d, %Y') if campaign.created_at else 'N/A' }}
+                </span>
+                <div class="campaign-stats">
+                    <span class="stat success">
+                        <i class="fas fa-paper-plane"></i>
+                        {{ "{:,}".format(campaign.emails_sent) }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-history"></i>
+    <h3>No recent campaigns</h3>
+    <p>You haven't sent any campaigns yet. Send your first campaign to see it here.</p>
+    <a href="/dashboard/campaigns/create">
+        <i class="fas fa-plus"></i> Create New Campaign
+    </a>
+</div>
+{% endif %}
+
+<!-- Name Modal -->
+<div class="modal-overlay" id="nameModal">
+    <div class="modal-content">
+        <h3 class="modal-title">Name your new campaign</h3>
+        <p class="modal-desc">This will be a copy of the selected campaign.</p>
+        <input type="text" id="campaignName" class="modal-input" placeholder="e.g., Summer Sale Newsletter V2">
+        <div class="modal-actions">
+            <button onclick="closeModal()" class="btn-cancel">Cancel</button>
+            <button onclick="duplicateCampaign()" class="btn-continue">Continue</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="loading-modal" id="loadingModal">
+    <div class="loading-content">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Creating your campaign...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedCampaignId = null;
+let selectedCampaignName = null;
+
+function selectCampaign(id, name) {
+    selectedCampaignId = id;
+    selectedCampaignName = name;
+    document.getElementById('campaignName').value = 'Copy of ' + name;
+    document.getElementById('nameModal').classList.add('show');
+    setTimeout(() => {
+        document.getElementById('campaignName').focus();
+        document.getElementById('campaignName').select();
+    }, 100);
+}
+
+function closeModal() {
+    document.getElementById('nameModal').classList.remove('show');
+}
+
+async function duplicateCampaign() {
+    const name = document.getElementById('campaignName').value.trim();
+    if (!name) {
+        document.getElementById('campaignName').style.borderColor = '#ef4444';
+        document.getElementById('campaignName').focus();
+        return;
+    }
+    
+    document.getElementById('nameModal').classList.remove('show');
+    document.getElementById('loadingModal').classList.add('show');
+    
+    try {
+        const response = await fetch('/dashboard/campaigns/api/duplicate/' + selectedCampaignId, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name: name})
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.location.href = data.redirect;
+        } else {
+            document.getElementById('loadingModal').classList.remove('show');
+            alert('Error: ' + (data.error || 'Could not duplicate campaign'));
+        }
+    } catch (e) {
+        document.getElementById('loadingModal').classList.remove('show');
+        alert('Error duplicating campaign');
+    }
+}
+
+document.getElementById('campaignName')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') duplicateCampaign();
+});
+
+document.getElementById('campaignName')?.addEventListener('input', (e) => {
+    e.target.style.borderColor = '#e5e7eb';
+});
+
+document.getElementById('nameModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'nameModal') closeModal();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+});
+</script>
+{% endblock %}

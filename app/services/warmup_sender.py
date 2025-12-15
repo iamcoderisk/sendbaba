@@ -7,7 +7,7 @@ import redis
 from datetime import datetime
 import socket
 
-REDIS_URL = 'redis://:SendBaba2024SecureRedis@localhost:6379/0'
+REDIS_URL = 'redis://:SendBabaRedis2024!@localhost:6379/0'
 
 IPS = ['156.67.29.186', '75.119.153.106', '75.119.151.72', '161.97.170.33']
 

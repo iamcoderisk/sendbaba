@@ -1,27 +1,156 @@
 #!/bin/bash
-echo "📊 SendBaba Monitor"
-echo "===================="
-echo ""
-echo "Services:"
-pm2 list | grep sendbaba
-echo ""
-echo "Queue:"
-redis-cli llen outgoing_10 | xargs echo "  Queued:"
-echo ""
-echo "Worker Logs:"
-pm2 logs sendbaba-worker --lines 5 --nostream | tail -5
-echo ""
-echo "Last 3 Emails:"
-python3 << 'PY'
-import sys
-sys.path.insert(0, '/opt/sendbaba-smtp')
-from app import create_app, db
-from sqlalchemy import text
-app = create_app()
-with app.app_context():
-    result = db.session.execute(text("SELECT sender, recipient, status FROM emails ORDER BY created_at DESC LIMIT 3"))
-    for row in result:
-        emoji = "✅" if row[2] == "sent" else "⏳" if row[2] == "queued" else "❌"
-        print(f"  {emoji} {row[0]} → {row[1]} [{row[2]}]")
-PY
-echo "===================="
+# SendBaba Real-Time Monitor
+REFRESH=${1:-5}
+export PGPASSWORD='SecurePassword123'
+
+while true; do
+    clear
+    echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+    echo "║                    🚀 SENDBABA REAL-TIME MONITOR                              ║"
+    echo "║                         $(date '+%Y-%m-%d %H:%M:%S')                                  ║"
+    echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # System Resources
+    echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+    echo "│ 💻 SYSTEM RESOURCES                                                          │"
+    echo "├──────────────────────────────────────────────────────────────────────────────┤"
+    CPU=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+    MEM=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100}')
+    LOAD=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+    printf "│  CPU: %-8s  Memory: %-8s  Load: %-30s  │\n" "${CPU}%" "${MEM}%" "$LOAD"
+    echo "└──────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+
+    # PM2 Services
+    echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+    echo "│ ⚙️  SERVICES                                                                  │"
+    echo "├──────────────────────────────────────────────────────────────────────────────┤"
+    pm2 jlist 2>/dev/null | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for app in data:
+        name = app.get('name', '?')[:18]
+        status = app.get('pm2_env', {}).get('status', '?')
+        cpu = app.get('monit', {}).get('cpu', 0)
+        mem = app.get('monit', {}).get('memory', 0) / 1024 / 1024
+        icon = '✅' if status == 'online' else '❌'
+        print(f'│  {icon} {name:<18} {status:<10} CPU:{cpu:>3}%  Mem:{mem:>5.0f}MB                    │')
+except: pass
+"
+    echo "└──────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+
+    # Campaign Stats
+    echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+    echo "│ 📧 CAMPAIGNS                                                                  │"
+    echo "├──────────────────────────────────────────────────────────────────────────────┤"
+    psql -h localhost -U emailer -d emailer -t -A -c "
+        SELECT 
+            CASE status WHEN 'sending' THEN '📤' WHEN 'queued' THEN '⏳' ELSE '✅' END || ' ' ||
+            LEFT(name, 30) || ' | ' || status || ' | ' ||
+            COALESCE(emails_sent, 0) || '/' || COALESCE(total_recipients, 0) || ' (' ||
+            CASE WHEN total_recipients > 0 
+                 THEN ROUND(COALESCE(emails_sent,0)::numeric / total_recipients * 100, 1)::text || '%)'
+                 ELSE '0%)' END
+        FROM campaigns 
+        WHERE status IN ('sending', 'queued') OR updated_at > NOW() - INTERVAL '1 hour'
+        ORDER BY CASE status WHEN 'sending' THEN 1 WHEN 'queued' THEN 2 ELSE 3 END
+        LIMIT 5;
+    " 2>/dev/null | while read line; do
+        [ -n "$line" ] && printf "│  %-74s │\n" "$line"
+    done
+    CAMP_COUNT=$(psql -h localhost -U emailer -d emailer -t -c "SELECT COUNT(*) FROM campaigns WHERE status IN ('sending','queued')" 2>/dev/null | xargs)
+    [ "$CAMP_COUNT" = "0" ] && echo "│  No active campaigns                                                         │"
+    echo "└──────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+
+    # Email Stats
+    echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+    echo "│ 📊 EMAIL STATS                                                                │"
+    echo "├──────────────────────────────────────────────────────────────────────────────┤"
+    
+    # Today
+    TODAY=$(psql -h localhost -U emailer -d emailer -t -A -c "
+        SELECT 
+            'Sent: ' || COALESCE(SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END), 0) ||
+            ' | Failed: ' || COALESCE(SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END), 0) ||
+            ' | Pending: ' || COALESCE(SUM(CASE WHEN status='sending' THEN 1 ELSE 0 END), 0)
+        FROM emails WHERE created_at > CURRENT_DATE;
+    " 2>/dev/null)
+    printf "│  📅 Today:     %-60s │\n" "$TODAY"
+    
+    # Last Hour
+    HOUR=$(psql -h localhost -U emailer -d emailer -t -A -c "
+        SELECT 
+            'Sent: ' || COALESCE(SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END), 0) ||
+            ' | Rate: ' || ROUND(COALESCE(SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END), 0)::numeric / 60, 1) || '/min'
+        FROM emails WHERE created_at > NOW() - INTERVAL '1 hour';
+    " 2>/dev/null)
+    printf "│  ⏰ Last Hour: %-60s │\n" "$HOUR"
+    
+    # Last 5 min
+    MIN5=$(psql -h localhost -U emailer -d emailer -t -A -c "
+        SELECT 
+            'Sent: ' || COALESCE(SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END), 0) ||
+            ' | Rate: ' || ROUND(COALESCE(SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END), 0)::numeric / 5, 1) || '/min'
+        FROM emails WHERE created_at > NOW() - INTERVAL '5 minutes';
+    " 2>/dev/null)
+    printf "│  ⚡ Last 5min: %-60s │\n" "$MIN5"
+    
+    echo "└──────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+
+    # Errors
+    echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+    echo "│ ❌ RECENT ERRORS                                                              │"
+    echo "├──────────────────────────────────────────────────────────────────────────────┤"
+    ERR_COUNT=$(psql -h localhost -U emailer -d emailer -t -c "SELECT COUNT(*) FROM emails WHERE status='failed' AND created_at > NOW() - INTERVAL '30 minutes'" 2>/dev/null | xargs)
+    if [ "$ERR_COUNT" -gt 0 ] 2>/dev/null; then
+        psql -h localhost -U emailer -d emailer -t -A -c "
+            SELECT COUNT(*) || 'x ' || LEFT(COALESCE(error_message, 'Unknown'), 60)
+            FROM emails WHERE status='failed' AND created_at > NOW() - INTERVAL '30 minutes'
+            GROUP BY error_message ORDER BY COUNT(*) DESC LIMIT 3;
+        " 2>/dev/null | while read line; do
+            [ -n "$line" ] && printf "│  %-74s │\n" "$line"
+        done
+    else
+        echo "│  ✅ No errors in last 30 minutes                                             │"
+    fi
+    echo "└──────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+
+    # Active Processes
+    echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+    echo "│ 🔄 SENDING PROCESSES                                                          │"
+    echo "├──────────────────────────────────────────────────────────────────────────────┤"
+    PROCS=$(ps aux | grep -E "(quick_sender|campaign_processor|fast_campaign)" | grep -v grep)
+    if [ -n "$PROCS" ]; then
+        echo "$PROCS" | while read line; do
+            PID=$(echo "$line" | awk '{print $2}')
+            CPU=$(echo "$line" | awk '{print $3}')
+            MEM=$(echo "$line" | awk '{print $4}')
+            TIME=$(echo "$line" | awk '{print $10}')
+            printf "│  PID:%-6s CPU:%-5s MEM:%-5s TIME:%-10s                          │\n" "$PID" "$CPU%" "$MEM%" "$TIME"
+        done
+    else
+        echo "│  ⚠️  No sending processes running                                            │"
+    fi
+    echo "└──────────────────────────────────────────────────────────────────────────────┘"
+    echo ""
+
+    # Quick Sender Log (last line)
+    if [ -f /var/log/quick_sender.log ]; then
+        echo "┌──────────────────────────────────────────────────────────────────────────────┐"
+        echo "│ 📝 SENDER LOG                                                                 │"
+        echo "├──────────────────────────────────────────────────────────────────────────────┤"
+        LASTLOG=$(tail -1 /var/log/quick_sender.log 2>/dev/null | cut -c1-74)
+        printf "│  %-74s │\n" "$LASTLOG"
+        echo "└──────────────────────────────────────────────────────────────────────────────┘"
+        echo ""
+    fi
+
+    echo "Press Ctrl+C to exit | Refreshing every ${REFRESH}s..."
+    sleep $REFRESH
+done

@@ -1,0 +1,1027 @@
+"""
+SendBaba Email Tasks - Production Ready v3
+==========================================
+Target: 500+ emails/min
+
+Features:
+- RabbitMQ integration
+- Retry logic with exponential backoff
+- Email validation & auto-correction
+- IP warmup tracking & throttling
+- Gmail throttling protection
+- Batch sending (50 emails per batch)
+- Connection pooling
+- Real-time progress monitoring
+"""
+import os
+import sys
+import uuid
+import logging
+import time
+import json
+import redis
+from datetime import datetime, timedelta
+from functools import wraps
+
+sys.path.insert(0, '/opt/sendbaba-staging')
+
+from celery import shared_task, current_task
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
+from celery_app import celery_app
+from app.smtp.relay_server import send_email_sync
+from app.services.email_tracker import prepare_email_for_tracking
+import psycopg2
+from psycopg2 import pool
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+
+# ============================================================
+# DATABASE CONNECTION POOL
+# ============================================================
+db_pool = None
+
+def get_db_pool():
+    """Get or create database connection pool"""
+    global db_pool
+    if db_pool is None:
+        db_pool = psycopg2.pool.ThreadedConnectionPool(
+            5, 30,  # min 5, max 30 connections
+            host='localhost',
+            database='emailer',
+            user='emailer',
+            password='SecurePassword123'
+        )
+    return db_pool
+
+def get_conn():
+    """Get connection from pool"""
+    return get_db_pool().getconn()
+
+def put_conn(conn):
+    """Return connection to pool"""
+    get_db_pool().putconn(conn)
+
+# ============================================================
+# REDIS CLIENT
+# ============================================================
+redis_client = redis.Redis(
+    host='localhost', 
+    port=6379, 
+    password='SendBaba2024SecureRedis', 
+    decode_responses=True
+)
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
+CONFIG = {
+    # Batch sizes
+    'BATCH_SIZE': 50,              # Emails per batch task
+    'CONTACTS_PER_CYCLE': 500,     # Contacts to queue per cycle
+    
+    # Delays
+    'DELAY_BETWEEN_EMAILS': 0.02,  # 20ms = 50/sec per worker
+    'DELAY_BETWEEN_BATCHES': 0.5,  # 500ms between batches
+    
+    # Gmail throttling
+    'GMAIL_PER_MINUTE': 60,
+    'GMAIL_PER_HOUR': 1500,
+    'GMAIL_DELAY_MS': 100,
+    
+    # IP Warmup limits (emails per day per IP)
+    'WARMUP_SCHEDULE': {
+        1: 50,      # Day 1: 50 emails
+        2: 100,     # Day 2: 100 emails
+        3: 200,     # Day 3: 200 emails
+        4: 400,     # Day 4: 400 emails
+        5: 800,     # Day 5: 800 emails
+        6: 1500,    # Day 6: 1500 emails
+        7: 3000,    # Day 7: 3000 emails
+        14: 10000,  # Day 14: 10k emails
+        21: 25000,  # Day 21: 25k emails
+        30: 50000,  # Day 30: 50k emails
+        60: 100000, # Day 60: 100k emails (fully warmed)
+    },
+    
+    # Retry settings
+    'MAX_RETRIES': 3,
+    'RETRY_DELAYS': [60, 300, 900],  # 1min, 5min, 15min
+}
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+def validate_and_fix_email(email):
+    """Validate and auto-correct email typos"""
+    try:
+        from app.utils.email_validator import validate_email
+        is_valid, corrected, reason = validate_email(email, check_mx=False, auto_fix=True)
+        return is_valid, corrected, reason
+    except Exception as e:
+        if not email or '@' not in email:
+            return False, email, 'invalid_format'
+        # Basic validation
+        email = email.strip().lower()
+        if email.count('@') != 1:
+            return False, email, 'invalid_format'
+        local, domain = email.split('@')
+        if not local or not domain or '.' not in domain:
+            return False, email, 'invalid_format'
+        return True, email, None
+
+
+def personalize(content, contact):
+    """Replace merge tags with contact data"""
+    if not content:
+        return content
+    
+    first = contact.get('first_name') or ''
+    last = contact.get('last_name') or ''
+    email = contact.get('email') or ''
+    full_name = f"{first} {last}".strip()
+    
+    replacements = {
+        '{{first_name}}': first,
+        '{{last_name}}': last,
+        '{{email}}': email,
+        '{{name}}': full_name,
+        '{{FIRST_NAME}}': first,
+        '{{LAST_NAME}}': last,
+        '{{EMAIL}}': email,
+        '{{NAME}}': full_name,
+        '*|FNAME|*': first,
+        '*|LNAME|*': last,
+        '*|EMAIL|*': email,
+        '*|NAME|*': full_name,
+    }
+    
+    for tag, value in replacements.items():
+        content = content.replace(tag, str(value))
+    
+    return content
+
+
+def is_gmail(email):
+    """Check if email is Gmail/Google"""
+    if not email:
+        return False
+    domain = email.split('@')[-1].lower()
+    return domain in ['gmail.com', 'googlemail.com'] or 'google' in domain
+
+
+def check_gmail_throttle():
+    """Check if we should throttle Gmail sends"""
+    key = f"gmail_throttle:{datetime.now().strftime('%Y%m%d%H%M')}"
+    try:
+        count = redis_client.incr(key)
+        redis_client.expire(key, 120)
+        return count > CONFIG['GMAIL_PER_MINUTE'] * 10, count  # Across all workers
+    except:
+        return False, 0
+
+
+def get_ip_warmup_limit(ip_address):
+    """Get current daily limit for an IP based on warmup schedule"""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        # Get IP start date
+        cur.execute("""
+            SELECT created_at, daily_limit, emails_sent_today 
+            FROM ip_warmup 
+            WHERE ip_address = %s
+        """, (ip_address,))
+        row = cur.fetchone()
+        
+        if not row:
+            # New IP - start warmup
+            cur.execute("""
+                INSERT INTO ip_warmup (ip_address, created_at, daily_limit, emails_sent_today)
+                VALUES (%s, NOW(), 50, 0)
+                ON CONFLICT (ip_address) DO NOTHING
+            """, (ip_address,))
+            conn.commit()
+            put_conn(conn)
+            return 50, 0
+        
+        created_at, daily_limit, sent_today = row
+        days_active = (datetime.now() - created_at).days + 1
+        
+        # Find appropriate limit from warmup schedule
+        new_limit = 50
+        for day, limit in sorted(CONFIG['WARMUP_SCHEDULE'].items()):
+            if days_active >= day:
+                new_limit = limit
+        
+        # Update limit if increased
+        if new_limit > daily_limit:
+            cur.execute("""
+                UPDATE ip_warmup SET daily_limit = %s WHERE ip_address = %s
+            """, (new_limit, ip_address))
+            conn.commit()
+            daily_limit = new_limit
+        
+        put_conn(conn)
+        return daily_limit, sent_today
+        
+    except Exception as e:
+        logger.error(f"Warmup check error: {e}")
+        return 100000, 0  # Default to high limit on error
+
+
+def increment_ip_counter(ip_address):
+    """Increment daily send counter for an IP"""
+    try:
+        key = f"ip_daily:{ip_address}:{datetime.now().strftime('%Y%m%d')}"
+        count = redis_client.incr(key)
+        redis_client.expire(key, 86400 * 2)  # 2 day TTL
+        return count
+    except:
+        return 0
+
+
+def check_ip_warmup_limit(ip_address):
+    """Check if IP has reached its daily warmup limit"""
+    try:
+        limit, sent = get_ip_warmup_limit(ip_address)
+        key = f"ip_daily:{ip_address}:{datetime.now().strftime('%Y%m%d')}"
+        current = int(redis_client.get(key) or 0)
+        return current >= limit, current, limit
+    except:
+        return False, 0, 100000
+
+
+# ============================================================
+# EMAIL SENDING TASKS
+# ============================================================
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def send_single_email(self, email_data):
+    """
+    Send a single transactional email with retry logic.
+    High priority queue.
+    
+    Args:
+        email_data: dict with 'from', 'to', 'subject', 'html_body', etc.
+    """
+    try:
+        # Validate recipient
+        is_valid, corrected, reason = validate_and_fix_email(email_data.get('to', ''))
+        if not is_valid:
+            logger.warning(f"Invalid email: {email_data.get('to')} - {reason}")
+            return {'success': False, 'message': f'Invalid email: {reason}'}
+        
+        email_data['to'] = corrected
+        
+        # Gmail throttle check
+        if is_gmail(corrected):
+            throttled, count = check_gmail_throttle()
+            if throttled:
+                # Retry later
+                raise self.retry(countdown=30, exc=Exception("Gmail throttled"))
+        
+        # Send
+        result = send_email_sync(email_data)
+        
+        if not result.get('success'):
+            error = result.get('message', 'Unknown error')
+            
+            # Don't retry permanent failures
+            permanent_errors = ['invalid', 'blocked', 'spam', 'rejected', 'blacklist']
+            if any(err in error.lower() for err in permanent_errors):
+                return {'success': False, 'message': error, 'permanent': True}
+            
+            # Retry temporary failures
+            raise self.retry(
+                countdown=CONFIG['RETRY_DELAYS'][min(self.request.retries, 2)],
+                exc=Exception(error)
+            )
+        
+        # Track IP usage
+        if result.get('source_ip'):
+            increment_ip_counter(result['source_ip'])
+        
+        return result
+        
+    except MaxRetriesExceededError:
+        logger.error(f"Email failed after {CONFIG['MAX_RETRIES']} retries: {email_data.get('to')}")
+        return {'success': False, 'message': 'Max retries exceeded'}
+    except Exception as e:
+        logger.error(f"Send error: {e}")
+        raise
+
+
+@shared_task(bind=True, max_retries=2)
+def send_campaign_batch(self, campaign_id, contact_ids, org_id):
+    """
+    Send a batch of campaign emails.
+    Processes up to 50 contacts per task.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    sent = 0
+    failed = 0
+    skipped = 0
+    
+    try:
+        # Get campaign details
+        cur.execute("""
+            SELECT from_email, from_name, subject, html_body, text_body, reply_to
+            FROM campaigns WHERE id = %s
+        """, (campaign_id,))
+        campaign = cur.fetchone()
+        
+        if not campaign:
+            logger.error(f"Campaign not found: {campaign_id}")
+            return {'sent': 0, 'failed': 0, 'error': 'Campaign not found'}
+        
+        from_email, from_name, subject, html_body, text_body, reply_to = campaign
+        
+        # Get contacts
+        cur.execute("""
+            SELECT id, email, first_name, last_name 
+            FROM contacts 
+            WHERE id = ANY(%s) AND status = 'active'
+        """, (contact_ids,))
+        contacts = cur.fetchall()
+        
+        for contact in contacts:
+            contact_id, email, first_name, last_name = contact
+            
+            # Validate email
+            is_valid, corrected, reason = validate_and_fix_email(email)
+            if not is_valid:
+                failed += 1
+                continue
+            
+            email = corrected
+            contact_data = {
+                'email': email,
+                'first_name': first_name or '',
+                'last_name': last_name or ''
+            }
+            
+            # Check already sent
+            cur.execute("""
+                SELECT 1 FROM emails 
+                WHERE campaign_id = %s AND to_email = %s AND status IN ('sent', 'sending')
+            """, (campaign_id, email))
+            
+            if cur.fetchone():
+                skipped += 1
+                continue
+            
+            # Gmail throttle
+            if is_gmail(email):
+                throttled, _ = check_gmail_throttle()
+                if throttled:
+                    time.sleep(0.1)  # Small delay for Gmail
+            
+            # Personalize
+            p_subject = personalize(subject, contact_data)
+            p_html = personalize(html_body, contact_data)
+            p_text = personalize(text_body, contact_data) if text_body else ''
+            
+            # Create email record
+            email_id = str(uuid.uuid4())
+            cur.execute("""
+                INSERT INTO emails (id, organization_id, campaign_id, to_email, from_email,
+                                   subject, html_body, status, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'sending', NOW())
+                ON CONFLICT (campaign_id, to_email) DO NOTHING
+                RETURNING id
+            """, (email_id, org_id, campaign_id, email, from_email, p_subject, p_html))
+            
+            if not cur.fetchone():
+                skipped += 1
+                conn.commit()
+                continue
+            
+            conn.commit()
+            
+            # Prepare email payload
+            email_payload = {
+                'from': from_email,
+                'from_name': from_name or '',
+                'to': email,
+                'subject': p_subject,
+                'html_body': p_html,
+                'text_body': p_text,
+                'reply_to': reply_to or ''
+            }
+            
+            # Send
+            result = send_email_sync(email_payload)
+            
+            if result.get('success'):
+                cur.execute("""
+                    UPDATE emails SET status = 'sent', sent_at = NOW() WHERE id = %s
+                """, (email_id,))
+                sent += 1
+                
+                # Track IP
+                if result.get('source_ip'):
+                    increment_ip_counter(result['source_ip'])
+            else:
+                error_msg = result.get('message', 'Send failed')[:255]
+                cur.execute("""
+                    UPDATE emails 
+                    SET status = 'failed', error_message = %s, updated_at = NOW() 
+                    WHERE id = %s
+                """, (error_msg, email_id))
+                failed += 1
+            
+            # Process bounce asynchronously
+            try:
+                process_bounce.delay(email_id, error_msg, org_id)
+            except:
+                pass  # Don't fail batch if bounce processing fails
+            
+            conn.commit()
+            
+            # Rate limiting delay
+            time.sleep(CONFIG['DELAY_BETWEEN_EMAILS'])
+        
+        # Update campaign progress
+        cur.execute("""
+            UPDATE campaigns 
+            SET emails_sent = (SELECT COUNT(*) FROM emails WHERE campaign_id = %s AND status = 'sent'),
+                updated_at = NOW()
+            WHERE id = %s
+        """, (campaign_id, campaign_id))
+        conn.commit()
+        
+        logger.info(f"Batch complete: {campaign_id[:20]} - Sent:{sent} Failed:{failed} Skip:{skipped}")
+        return {'sent': sent, 'failed': failed, 'skipped': skipped}
+        
+    except Exception as e:
+        logger.error(f"Batch error: {e}")
+        conn.rollback()
+        return {'sent': sent, 'failed': failed, 'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+# ============================================================
+# CAMPAIGN PROCESSING
+# ============================================================
+@shared_task
+def process_queued_campaigns():
+    """
+    Main campaign processor - runs every 5 seconds.
+    Dispatches batches of contacts to workers.
+    Target: 500+ emails/min across all workers.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        # Get active campaigns
+        cur.execute("""
+            SELECT id, organization_id, name, total_recipients, emails_sent
+            FROM campaigns 
+            WHERE status IN ('sending', 'queued')
+            ORDER BY created_at
+        """)
+        campaigns = cur.fetchall()
+        
+        if not campaigns:
+            return {'campaigns': 0, 'batches': 0}
+        
+        total_batches = 0
+        
+        for camp in campaigns:
+            campaign_id, org_id, name, total, sent = camp
+            
+            # Update status to sending if queued
+            cur.execute("""
+                UPDATE campaigns SET status = 'sending', started_at = COALESCE(started_at, NOW())
+                WHERE id = %s AND status = 'queued'
+            """, (campaign_id,))
+            conn.commit()
+            
+            # Get unsent contacts
+            cur.execute("""
+                SELECT c.id
+                FROM contacts c
+                WHERE c.organization_id = %s
+                AND c.status = 'active'
+                AND c.email IS NOT NULL
+                AND c.email != ''
+                AND NOT EXISTS (
+                    SELECT 1 FROM emails e 
+                    WHERE e.campaign_id = %s AND e.to_email = c.email
+                )
+                ORDER BY c.created_at
+                LIMIT %s
+            """, (org_id, campaign_id, CONFIG['CONTACTS_PER_CYCLE']))
+            
+            contact_ids = [row[0] for row in cur.fetchall()]
+            
+            if not contact_ids:
+                # Check if campaign is complete
+                cur.execute("""
+                    SELECT COUNT(*) FROM contacts c
+                    WHERE c.organization_id = %s AND c.status = 'active'
+                    AND NOT EXISTS (
+                        SELECT 1 FROM emails e WHERE e.campaign_id = %s AND e.to_email = c.email
+                    )
+                """, (org_id, campaign_id))
+                remaining = cur.fetchone()[0]
+                
+                if remaining == 0:
+                    # Mark complete
+                    cur.execute("""
+                        UPDATE campaigns 
+                        SET status = 'completed',
+                            emails_sent = (SELECT COUNT(*) FROM emails WHERE campaign_id = %s AND status = 'sent'),
+                            completed_at = NOW()
+                        WHERE id = %s
+                    """, (campaign_id, campaign_id))
+                    conn.commit()
+                    logger.info(f"✅ Campaign completed: {name[:40]}")
+                continue
+            
+            # Dispatch batches
+            batch_size = CONFIG['BATCH_SIZE']
+            for i in range(0, len(contact_ids), batch_size):
+                batch = contact_ids[i:i + batch_size]
+                send_campaign_batch.delay(campaign_id, batch, org_id)
+                total_batches += 1
+            
+            logger.info(f"📧 Queued {len(contact_ids)} contacts in {total_batches} batches for: {name[:30]}")
+        
+        return {'campaigns': len(campaigns), 'batches': total_batches}
+        
+    except Exception as e:
+        logger.error(f"Campaign processor error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+@shared_task
+def process_queued_single_emails():
+    """Process queued single/transactional emails"""
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        cur.execute("""
+            SELECT id, organization_id, to_email, from_email, subject, html_body, reply_to
+            FROM emails
+            WHERE status = 'queued' AND campaign_id IS NULL
+            ORDER BY created_at
+            LIMIT 100
+        """)
+        emails = cur.fetchall()
+        
+        queued = 0
+        for email in emails:
+            email_id, org_id, to_email, from_email, subject, html_body, reply_to = email
+            
+            cur.execute("UPDATE emails SET status = 'sending' WHERE id = %s", (email_id,))
+            conn.commit()
+            
+            email_data = {
+                'from': from_email,
+                'to': to_email,
+                'subject': subject,
+                'html_body': html_body,
+                'reply_to': reply_to or ''
+            }
+            
+            send_single_email.delay(email_data)
+            queued += 1
+        
+        return {'queued': queued}
+        
+    except Exception as e:
+        logger.error(f"Single email processor error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+# ============================================================
+# RETRY & RECOVERY TASKS
+# ============================================================
+@shared_task
+def retry_failed_emails():
+    """
+    Retry failed emails that haven't exceeded max retries.
+    Runs every 2 minutes.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        # Get failed emails from last 24 hours with < 3 retries
+        cur.execute("""
+            SELECT e.id, e.campaign_id, e.organization_id, e.to_email, e.from_email,
+                   e.subject, e.html_body, e.error_message,
+                   COALESCE(e.retry_count, 0) as retry_count
+            FROM emails e
+            WHERE e.status = 'failed'
+            AND e.created_at > NOW() - INTERVAL '24 hours'
+            AND COALESCE(e.retry_count, 0) < %s
+            AND e.error_message NOT LIKE '%%permanent%%'
+            AND e.error_message NOT LIKE '%%invalid%%'
+            AND e.error_message NOT LIKE '%%blocked%%'
+            ORDER BY e.created_at
+            LIMIT 100
+        """, (CONFIG['MAX_RETRIES'],))
+        
+        failed_emails = cur.fetchall()
+        retried = 0
+        
+        for email in failed_emails:
+            email_id, campaign_id, org_id, to_email, from_email, subject, html_body, error, retry_count = email
+            
+            # Update retry count
+            cur.execute("""
+                UPDATE emails 
+                SET status = 'sending', retry_count = %s, updated_at = NOW()
+                WHERE id = %s
+            """, (retry_count + 1, email_id))
+            conn.commit()
+            
+            # Re-send
+            email_data = {
+                'from': from_email,
+                'to': to_email,
+                'subject': subject,
+                'html_body': html_body
+            }
+            
+            result = send_email_sync(email_data)
+            
+            if result.get('success'):
+                cur.execute("""
+                    UPDATE emails SET status = 'sent', sent_at = NOW() WHERE id = %s
+                """, (email_id,))
+                retried += 1
+            else:
+                new_error = result.get('message', 'Retry failed')[:255]
+                cur.execute("""
+                    UPDATE emails SET status = 'failed', error_message = %s WHERE id = %s
+                """, (new_error, email_id))
+            
+            conn.commit()
+            time.sleep(CONFIG['DELAY_BETWEEN_EMAILS'])
+        
+        if retried > 0:
+            logger.info(f"♻️ Retried {retried} failed emails")
+        
+        return {'retried': retried, 'total_checked': len(failed_emails)}
+        
+    except Exception as e:
+        logger.error(f"Retry task error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+@shared_task
+def recover_stuck_campaigns():
+    """
+    Recover campaigns stuck in 'sending' status.
+    Runs every minute.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        # Find campaigns stuck for > 10 minutes with no recent activity
+        cur.execute("""
+            SELECT c.id, c.name
+            FROM campaigns c
+            WHERE c.status = 'sending'
+            AND c.updated_at < NOW() - INTERVAL '10 minutes'
+            AND NOT EXISTS (
+                SELECT 1 FROM emails e 
+                WHERE e.campaign_id = c.id 
+                AND e.created_at > NOW() - INTERVAL '5 minutes'
+            )
+        """)
+        stuck = cur.fetchall()
+        
+        for campaign_id, name in stuck:
+            logger.warning(f"⚠️ Recovering stuck campaign: {name[:40]}")
+            
+            # Reset any 'sending' emails back to queued
+            cur.execute("""
+                UPDATE emails 
+                SET status = 'queued' 
+                WHERE campaign_id = %s AND status = 'sending'
+                AND created_at < NOW() - INTERVAL '10 minutes'
+            """, (campaign_id,))
+            
+            # Touch campaign to trigger reprocessing
+            cur.execute("""
+                UPDATE campaigns SET updated_at = NOW() WHERE id = %s
+            """, (campaign_id,))
+            
+            conn.commit()
+        
+        return {'recovered': len(stuck)}
+        
+    except Exception as e:
+        logger.error(f"Recovery task error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+# ============================================================
+# WARMUP & MAINTENANCE TASKS
+# ============================================================
+@shared_task
+def update_warmup_stats():
+    """Update IP warmup statistics"""
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        # Get all IPs
+        cur.execute("SELECT DISTINCT source_ip FROM emails WHERE source_ip IS NOT NULL")
+        ips = [row[0] for row in cur.fetchall() if row[0]]
+        
+        for ip in ips:
+            # Count today's sends
+            key = f"ip_daily:{ip}:{datetime.now().strftime('%Y%m%d')}"
+            count = int(redis_client.get(key) or 0)
+            
+            # Update warmup table
+            cur.execute("""
+                INSERT INTO ip_warmup (ip_address, emails_sent_today, last_updated)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (ip_address) 
+                DO UPDATE SET emails_sent_today = %s, last_updated = NOW()
+            """, (ip, count, count))
+        
+        conn.commit()
+        return {'ips_updated': len(ips)}
+        
+    except Exception as e:
+        logger.error(f"Warmup stats error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+@shared_task
+def cleanup_old_failures():
+    """Clean up old failed email records (daily)"""
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        # Delete failed emails older than 30 days
+        cur.execute("""
+            DELETE FROM emails 
+            WHERE status = 'failed' 
+            AND created_at < NOW() - INTERVAL '30 days'
+        """)
+        deleted = cur.rowcount
+        conn.commit()
+        
+        logger.info(f"🧹 Cleaned up {deleted} old failed emails")
+        return {'deleted': deleted}
+        
+    except Exception as e:
+        logger.error(f"Cleanup error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+@shared_task
+def sync_tracking_to_db():
+    """Sync tracking data from Redis to database"""
+    try:
+        # Get all tracking keys
+        keys = redis_client.keys('tracking:*')
+        synced = 0
+        
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        for key in keys[:1000]:  # Process max 1000 per cycle
+            try:
+                data = redis_client.hgetall(key)
+                if not data:
+                    continue
+                
+                email_id = key.replace('tracking:', '')
+                
+                # Update email record
+                if data.get('opened'):
+                    cur.execute("""
+                        UPDATE emails 
+                        SET opened_at = COALESCE(opened_at, %s),
+                            open_count = COALESCE(open_count, 0) + 1
+                        WHERE id = %s
+                    """, (data.get('opened_at'), email_id))
+                
+                if data.get('clicked'):
+                    cur.execute("""
+                        UPDATE emails 
+                        SET clicked_at = COALESCE(clicked_at, %s),
+                            click_count = COALESCE(click_count, 0) + 1
+                        WHERE id = %s
+                    """, (data.get('clicked_at'), email_id))
+                
+                synced += 1
+                redis_client.delete(key)
+                
+            except Exception as e:
+                continue
+        
+        conn.commit()
+        put_conn(conn)
+        
+        return {'synced': synced}
+        
+    except Exception as e:
+        logger.error(f"Tracking sync error: {e}")
+        return {'error': str(e)}
+
+
+# ============================================================
+# UTILITY FUNCTIONS
+# ============================================================
+@shared_task
+def send_transactional_email(to_email, subject, html_body, from_email=None, from_name=None):
+    """
+    Convenience function to send a transactional email.
+    Automatically uses high priority queue.
+    """
+    email_data = {
+        'from': from_email or 'noreply@sendbaba.com',
+        'from_name': from_name or 'SendBaba',
+        'to': to_email,
+        'subject': subject,
+        'html_body': html_body,
+        'text_body': ''
+    }
+    
+    return send_single_email.delay(email_data)
+
+
+# ============================================================
+# BOUNCE PROCESSING TASKS
+# ============================================================
+
+@shared_task
+def process_bounce(email_id: str, error_message: str, org_id: str = None):
+    """
+    Process a bounced email.
+    Called when an email send fails.
+    """
+    try:
+        from app.services.bounce_service import get_bounce_service
+        
+        service = get_bounce_service()
+        result = service.process_bounce(
+            email_id=email_id,
+            error_message=error_message,
+            org_id=org_id
+        )
+        
+        logger.info(f"Bounce processed: {result}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Process bounce task error: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+@shared_task
+def check_campaign_bounce_rates():
+    """
+    Check bounce rates for all active campaigns.
+    Runs every 5 minutes.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        from app.services.bounce_service import get_bounce_service
+        service = get_bounce_service()
+        
+        # Get all sending campaigns
+        cur.execute("""
+            SELECT id, organization_id, name
+            FROM campaigns
+            WHERE status = 'sending'
+        """)
+        campaigns = cur.fetchall()
+        
+        paused = 0
+        for campaign_id, org_id, name in campaigns:
+            should_pause, rate = service.check_bounce_rate(campaign_id, org_id)
+            if should_pause:
+                paused += 1
+                logger.warning(f"Campaign '{name}' paused - bounce rate: {rate:.2%}")
+        
+        logger.info(f"Checked {len(campaigns)} campaigns, paused {paused}")
+        return {'checked': len(campaigns), 'paused': paused}
+        
+    except Exception as e:
+        logger.error(f"Check bounce rates error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+@shared_task
+def sync_suppression_to_redis():
+    """
+    Sync suppression list from PostgreSQL to Redis.
+    Ensures fast lookups during email sending.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    
+    try:
+        # Get all suppressed emails
+        cur.execute("SELECT email FROM suppression_list")
+        rows = cur.fetchall()
+        
+        # Add to global suppression set
+        for row in rows:
+            redis_client.sadd('suppression:global', row[0])
+        
+        logger.info(f"Synced {len(rows)} suppressions to Redis")
+        return {'synced': len(rows)}
+        
+    except Exception as e:
+        logger.error(f"Sync suppression error: {e}")
+        return {'error': str(e)}
+    finally:
+        put_conn(conn)
+
+
+@shared_task
+def process_webhook_retries():
+    """
+    Process failed webhook deliveries.
+    Retries webhooks up to 3 times with exponential backoff.
+    """
+    try:
+        import requests
+        
+        # Get all orgs with pending retries
+        keys = redis_client.keys('webhook_retry:*')
+        processed = 0
+        
+        for key in keys:
+            # Get up to 10 pending webhooks per org
+            for _ in range(10):
+                item = redis_client.rpop(key)
+                if not item:
+                    break
+                
+                data = json.loads(item)
+                attempts = data.get('attempts', 0)
+                
+                if attempts >= 3:
+                    logger.warning(f"Webhook max retries reached: {data['url']}")
+                    continue
+                
+                try:
+                    response = requests.post(
+                        data['url'],
+                        json=data['payload'],
+                        headers={
+                            'Content-Type': 'application/json',
+                            'X-SendBaba-Signature': data['signature'],
+                            'X-SendBaba-Event': data['event']
+                        },
+                        timeout=10
+                    )
+                    
+                    if response.status_code < 400:
+                        processed += 1
+                        logger.info(f"Webhook retry successful: {data['url']}")
+                    else:
+                        # Re-queue with incremented attempts
+                        data['attempts'] = attempts + 1
+                        redis_client.lpush(key, json.dumps(data))
+                        
+                except requests.RequestException as e:
+                    # Re-queue with incremented attempts
+                    data['attempts'] = attempts + 1
+                    redis_client.lpush(key, json.dumps(data))
+        
+        return {'processed': processed}
+        
+    except Exception as e:
+        logger.error(f"Process webhook retries error: {e}")
+        return {'error': str(e)}
+
+
+# Add to beat schedule
+# These are added via celery_app.conf.beat_schedule in celery_app.py

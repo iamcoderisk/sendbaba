@@ -28,6 +28,7 @@
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        display: block;
     }
     .option-card:hover {
         border-color: #F97316;
@@ -50,10 +51,6 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
-    .option-card.disabled {
-        opacity: 0.6;
-        pointer-events: none;
     }
     
     .option-icon {
@@ -92,6 +89,9 @@
         background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
     }
     .option-icon.recent i { color: #6366f1; }
+    .option-card:hover .option-icon.recent {
+        background: linear-gradient(135deg, #c7d2fe, #a5b4fc);
+    }
     
     .option-title {
         font-size: 20px;
@@ -103,16 +103,6 @@
         font-size: 14px;
         color: #6b7280;
         line-height: 1.5;
-    }
-    .coming-soon {
-        display: inline-block;
-        margin-top: 12px;
-        padding: 6px 14px;
-        background: #f3f4f6;
-        color: #6b7280;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
     }
     
     .back-link {
@@ -164,14 +154,13 @@
             <p class="option-desc">Choose from professionally designed templates to get started quickly</p>
         </a>
         
-        <div class="option-card disabled">
+        <a href="/dashboard/campaigns/recent" class="option-card">
             <div class="option-icon recent">
                 <i class="fas fa-history"></i>
             </div>
             <h3 class="option-title">Recent Emails</h3>
             <p class="option-desc">Reuse a previous campaign design as your starting point</p>
-            <span class="coming-soon">Coming Soon</span>
-        </div>
+        </a>
     </div>
     
     <div class="back-link">
