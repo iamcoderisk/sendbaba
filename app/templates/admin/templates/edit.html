@@ -1,0 +1,371 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Edit Template - {{ template.name }}{% endblock %}
+{% block page_title %}{% endblock %}
+{% block page_subtitle %}{% endblock %}
+
+{% block extra_css %}
+<style>
+:root { --primary: #F97316; --border: #e2e8f0; --text: #1e293b; --muted: #64748b; }
+* { box-sizing: border-box; }
+.editor-wrap { display: flex; height: calc(100vh - 60px); background: #e5e7eb; margin: -24px; }
+
+.side { width: 300px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+.side-head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.side-head a { color: var(--muted); }
+.side-head h2 { font-size: 14px; margin: 0; }
+.side-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+.fg { margin-bottom: 14px; }
+.fl { display: block; font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+.fi { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; }
+.fi:focus { outline: none; border-color: var(--primary); }
+.fi-sel { appearance: none; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E") no-repeat right 10px center; padding-right: 30px; }
+.fi-ta { min-height: 80px; resize: vertical; }
+
+.check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.check-row input { width: 18px; height: 18px; }
+.check-row label { font-size: 13px; }
+
+.sec-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 20px 0 10px; display: flex; align-items: center; gap: 6px; }
+.sec-title i { color: var(--primary); }
+
+.canvas-area { flex: 1; display: flex; flex-direction: column; }
+.canvas-head { height: 52px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.canvas-head-l, .canvas-head-r { display: flex; align-items: center; gap: 8px; }
+
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn-out { background: white; border: 1px solid var(--border); color: var(--text); }
+.btn-out:hover { background: #f8fafc; }
+.btn-pri { background: var(--primary); color: white; }
+.btn-pri:hover { background: #EA580C; }
+.btn-suc { background: #10B981; color: white; }
+
+.status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.status.saved { color: #10B981; }
+.status.dirty { color: #F59E0B; }
+
+.canvas-body { flex: 1; overflow: auto; padding: 24px; display: flex; justify-content: center; }
+.canvas-frame { width: 620px; }
+.canvas-content { background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); min-height: 400px; }
+
+.props { width: 260px; background: white; border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+.props-head { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.props-head h3 { font-size: 13px; margin: 0; display: flex; align-items: center; gap: 6px; }
+.props-head h3 i { color: var(--primary); }
+.props-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+/* Reuse design.html styles for editor */
+.e-sec, .e-el { position: relative; border: 2px solid transparent; transition: border-color 0.15s; cursor: pointer; }
+.e-sec:hover { border-color: rgba(249,115,22,0.4); }
+.e-sec.sel { border-color: var(--primary); }
+.e-el:hover { border-color: rgba(99,102,241,0.4); }
+.e-el.sel { border-color: #6366F1; }
+
+.sec-bar, .el-bar { position: absolute; background: #1e293b; border-radius: 4px; padding: 2px; display: none; gap: 1px; z-index: 10; }
+.sec-bar { top: -26px; left: 50%; transform: translateX(-50%); }
+.el-bar { top: -22px; right: 2px; background: #6366F1; }
+.e-sec:hover .sec-bar, .e-sec.sel .sec-bar, .e-el:hover .el-bar, .e-el.sel .el-bar { display: flex; }
+.sec-bar button, .el-bar button { background: none; border: none; color: rgba(255,255,255,0.7); padding: 3px 5px; cursor: pointer; border-radius: 2px; font-size: 9px; }
+.sec-bar button:hover, .el-bar button:hover { background: rgba(255,255,255,0.1); color: white; }
+
+.blocks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+.blk { background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 8px 4px; text-align: center; cursor: pointer; }
+.blk:hover { border-color: var(--primary); background: #FFF7ED; }
+.blk i { font-size: 16px; color: var(--primary); display: block; margin-bottom: 3px; }
+.blk span { font-size: 9px; font-weight: 500; }
+
+.empty-c { padding: 50px; text-align: center; color: var(--muted); }
+.empty-c i { font-size: 36px; opacity: 0.3; margin-bottom: 10px; }
+.drop-z { padding: 20px; text-align: center; color: var(--muted); font-size: 11px; border: 2px dashed var(--border); border-radius: 5px; margin: 10px; }
+
+.pg { margin-bottom: 14px; }
+.pg-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.pr { margin-bottom: 8px; }
+.pl { font-size: 11px; font-weight: 500; margin-bottom: 3px; display: block; }
+.pi { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; }
+.pi:focus { outline: none; border-color: var(--primary); }
+.pi-clr { display: flex; gap: 5px; align-items: center; }
+.pi-clr input[type="color"] { width: 24px; height: 24px; border: 1px solid var(--border); border-radius: 3px; padding: 1px; cursor: pointer; }
+
+.toast-wrap { position: fixed; bottom: 16px; right: 16px; z-index: 9999; }
+.toast { background: #1e293b; color: white; padding: 10px 16px; border-radius: 6px; font-size: 13px; display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.toast.success { background: #10B981; }
+.toast.error { background: #EF4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-wrap">
+    <!-- SIDEBAR -->
+    <div class="side">
+        <div class="side-head">
+            <a href="{{ url_for('admin_templates.list_templates') }}"><i class="fas fa-arrow-left"></i></a>
+            <h2>Edit Template</h2>
+        </div>
+        <div class="side-body">
+            <div class="sec-title"><i class="fas fa-info-circle"></i> Template Info</div>
+            <div class="fg">
+                <label class="fl">Template Name *</label>
+                <input type="text" class="fi" id="inpName" value="{{ template.name }}" placeholder="Template name">
+            </div>
+            <div class="fg">
+                <label class="fl">Category</label>
+                <select class="fi fi-sel" id="inpCategory">
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if template.category == cat %}selected{% endif %}>{{ cat|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="fg">
+                <label class="fl">Subject Line</label>
+                <input type="text" class="fi" id="inpSubject" value="{{ template.subject or '' }}" placeholder="Default subject">
+            </div>
+            <div class="fg">
+                <label class="fl">Description</label>
+                <textarea class="fi fi-ta" id="inpDesc" placeholder="Template description">{{ template.description or '' }}</textarea>
+            </div>
+            <div class="fg">
+                <label class="fl">Icon Class</label>
+                <input type="text" class="fi" id="inpIcon" value="{{ template.icon or 'fas fa-envelope' }}" placeholder="fas fa-envelope">
+            </div>
+            
+            <div class="sec-title"><i class="fas fa-toggle-on"></i> Settings</div>
+            <div class="check-row">
+                <input type="checkbox" id="chkActive" {% if template.is_active != False %}checked{% endif %}>
+                <label for="chkActive">Active (visible to users)</label>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="chkHidden" {% if template.is_hidden %}checked{% endif %}>
+                <label for="chkHidden">Hidden from template gallery</label>
+            </div>
+            
+            <div class="sec-title"><i class="fas fa-th-large"></i> Add Blocks</div>
+            <div class="blocks">
+                <div class="blk" onclick="addBlk('heading')"><i class="fas fa-heading"></i><span>Heading</span></div>
+                <div class="blk" onclick="addBlk('text')"><i class="fas fa-align-left"></i><span>Text</span></div>
+                <div class="blk" onclick="addBlk('image')"><i class="fas fa-image"></i><span>Image</span></div>
+                <div class="blk" onclick="addBlk('button')"><i class="fas fa-square"></i><span>Button</span></div>
+                <div class="blk" onclick="addBlk('divider')"><i class="fas fa-minus"></i><span>Divider</span></div>
+                <div class="blk" onclick="addBlk('spacer')"><i class="fas fa-arrows-alt-v"></i><span>Spacer</span></div>
+                <div class="blk" onclick="addBlk('logo')"><i class="fas fa-star"></i><span>Logo</span></div>
+                <div class="blk" onclick="addBlk('social')"><i class="fas fa-share-alt"></i><span>Social</span></div>
+                <div class="blk" onclick="addBlk('footer')"><i class="fas fa-shoe-prints"></i><span>Footer</span></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CANVAS -->
+    <div class="canvas-area">
+        <div class="canvas-head">
+            <div class="canvas-head-l">
+                <div class="status" id="status"><i class="fas fa-check-circle"></i> Saved</div>
+            </div>
+            <div class="canvas-head-r">
+                <button class="btn btn-out" onclick="preview()"><i class="fas fa-eye"></i> Preview</button>
+                <button class="btn btn-pri" onclick="save()"><i class="fas fa-save"></i> Save Template</button>
+                <a href="{{ url_for('admin_templates.list_templates') }}" class="btn btn-out">Back to List</a>
+            </div>
+        </div>
+        <div class="canvas-body">
+            <div class="canvas-frame">
+                <div class="canvas-content" id="canvas"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PROPERTIES -->
+    <div class="props">
+        <div class="props-head"><h3 id="pTitle"><i class="fas fa-sliders-h"></i> Properties</h3></div>
+        <div class="props-body" id="pBody">
+            <div style="text-align:center;padding:30px;color:#64748b;">
+                <i class="fas fa-mouse-pointer" style="font-size:28px;opacity:0.3;margin-bottom:10px;display:block;"></i>
+                <p style="font-size:12px;">Click any element to edit</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<!-- Preview Modal -->
+<div id="modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
+    <div style="background:white;border-radius:10px;max-width:700px;width:95%;max-height:90vh;overflow:hidden;">
+        <div style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+            <h3 style="margin:0;font-size:15px;">Preview</h3>
+            <button onclick="closeModal()" style="background:none;border:none;font-size:20px;cursor:pointer;">&times;</button>
+        </div>
+        <div style="padding:16px;overflow:auto;max-height:calc(90vh - 60px);">
+            <iframe id="prevFrame" style="width:100%;min-height:500px;border:1px solid #e2e8f0;border-radius:6px;"></iframe>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const TPL_ID = '{{ template.uuid or template.id }}';
+const DEF = {globalStyles:{backgroundColor:'#f4f4f5',contentBackgroundColor:'#ffffff',fontFamily:'Arial,sans-serif',maxWidth:'620px',defaultButtonColor:'#F97316'},sections:[]};
+let D = {% if template.json_data %}{{ template.json_data|tojson|safe }}{% else %}JSON.parse(JSON.stringify(DEF)){% endif %};
+let selSec = null, selEl = null, dirty = false;
+
+document.addEventListener('DOMContentLoaded', () => { render(); });
+
+function render() {
+    const c = document.getElementById('canvas'), g = D.globalStyles || {};
+    if (!D.sections?.length) {
+        c.innerHTML = `<div class="empty-c"><i class="fas fa-plus-circle"></i><h3>Start Building</h3><p>Click blocks on the left to add content</p><button class="btn btn-pri" onclick="addSec()"><i class="fas fa-plus"></i> Add Section</button></div>`;
+        return;
+    }
+    let h = `<div style="background:${g.backgroundColor||'#f4f4f5'};padding:16px;"><div style="max-width:${g.maxWidth||'620px'};margin:0 auto;background:${g.contentBackgroundColor||'#fff'};border-radius:6px;overflow:hidden;font-family:${g.fontFamily||'Arial,sans-serif'};">`;
+    D.sections.forEach((s,i) => h += renderSec(s,i));
+    h += '</div></div>';
+    c.innerHTML = h;
+}
+
+function renderSec(s,i) {
+    const st = css(s.style||{}), sel = selSec === s.id;
+    let h = `<div class="e-sec ${sel?'sel':''}" data-sid="${s.id}" style="${st}" onclick="clickSec('${s.id}',event)">`;
+    h += `<div class="sec-bar"><button onclick="mvSecUp('${s.id}',event)"><i class="fas fa-arrow-up"></i></button><button onclick="mvSecDn('${s.id}',event)"><i class="fas fa-arrow-down"></i></button><button onclick="delSec('${s.id}',event)"><i class="fas fa-trash"></i></button></div>`;
+    if (s.elements?.length) s.elements.forEach((e,j) => h += renderEl(e,s.id,j));
+    else h += `<div class="drop-z"><i class="fas fa-plus"></i> Add blocks</div>`;
+    return h + '</div>';
+}
+
+function renderEl(el,sid,i) {
+    const sel = selEl === el.id, g = D.globalStyles||{}, st = el.style||{};
+    let cnt = '';
+    switch(el.type) {
+        case 'heading': const lv=el.level||'h2',fs={h1:'26px',h2:'22px',h3:'18px',h4:'16px'}[lv]||'18px'; cnt=`<${lv} style="margin:0;font-size:${fs};${css(st)}">${el.text||'Heading'}</${lv}>`; break;
+        case 'text': cnt=`<p style="margin:0;line-height:1.6;${css(st)}">${el.text||'Text content...'}</p>`; break;
+        case 'image': cnt=`<img src="${el.src||'https://via.placeholder.com/580x220'}" style="max-width:100%;display:block;${css(st)}">`; break;
+        case 'button': const bg=st.backgroundColor||g.defaultButtonColor||'#F97316'; cnt=`<div style="text-align:${el.align||'center'};padding:6px 0;"><a href="#" style="display:inline-block;background:${bg};color:${st.color||'#fff'};padding:10px 24px;border-radius:${st.borderRadius||'5px'};text-decoration:none;font-weight:600;">${el.text||'Button'}</a></div>`; break;
+        case 'divider': cnt=`<hr style="border:none;border-top:1px solid #e2e8f0;margin:14px 0;">`; break;
+        case 'spacer': cnt=`<div style="height:${st.height||'20px'};"></div>`; break;
+        case 'logo': cnt=`<div style="text-align:center;"><img src="${el.src||'https://via.placeholder.com/140x40'}" style="max-height:45px;"></div>`; break;
+        case 'social': cnt=`<div style="text-align:center;padding:6px 0;">Social icons</div>`; break;
+        case 'footer': cnt=`<div style="text-align:center;font-size:11px;color:#64748b;"><p style="margin:0 0 5px;">${el.text||'© Company'}</p><a href="#" style="color:#64748b;">Unsubscribe</a></div>`; break;
+        default: cnt=`<div style="padding:10px;background:#fee;color:#c00;">Unknown: ${el.type}</div>`;
+    }
+    return `<div class="e-el ${sel?'sel':''}" data-eid="${el.id}" onclick="clickEl('${el.id}','${sid}',event)"><div class="el-bar"><button onclick="mvElUp('${el.id}','${sid}',event)"><i class="fas fa-arrow-up"></i></button><button onclick="mvElDn('${el.id}','${sid}',event)"><i class="fas fa-arrow-down"></i></button><button onclick="delEl('${el.id}','${sid}',event)"><i class="fas fa-trash"></i></button></div>${cnt}</div>`;
+}
+
+function css(o) { return Object.entries(o).map(([k,v])=>`${k.replace(/([A-Z])/g,'-$1').toLowerCase()}:${v}`).join(';'); }
+function genId() { return 'i'+Math.random().toString(36).substr(2,7); }
+function findSec(id) { return D.sections?.find(s=>s.id===id); }
+function findSecIdx(id) { return D.sections?.findIndex(s=>s.id===id)??-1; }
+
+function clickSec(id,e) { e?.stopPropagation(); if(e?.target.closest('.e-el'))return; selSec=id; selEl=null; render(); showSecP(id); }
+function clickEl(eid,sid,e) { e?.stopPropagation(); selEl=eid; selSec=sid; render(); showElP(eid,sid); }
+
+function addSec() { if(!D.sections)D.sections=[]; const ns={id:genId(),style:{padding:'20px'},elements:[]}; D.sections.push(ns); selSec=ns.id; markDirty(); render(); }
+function addBlk(type) { let sid=selSec; if(!sid&&D.sections?.length)sid=D.sections[D.sections.length-1].id; if(!sid){addSec();sid=selSec;} addEl(sid,type); }
+function addEl(sid,type) { const sec=findSec(sid); if(!sec)return; if(!sec.elements)sec.elements=[]; const g=D.globalStyles||{}; const ne={heading:{id:genId(),type,level:'h2',text:'New Heading',style:{}},text:{id:genId(),type,text:'Enter text here...',style:{}},image:{id:genId(),type,src:'https://via.placeholder.com/580x220',style:{}},button:{id:genId(),type,text:'Click Here',link:'#',align:'center',style:{backgroundColor:g.defaultButtonColor||'#F97316'}},divider:{id:genId(),type,style:{}},spacer:{id:genId(),type,style:{height:'20px'}},logo:{id:genId(),type,src:'https://via.placeholder.com/140x40',style:{}},social:{id:genId(),type,networks:[],style:{}},footer:{id:genId(),type,text:'© {{company_name}}',unsubscribeUrl:'{{unsubscribe_url}}',style:{}}}[type]||{id:genId(),type,style:{}}; sec.elements.push(ne); selEl=ne.id; markDirty(); render(); showElP(ne.id,sid); }
+
+function mvSecUp(id,e){e?.stopPropagation();const i=findSecIdx(id);if(i>0){[D.sections[i],D.sections[i-1]]=[D.sections[i-1],D.sections[i]];markDirty();render();}}
+function mvSecDn(id,e){e?.stopPropagation();const i=findSecIdx(id);if(i<D.sections.length-1){[D.sections[i],D.sections[i+1]]=[D.sections[i+1],D.sections[i]];markDirty();render();}}
+function delSec(id,e){e?.stopPropagation();if(confirm('Delete section?')){const i=findSecIdx(id);D.sections.splice(i,1);selSec=null;selEl=null;markDirty();render();}}
+
+function mvElUp(eid,sid,e){e?.stopPropagation();const sec=findSec(sid),i=sec?.elements?.findIndex(x=>x.id===eid);if(i>0){[sec.elements[i],sec.elements[i-1]]=[sec.elements[i-1],sec.elements[i]];markDirty();render();}}
+function mvElDn(eid,sid,e){e?.stopPropagation();const sec=findSec(sid),i=sec?.elements?.findIndex(x=>x.id===eid);if(i<sec.elements.length-1){[sec.elements[i],sec.elements[i+1]]=[sec.elements[i+1],sec.elements[i]];markDirty();render();}}
+function delEl(eid,sid,e){e?.stopPropagation();const sec=findSec(sid),i=sec?.elements?.findIndex(x=>x.id===eid);if(i>=0){sec.elements.splice(i,1);selEl=null;markDirty();render();}}
+
+function showSecP(id) {
+    const s=findSec(id);if(!s)return;const st=s.style||{};
+    document.getElementById('pTitle').innerHTML='<i class="fas fa-layer-group"></i> Section';
+    document.getElementById('pBody').innerHTML=`<div class="pg"><div class="pg-title">Background</div><div class="pr"><label class="pl">Color</label><div class="pi-clr"><input type="color" value="${st.backgroundColor||'#ffffff'}" onchange="updSecSt('${id}','backgroundColor',this.value)"><input type="text" class="pi" value="${st.backgroundColor||'#ffffff'}" style="flex:1" onchange="updSecSt('${id}','backgroundColor',this.value)"></div></div></div><div class="pg"><div class="pg-title">Spacing</div><div class="pr"><label class="pl">Padding</label><input type="text" class="pi" value="${st.padding||'20px'}" onchange="updSecSt('${id}','padding',this.value)"></div></div>`;
+}
+
+function showElP(eid,sid) {
+    const sec=findSec(sid),el=sec?.elements?.find(e=>e.id===eid);if(!el)return;
+    const nm={heading:'Heading',text:'Text',image:'Image',button:'Button',divider:'Divider',spacer:'Spacer',logo:'Logo',social:'Social',footer:'Footer'};
+    document.getElementById('pTitle').innerHTML=`<i class="fas fa-edit"></i> ${nm[el.type]||el.type}`;
+    const st=el.style||{},g=D.globalStyles||{};
+    let h='';
+    switch(el.type){
+        case'heading':h=`<div class="pg"><div class="pg-title">Content</div><div class="pr"><label class="pl">Text</label><input type="text" class="pi" value="${esc(el.text||'')}" oninput="updEl('${eid}','${sid}','text',this.value)"></div><div class="pr"><label class="pl">Level</label><select class="pi" onchange="updEl('${eid}','${sid}','level',this.value)">${['h1','h2','h3','h4'].map(l=>`<option value="${l}" ${el.level===l?'selected':''}>${l.toUpperCase()}</option>`).join('')}</select></div></div><div class="pg"><div class="pg-title">Style</div><div class="pr"><label class="pl">Color</label><div class="pi-clr"><input type="color" value="${st.color||'#1e293b'}" onchange="updElSt('${eid}','${sid}','color',this.value)"><input type="text" class="pi" value="${st.color||'#1e293b'}" style="flex:1" onchange="updElSt('${eid}','${sid}','color',this.value)"></div></div></div>`;break;
+        case'text':h=`<div class="pg"><div class="pg-title">Content</div><div class="pr"><label class="pl">Text</label><textarea class="pi" style="min-height:80px;" oninput="updEl('${eid}','${sid}','text',this.value)">${esc(el.text||'')}</textarea></div></div><div class="pg"><div class="pg-title">Style</div><div class="pr"><label class="pl">Color</label><div class="pi-clr"><input type="color" value="${st.color||'#374151'}" onchange="updElSt('${eid}','${sid}','color',this.value)"><input type="text" class="pi" value="${st.color||'#374151'}" style="flex:1" onchange="updElSt('${eid}','${sid}','color',this.value)"></div></div><div class="pr"><label class="pl">Font Size</label><input type="text" class="pi" value="${st.fontSize||'16px'}" onchange="updElSt('${eid}','${sid}','fontSize',this.value)"></div></div>`;break;
+        case'image':h=`<div class="pg"><div class="pg-title">Image</div><div class="pr"><label class="pl">URL</label><input type="text" class="pi" value="${el.src||''}" onchange="updEl('${eid}','${sid}','src',this.value)"></div><div class="pr"><label class="pl">Alt</label><input type="text" class="pi" value="${el.alt||''}" onchange="updEl('${eid}','${sid}','alt',this.value)"></div><div class="pr"><label class="pl">Link</label><input type="text" class="pi" value="${el.link||''}" onchange="updEl('${eid}','${sid}','link',this.value)"></div></div>`;break;
+        case'button':h=`<div class="pg"><div class="pg-title">Button</div><div class="pr"><label class="pl">Text</label><input type="text" class="pi" value="${esc(el.text||'')}" oninput="updEl('${eid}','${sid}','text',this.value)"></div><div class="pr"><label class="pl">Link</label><input type="text" class="pi" value="${el.link||''}" onchange="updEl('${eid}','${sid}','link',this.value)"></div></div><div class="pg"><div class="pg-title">Colors</div><div class="pr"><label class="pl">Background</label><div class="pi-clr"><input type="color" value="${st.backgroundColor||g.defaultButtonColor||'#F97316'}" onchange="updElSt('${eid}','${sid}','backgroundColor',this.value)"><input type="text" class="pi" value="${st.backgroundColor||g.defaultButtonColor||'#F97316'}" style="flex:1" onchange="updElSt('${eid}','${sid}','backgroundColor',this.value)"></div></div><div class="pr"><label class="pl">Text</label><div class="pi-clr"><input type="color" value="${st.color||'#ffffff'}" onchange="updElSt('${eid}','${sid}','color',this.value)"><input type="text" class="pi" value="${st.color||'#ffffff'}" style="flex:1" onchange="updElSt('${eid}','${sid}','color',this.value)"></div></div></div>`;break;
+        case'spacer':h=`<div class="pg"><div class="pg-title">Size</div><div class="pr"><label class="pl">Height</label><input type="text" class="pi" value="${st.height||'20px'}" onchange="updElSt('${eid}','${sid}','height',this.value)"></div></div>`;break;
+        case'logo':h=`<div class="pg"><div class="pg-title">Logo</div><div class="pr"><label class="pl">Image URL</label><input type="text" class="pi" value="${el.src||''}" onchange="updEl('${eid}','${sid}','src',this.value)"></div><div class="pr"><label class="pl">Link</label><input type="text" class="pi" value="${el.link||''}" onchange="updEl('${eid}','${sid}','link',this.value)"></div></div>`;break;
+        case'footer':h=`<div class="pg"><div class="pg-title">Footer</div><div class="pr"><label class="pl">Text</label><input type="text" class="pi" value="${esc(el.text||'')}" oninput="updEl('${eid}','${sid}','text',this.value)"></div><div class="pr"><label class="pl">Unsubscribe URL</label><input type="text" class="pi" value="${el.unsubscribeUrl||'{{unsubscribe_url}}'}" onchange="updEl('${eid}','${sid}','unsubscribeUrl',this.value)"></div></div>`;break;
+        default:h='<p style="color:#64748b;font-size:12px;">No properties</p>';
+    }
+    document.getElementById('pBody').innerHTML=h;
+}
+
+function updEl(eid,sid,k,v){const sec=findSec(sid),el=sec?.elements?.find(e=>e.id===eid);if(el){el[k]=v;markDirty();render();}}
+function updElSt(eid,sid,k,v){const sec=findSec(sid),el=sec?.elements?.find(e=>e.id===eid);if(el){if(!el.style)el.style={};el.style[k]=v;markDirty();render();}}
+function updSecSt(sid,k,v){const sec=findSec(sid);if(sec){if(!sec.style)sec.style={};sec.style[k]=v;markDirty();render();}}
+
+function markDirty(){dirty=true;document.getElementById('status').innerHTML='<i class="fas fa-circle"></i> Unsaved';document.getElementById('status').className='status dirty';}
+
+async function save() {
+    document.getElementById('status').innerHTML='<i class="fas fa-spinner fa-spin"></i> Saving...';
+    const html = buildHTML();
+    try {
+        const r = await fetch('/admin/templates/api/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                template_id: TPL_ID,
+                name: document.getElementById('inpName').value,
+                category: document.getElementById('inpCategory').value,
+                subject: document.getElementById('inpSubject').value,
+                description: document.getElementById('inpDesc').value,
+                icon: document.getElementById('inpIcon').value,
+                html_content: html,
+                json_data: D,
+                is_active: document.getElementById('chkActive').checked,
+                is_hidden: document.getElementById('chkHidden').checked
+            })
+        });
+        if (r.ok) {
+            dirty = false;
+            document.getElementById('status').innerHTML='<i class="fas fa-check-circle"></i> Saved';
+            document.getElementById('status').className='status saved';
+            toast('Template saved!', 'success');
+        } else throw new Error();
+    } catch(e) {
+        document.getElementById('status').innerHTML='<i class="fas fa-times-circle"></i> Error';
+        toast('Save failed', 'error');
+    }
+}
+
+function buildHTML() {
+    const g = D.globalStyles||{};
+    let h = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;background:${g.backgroundColor||'#f4f4f5'};font-family:${g.fontFamily||'Arial,sans-serif'};"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:16px;"><table style="max-width:${g.maxWidth||'620px'};width:100%;background:${g.contentBackgroundColor||'#fff'};border-radius:6px;overflow:hidden;">`;
+    (D.sections||[]).forEach(s => {
+        h += `<tr><td style="${css(s.style||{})}">`;
+        (s.elements||[]).forEach(el => h += buildElHTML(el));
+        h += `</td></tr>`;
+    });
+    h += `</table></td></tr></table></body></html>`;
+    return h;
+}
+
+function buildElHTML(el) {
+    const g=D.globalStyles||{},st=el.style||{};
+    switch(el.type){
+        case'heading':return`<${el.level||'h2'} style="margin:0;${css(st)}">${el.text||''}</${el.level||'h2'}>`;
+        case'text':return`<p style="margin:0;line-height:1.6;${css(st)}">${el.text||''}</p>`;
+        case'image':const img=`<img src="${el.src||''}" alt="${el.alt||''}" style="max-width:100%;display:block;${css(st)}">`;return el.link?`<a href="${el.link}">${img}</a>`:img;
+        case'button':return`<div style="text-align:${el.align||'center'};padding:6px 0;"><a href="${el.link||'#'}" style="display:inline-block;background:${st.backgroundColor||g.defaultButtonColor||'#F97316'};color:${st.color||'#fff'};padding:10px 24px;border-radius:${st.borderRadius||'5px'};text-decoration:none;font-weight:600;">${el.text||''}</a></div>`;
+        case'divider':return`<hr style="border:none;border-top:1px solid #e2e8f0;margin:14px 0;">`;
+        case'spacer':return`<div style="height:${st.height||'20px'};"></div>`;
+        case'logo':return`<div style="text-align:center;"><img src="${el.src||''}" style="max-height:45px;"></div>`;
+        case'social':return`<div style="text-align:center;padding:6px 0;">${(el.networks||[]).map(n=>`<a href="${n.url}" style="margin:0 5px;"><img src="${n.icon}" width="24"></a>`).join('')}</div>`;
+        case'footer':return`<div style="text-align:center;font-size:11px;color:#64748b;"><p style="margin:0 0 5px;">${el.text||''}</p><a href="${el.unsubscribeUrl||'#'}" style="color:#64748b;">Unsubscribe</a></div>`;
+        default:return'';
+    }
+}
+
+function preview() { document.getElementById('prevFrame').srcdoc = buildHTML(); document.getElementById('modal').style.display = 'flex'; }
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+function toast(msg,type='success') { const t = document.createElement('div'); t.className=`toast ${type}`; t.innerHTML=`<i class="fas fa-${type==='success'?'check-circle':'times-circle'}"></i> ${msg}`; document.getElementById('toasts').appendChild(t); setTimeout(()=>t.remove(),3000); }
+
+document.addEventListener('keydown', e => { if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();} });
+</script>
+{% endblock %}

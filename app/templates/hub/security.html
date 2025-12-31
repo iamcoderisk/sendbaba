@@ -1,0 +1,428 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'security' %}
+
+{% block title %}Security Center{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Security Center</h1>
+            <p class="text-gray-500">Monitor security, manage API keys, and configure access</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="runSecurityScan()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+                <i class="fas fa-shield-alt mr-2"></i>Run Security Scan
+            </button>
+            <button onclick="openAPIKeyModal()" class="px-4 py-2 gradient-primary text-white rounded-xl card-shadow">
+                <i class="fas fa-key mr-2"></i>New API Key
+            </button>
+        </div>
+    </div>
+
+    <!-- Security Score -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div class="lg:col-span-1 bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Security Score</h3>
+            <div class="relative">
+                <div id="security-score-chart" style="height: 200px;"></div>
+            </div>
+            <p class="text-center text-gray-500 mt-2">Your security is <span class="font-bold text-green-600">Strong</span></p>
+        </div>
+        <div class="lg:col-span-3 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-green-500">
+                <div class="flex items-center justify-between mb-2">
+                    <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                </div>
+                <p class="text-2xl font-bold text-gray-800" id="passed-checks">0</p>
+                <p class="text-sm text-gray-500">Passed Checks</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-yellow-500">
+                <div class="flex items-center justify-between mb-2">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+                </div>
+                <p class="text-2xl font-bold text-gray-800" id="warnings">0</p>
+                <p class="text-sm text-gray-500">Warnings</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-red-500">
+                <div class="flex items-center justify-between mb-2">
+                    <i class="fas fa-times-circle text-red-500 text-xl"></i>
+                </div>
+                <p class="text-2xl font-bold text-gray-800" id="critical-issues">0</p>
+                <p class="text-sm text-gray-500">Critical Issues</p>
+            </div>
+            <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-blue-500">
+                <div class="flex items-center justify-between mb-2">
+                    <i class="fas fa-user-shield text-blue-500 text-xl"></i>
+                </div>
+                <p class="text-2xl font-bold text-gray-800" id="active-sessions">0</p>
+                <p class="text-sm text-gray-500">Active Sessions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Checks -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <h3 class="font-bold text-gray-800 mb-4">Security Checklist</h3>
+        <div class="space-y-3" id="security-checklist">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <!-- API Keys Management -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">API Keys</h3>
+            <button onclick="openAPIKeyModal()" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100">
+                <i class="fas fa-plus mr-1"></i>Create Key
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">Name</th>
+                        <th class="pb-3 font-medium">Key</th>
+                        <th class="pb-3 font-medium">Scopes</th>
+                        <th class="pb-3 font-medium">Last Used</th>
+                        <th class="pb-3 font-medium">Created</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="api-keys-table" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- IP Whitelist/Blacklist -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">IP Whitelist</h3>
+                <button onclick="addIPWhitelist()" class="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100">
+                    <i class="fas fa-plus mr-1"></i>Add IP
+                </button>
+            </div>
+            <div class="space-y-2" id="ip-whitelist">
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-globe text-green-500"></i>
+                        <span class="font-mono">0.0.0.0/0</span>
+                    </div>
+                    <span class="text-xs text-gray-500">All IPs (default)</span>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">IP Blacklist</h3>
+                <button onclick="addIPBlacklist()" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100">
+                    <i class="fas fa-plus mr-1"></i>Block IP
+                </button>
+            </div>
+            <div class="space-y-2" id="ip-blacklist">
+                <p class="text-gray-500 text-center py-4">No blocked IPs</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Security Events -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">Recent Security Events</h3>
+            <a href="/hub/audit-log" class="text-sm text-blue-600 hover:text-blue-700">View All</a>
+        </div>
+        <div class="space-y-3" id="security-events">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <!-- Two-Factor Settings -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <h3 class="font-bold text-gray-800 mb-4">Authentication Settings</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-mobile-alt text-green-500"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-800">Two-Factor Authentication</h4>
+                            <p class="text-xs text-green-500">Enabled for all admins</p>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-clock text-blue-500"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-800">Session Timeout</h4>
+                            <p class="text-xs text-gray-500">Auto-logout after 30 min</p>
+                        </div>
+                    </div>
+                    <select class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm">
+                        <option>15 min</option>
+                        <option selected>30 min</option>
+                        <option>1 hour</option>
+                        <option>4 hours</option>
+                    </select>
+                </div>
+            </div>
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-key text-purple-500"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-800">Password Policy</h4>
+                            <p class="text-xs text-gray-500">Min 12 chars, special char</p>
+                        </div>
+                    </div>
+                    <button class="text-blue-600 text-sm hover:text-blue-700">Configure</button>
+                </div>
+            </div>
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-ban text-red-500"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium text-gray-800">Brute Force Protection</h4>
+                            <p class="text-xs text-green-500">Active - 5 attempts max</p>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" checked class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Key Modal -->
+<div id="api-key-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeAPIKeyModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl card-shadow-lg p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Create API Key</h3>
+            <button onclick="closeAPIKeyModal()" class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-400"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Key Name</label>
+                <input type="text" id="key-name" placeholder="e.g., Production API Key" class="w-full border border-gray-200 rounded-xl p-3">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Scopes</label>
+                <div class="space-y-2">
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" checked class="rounded">
+                        <span>Read emails</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" checked class="rounded">
+                        <span>Send emails</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" class="rounded">
+                        <span>Manage campaigns</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" class="rounded">
+                        <span>Manage contacts</span>
+                    </label>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Expires</label>
+                <select class="w-full border border-gray-200 rounded-xl p-3">
+                    <option>Never</option>
+                    <option>30 days</option>
+                    <option>90 days</option>
+                    <option>1 year</option>
+                </select>
+            </div>
+            <button onclick="createAPIKey()" class="w-full py-3 gradient-primary text-white rounded-xl font-medium">
+                Create API Key
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let securityScoreChart;
+
+function initCharts() {
+    securityScoreChart = new ApexCharts(document.querySelector("#security-score-chart"), {
+        chart: { type: 'radialBar', height: 200 },
+        series: [92],
+        colors: ['#10b981'],
+        plotOptions: {
+            radialBar: {
+                hollow: { size: '70%' },
+                dataLabels: {
+                    name: { show: false },
+                    value: { fontSize: '32px', fontWeight: 'bold', formatter: v => v + '/100' }
+                }
+            }
+        }
+    });
+    securityScoreChart.render();
+}
+
+async function fetchSecurityData() {
+    try {
+        const res = await fetch('/hub/api/security');
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('passed-checks').textContent = data.passed_checks;
+            document.getElementById('warnings').textContent = data.warnings;
+            document.getElementById('critical-issues').textContent = data.critical_issues;
+            document.getElementById('active-sessions').textContent = data.active_sessions;
+            
+            renderSecurityChecklist(data.checklist);
+            renderAPIKeys(data.api_keys);
+            renderSecurityEvents(data.events);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderSecurityChecklist(items) {
+    const container = document.getElementById('security-checklist');
+    container.innerHTML = items.map(item => `
+        <div class="flex items-center justify-between p-4 rounded-xl ${
+            item.status === 'passed' ? 'bg-green-50' :
+            item.status === 'warning' ? 'bg-yellow-50' :
+            'bg-red-50'
+        }">
+            <div class="flex items-center space-x-3">
+                <i class="fas ${
+                    item.status === 'passed' ? 'fa-check-circle text-green-500' :
+                    item.status === 'warning' ? 'fa-exclamation-triangle text-yellow-500' :
+                    'fa-times-circle text-red-500'
+                }"></i>
+                <div>
+                    <p class="font-medium text-gray-800">${item.name}</p>
+                    <p class="text-sm text-gray-500">${item.description}</p>
+                </div>
+            </div>
+            ${item.status !== 'passed' ? `
+                <button onclick="fixIssue('${item.id}')" class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm hover:bg-gray-50">
+                    Fix Now
+                </button>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function renderAPIKeys(keys) {
+    const tbody = document.getElementById('api-keys-table');
+    tbody.innerHTML = keys.map(key => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50">
+            <td class="py-3 font-medium">${key.name}</td>
+            <td class="py-3 font-mono text-xs">
+                <span class="bg-gray-100 px-2 py-1 rounded">${key.key_preview}</span>
+            </td>
+            <td class="py-3">
+                <div class="flex flex-wrap gap-1">
+                    ${key.scopes.map(s => `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">${s}</span>`).join('')}
+                </div>
+            </td>
+            <td class="py-3 text-gray-500">${key.last_used || 'Never'}</td>
+            <td class="py-3 text-gray-500">${key.created}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${key.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}">
+                    ${key.active ? 'Active' : 'Revoked'}
+                </span>
+            </td>
+            <td class="py-3">
+                <button onclick="revokeKey('${key.id}')" class="text-red-500 hover:text-red-700" title="Revoke">
+                    <i class="fas fa-ban"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderSecurityEvents(events) {
+    const container = document.getElementById('security-events');
+    container.innerHTML = events.map(e => `
+        <div class="flex items-start space-x-4 p-3 rounded-xl hover:bg-gray-50">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center ${
+                e.type === 'login' ? 'bg-blue-100' :
+                e.type === 'failed_login' ? 'bg-red-100' :
+                e.type === 'api_access' ? 'bg-green-100' :
+                'bg-gray-100'
+            }">
+                <i class="fas ${
+                    e.type === 'login' ? 'fa-sign-in-alt text-blue-500' :
+                    e.type === 'failed_login' ? 'fa-times text-red-500' :
+                    e.type === 'api_access' ? 'fa-code text-green-500' :
+                    'fa-shield-alt text-gray-500'
+                }"></i>
+            </div>
+            <div class="flex-1">
+                <p class="font-medium text-gray-800">${e.message}</p>
+                <p class="text-sm text-gray-500">${e.user} • ${e.ip} • ${e.time}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function openAPIKeyModal() { document.getElementById('api-key-modal').classList.remove('hidden'); }
+function closeAPIKeyModal() { document.getElementById('api-key-modal').classList.add('hidden'); }
+
+function createAPIKey() {
+    const name = document.getElementById('key-name').value;
+    if (!name) { showToast('Please enter a key name', 'error'); return; }
+    
+    // Generate a sample key
+    const key = 'sb_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
+    closeAPIKeyModal();
+    alert(`Your API Key (copy it now, it won't be shown again):\n\n${key}`);
+    fetchSecurityData();
+}
+
+function revokeKey(id) {
+    if (!confirm('Revoke this API key? This cannot be undone.')) return;
+    showToast('API key revoked', 'success');
+    fetchSecurityData();
+}
+
+function addIPWhitelist() { showToast('Add IP to whitelist', 'info'); }
+function addIPBlacklist() { showToast('Add IP to blacklist', 'info'); }
+function fixIssue(id) { showToast('Fixing issue...', 'info'); }
+function runSecurityScan() { showToast('Running security scan...', 'info'); }
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    fetchSecurityData();
+});
+</script>
+{% endblock %}

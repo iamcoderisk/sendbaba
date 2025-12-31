@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SendBaba Mail</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#f86d31">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root{--c:#f86d31;--cd:#e55a1f;--cl:#fff5f0;--t:#1e293b;--t2:#64748b;--b:#e2e8f0;--bg:#f8fafc;--h:#f1f5f9;--r:10px}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);overflow:hidden;height:100vh}
+        
+        /* ===== DESKTOP LAYOUT ===== */
+        @media(min-width:769px){
+            .mobile-only{display:none!important}
+            .app{display:grid;grid-template-columns:64px 260px 400px 1fr;height:100vh;transition:grid-template-columns .3s}
+            .app.collapsed{grid-template-columns:64px 0 400px 1fr}
+            .app.collapsed .side{width:0;padding:0;overflow:hidden}
+            
+            /* Nav */
+            .nav{background:linear-gradient(180deg,#1e293b,#0f172a);display:flex;flex-direction:column;align-items:center;padding:12px 0}
+            .nav-toggle{width:40px;height:40px;border:none;background:rgba(255,255,255,.1);color:#94a3b8;font-size:16px;cursor:pointer;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;transition:all .2s}
+            .nav-toggle:hover{background:rgba(255,255,255,.2);color:#fff}
+            .nav-logo{width:42px;height:42px;background:linear-gradient(135deg,var(--c),var(--cd));border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;margin-bottom:20px;cursor:pointer;box-shadow:0 4px 12px rgba(248,109,49,.3)}
+            .nav-btn{width:44px;height:44px;border:none;background:transparent;color:#94a3b8;font-size:18px;cursor:pointer;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:4px;position:relative;transition:all .2s}
+            .nav-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+            .nav-btn.on{background:rgba(248,109,49,.15);color:var(--c)}
+            .nav-btn.on::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:24px;background:var(--c);border-radius:0 2px 2px 0}
+            .nav-btn span{position:absolute;left:52px;background:#334155;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;white-space:nowrap;opacity:0;visibility:hidden;z-index:999;transition:all .15s}
+            .nav-btn:hover span{opacity:1;visibility:visible}
+            .nav-space{flex:1}
+            
+            /* Sidebar */
+            .side{background:#fff;border-right:1px solid var(--b);display:flex;flex-direction:column;transition:all .3s;overflow:hidden}
+            .side-head{padding:16px 20px;border-bottom:1px solid var(--b)}
+            .side-head h2{font-size:18px;font-weight:700;color:var(--t)}
+            .side-body{flex:1;overflow-y:auto;padding:8px 0}
+            .folder{display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;color:var(--t2);font-size:14px;font-weight:500;border-left:3px solid transparent;transition:all .15s}
+            .folder:hover{background:var(--h);color:var(--t)}
+            .folder.on{background:var(--cl);color:var(--c);border-left-color:var(--c)}
+            .folder i{width:18px;text-align:center}
+            .folder .cnt{margin-left:auto;background:var(--h);font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px}
+            .folder.on .cnt{background:var(--c);color:#fff}
+            .side-lbl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;padding:16px 20px 8px}
+            .side-badge{margin:16px;padding:12px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:var(--r);display:flex;align-items:center;gap:10px}
+            .side-badge i{color:#059669;font-size:18px}
+            .side-badge strong{color:#065f46;display:block;font-size:13px}
+            .side-badge span{color:#047857;font-size:11px}
+            .side-ad{margin:16px;padding:12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:var(--r);cursor:pointer}
+            .side-ad small{font-size:9px;font-weight:700;color:#b45309;text-transform:uppercase}
+            .side-ad strong{display:block;font-size:13px;color:#92400e;margin:3px 0}
+            .side-ad span{font-size:11px;color:#a16207}
+            
+            /* List */
+            .list{background:#fff;border-right:1px solid var(--b);display:flex;flex-direction:column}
+            .list-head{padding:16px 20px;border-bottom:1px solid var(--b)}
+            .list-head h1{font-size:20px;font-weight:700;color:var(--t);margin-bottom:14px}
+            .search{display:flex;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:var(--r);padding:10px 14px;gap:8px}
+            .search:focus-within{border-color:var(--c);box-shadow:0 0 0 3px rgba(248,109,49,.1)}
+            .search i{color:var(--t2)}
+            .search input{flex:1;border:none;background:transparent;font-size:14px;outline:none;color:var(--t)}
+            .toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--b);background:var(--bg)}
+            .toolbar-left{display:flex;gap:6px}
+            .tool-btn{width:32px;height:32px;border:1px solid var(--b);background:#fff;border-radius:6px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:all .15s}
+            .tool-btn:hover{background:var(--h);color:var(--t)}
+            .toolbar-right{font-size:12px;color:var(--t2)}
+            .emails{flex:1;overflow-y:auto}
+            .email{display:flex;align-items:flex-start;gap:12px;padding:14px 20px;border-bottom:1px solid var(--b);cursor:pointer;transition:all .15s}
+            .email:hover{background:var(--h)}
+            .email.on{background:var(--cl);border-left:3px solid var(--c)}
+            .email.new{background:#fffbeb}
+            .email.new .email-from{font-weight:700}
+            .email-chk input{width:16px;height:16px;accent-color:var(--c);cursor:pointer;margin-top:2px}
+            .email-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:15px;flex-shrink:0}
+            .email-body{flex:1;min-width:0}
+            .email-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+            .email-from{font-size:14px;font-weight:600;color:var(--t)}
+            .email-time{font-size:11px;color:var(--t2);display:flex;align-items:center;gap:6px}
+            .email-star{cursor:pointer;color:#d1d5db;transition:color .2s}
+            .email-star:hover,.email-star.on{color:#fbbf24}
+            .email-subj{font-size:13px;color:var(--t);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .email-prev{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .email-tag{display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#166534;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;margin-top:4px}
+            
+            /* View */
+            .view{background:#fff;display:flex;flex-direction:column}
+            .view-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--t2)}
+            .view-empty i{font-size:56px;opacity:.2;margin-bottom:12px}
+            .view-head{padding:20px 24px;border-bottom:1px solid var(--b)}
+            .view-subj{font-size:22px;font-weight:700;color:var(--t);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+            .view-subj .enc-badge{background:#dcfce7;color:#166534;font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:4px}
+            .view-meta{display:flex;align-items:center;gap:14px}
+            .view-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px}
+            .view-info{flex:1}
+            .view-info strong{display:block;font-size:15px;color:var(--t)}
+            .view-info span{font-size:13px;color:var(--t2)}
+            .view-btns{display:flex;gap:6px}
+            .view-btn{width:36px;height:36px;border:1px solid var(--b);background:#fff;border-radius:6px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:all .15s}
+            .view-btn:hover{background:var(--h);color:var(--t)}
+            .view-btn.primary{background:var(--c);color:#fff;border-color:var(--c)}
+            .view-btn.primary:hover{background:var(--cd)}
+            .view-body{flex:1;overflow-y:auto;padding:24px}
+            .view-content{font-size:14px;line-height:1.7;color:var(--t)}
+            
+            /* Reply Box */
+            .reply-box{border-top:1px solid var(--b);padding:16px 24px;background:var(--bg)}
+            .reply-box textarea{width:100%;min-height:100px;border:1px solid var(--b);border-radius:var(--r);padding:12px;font-size:14px;resize:none;outline:none;font-family:inherit}
+            .reply-box textarea:focus{border-color:var(--c)}
+            .reply-actions{display:flex;align-items:center;gap:8px;margin-top:12px}
+            
+            /* FAB */
+            .fab{position:fixed;bottom:28px;right:28px;height:52px;padding:0 24px;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:26px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(248,109,49,.4);display:flex;align-items:center;gap:8px;transition:all .2s;z-index:100}
+            .fab:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(248,109,49,.5)}
+            
+            /* Loading */
+            .loading{padding:40px 20px;text-align:center;color:var(--t2)}
+            .loading i{font-size:36px;opacity:.3;margin-bottom:12px;display:block}
+        }
+        
+        /* ===== MOBILE LAYOUT ===== */
+        @media(max-width:768px){
+            .desktop-only{display:none!important}
+            body{padding-bottom:70px}
+            .app{display:block;height:calc(100vh - 70px)}
+            .nav,.side,.view{display:none}
+            .list{display:flex;flex-direction:column;height:100%}
+            .list-head{padding:16px;border-bottom:1px solid var(--b);position:sticky;top:0;background:#fff;z-index:10}
+            .list-head h1{font-size:20px;font-weight:700;color:var(--t);margin-bottom:12px}
+            .search{display:flex;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:var(--r);padding:10px 14px;gap:8px}
+            .search input{flex:1;border:none;background:transparent;font-size:14px;outline:none}
+            .toolbar{display:none}
+            .emails{flex:1;overflow-y:auto}
+            .email{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--b)}
+            .email-chk{display:none}
+            .email-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px}
+            .email-body{flex:1;min-width:0}
+            .email-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+            .email-from{font-size:14px;font-weight:600;color:var(--t)}
+            .email-time{font-size:11px;color:var(--t2)}
+            .email-star{display:none}
+            .email-subj{font-size:13px;color:var(--t);margin-bottom:3px}
+            .email-prev{font-size:12px;color:var(--t2)}
+            .email-tag{display:inline-flex;align-items:center;gap:4px;background:#dcfce7;color:#166534;font-size:10px;padding:2px 6px;border-radius:4px;margin-top:4px}
+            .loading{padding:40px;text-align:center;color:var(--t2)}
+            .loading i{font-size:36px;opacity:.3;margin-bottom:12px;display:block}
+            
+            /* Mobile Nav */
+            .mob-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e5e7eb;display:flex;justify-content:space-around;padding:8px 0;padding-bottom:calc(8px + env(safe-area-inset-bottom));z-index:1000}
+            .mob-nav button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 12px;border:none;background:transparent;color:#6b7280;font-size:10px;cursor:pointer}
+            .mob-nav button i{font-size:20px}
+            .mob-nav button.on{color:var(--c)}
+            
+            /* Mobile FAB */
+            .fab{position:fixed;bottom:90px;right:20px;width:56px;height:56px;padding:0;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 20px rgba(248,109,49,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+            .fab span{display:none}
+        }
+        
+        /* ===== COMPOSE MODAL ===== */
+        .compose-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+        .compose-overlay.show{display:flex}
+        .compose-box{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,.25)}
+        .compose-head{padding:16px 20px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--c),var(--cd))}
+        .compose-head h3{color:#fff;font-size:18px;font-weight:600}
+        .compose-head button{width:32px;height:32px;border:none;background:rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .compose-body{flex:1;overflow-y:auto;padding:20px}
+        .compose-field{margin-bottom:16px}
+        .compose-field label{display:block;font-size:12px;font-weight:600;color:var(--t2);margin-bottom:6px}
+        .compose-field input,.compose-field textarea{width:100%;border:1px solid var(--b);border-radius:8px;padding:12px;font-size:14px;outline:none;font-family:inherit}
+        .compose-field input:focus,.compose-field textarea:focus{border-color:var(--c)}
+        .compose-field textarea{min-height:200px;resize:none}
+        .compose-to-wrap{position:relative}
+        .compose-suggestions{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--b);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;display:none;z-index:10}
+        .compose-suggestions.show{display:block}
+        .compose-suggestion{padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px}
+        .compose-suggestion:hover{background:var(--h)}
+        .compose-suggestion .av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600}
+        
+        /* Text Formatting Toolbar */
+        .format-bar{display:flex;align-items:center;gap:4px;padding:10px;border-bottom:1px solid var(--b);flex-wrap:wrap}
+        .format-btn{width:32px;height:32px;border:none;background:transparent;color:var(--t2);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+        .format-btn:hover{background:var(--h);color:var(--t)}
+        .format-btn.on{background:var(--cl);color:var(--c)}
+        .format-sep{width:1px;height:20px;background:var(--b);margin:0 4px}
+        
+        /* Audio Recorder */
+        .audio-recorder{display:none;align-items:center;gap:12px;padding:12px;background:var(--bg);border-radius:var(--r);margin-bottom:16px}
+        .audio-recorder.show{display:flex}
+        .audio-recorder .rec-indicator{width:12px;height:12px;background:#ef4444;border-radius:50%;animation:pulse 1s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        .audio-recorder .rec-time{font-size:14px;font-weight:600;color:var(--t);min-width:50px}
+        .audio-recorder .rec-wave{flex:1;height:30px;background:var(--h);border-radius:4px;overflow:hidden}
+        .audio-btn{width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+        .audio-btn.pause{background:#f59e0b;color:#fff}
+        .audio-btn.done{background:#10b981;color:#fff}
+        .audio-btn.cancel{background:#ef4444;color:#fff}
+        
+        /* Templates */
+        .templates-btn{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--h);border:none;border-radius:6px;color:var(--t2);font-size:13px;cursor:pointer}
+        .templates-btn:hover{background:var(--b)}
+        .templates-dropdown{position:absolute;bottom:100%;left:0;background:#fff;border:1px solid var(--b);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);width:250px;max-height:300px;overflow-y:auto;display:none;margin-bottom:8px}
+        .templates-dropdown.show{display:block}
+        .template-item{padding:12px;cursor:pointer;border-bottom:1px solid var(--b)}
+        .template-item:last-child{border-bottom:none}
+        .template-item:hover{background:var(--h)}
+        .template-item strong{display:block;font-size:13px;color:var(--t);margin-bottom:4px}
+        .template-item span{font-size:12px;color:var(--t2)}
+        
+        /* Compose Footer */
+        .compose-foot{padding:16px 20px;border-top:1px solid var(--b);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+        .compose-foot-left{display:flex;align-items:center;gap:8px;flex:1}
+        .compose-foot-right{display:flex;align-items:center;gap:8px}
+        .attach-btn{width:36px;height:36px;border:1px solid var(--b);background:#fff;border-radius:8px;color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .attach-btn:hover{background:var(--h)}
+        .send-btn-wrap{position:relative}
+        .send-btn{height:40px;padding:0 20px;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .2s}
+        .send-btn:hover{box-shadow:0 4px 12px rgba(248,109,49,.4)}
+        .send-dropdown{position:absolute;bottom:100%;right:0;background:#fff;border:1px solid var(--b);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.1);width:160px;display:none;margin-bottom:8px;overflow:hidden}
+        .send-btn-wrap:hover .send-dropdown{display:block}
+        .send-option{padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--t)}
+        .send-option:hover{background:var(--h)}
+        .send-option i{width:16px;color:var(--t2)}
+        
+        /* Mobile Compose */
+        @media(max-width:768px){
+            .compose-overlay{padding:0;align-items:flex-end}
+            .compose-box{max-width:100%;max-height:95vh;border-radius:20px 20px 0 0}
+            .send-dropdown{display:none!important}
+        }
+        
+        /* ===== TOOLS OVERLAY (Mobile) ===== */
+        .tools-overlay{position:fixed;inset:0;z-index:2000;display:none}
+        .tools-overlay.show{display:block}
+        .tools-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+        .tools-sheet{position:absolute;bottom:70px;left:16px;right:16px;background:#fff;border-radius:20px;overflow:hidden;max-height:70vh;display:flex;flex-direction:column}
+        .tools-head{padding:16px 20px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+        .tools-head h3{font-size:18px;font-weight:600;color:var(--t)}
+        .tools-head button{width:32px;height:32px;border:none;background:var(--h);border-radius:50%;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center}
+        .tools-body{flex:1;overflow-y:auto;padding:16px}
+        .tools-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+        .tools-item{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 8px;cursor:pointer;border-radius:12px}
+        .tools-item:active{background:var(--h)}
+        .tools-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px}
+        .tools-item span{font-size:11px;color:var(--t);text-align:center}
+        .tools-section{margin-top:20px}
+        .tools-section-title{font-size:12px;font-weight:600;color:var(--t2);text-transform:uppercase;margin-bottom:12px}
+        .tools-list-item{display:flex;align-items:center;gap:14px;padding:12px;background:#fff;border:1px solid var(--b);border-radius:12px;margin-bottom:8px;cursor:pointer}
+        .tools-list-item:active{background:var(--h)}
+        .tools-list-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+        .tools-list-item span{flex:1;font-size:14px;color:var(--t)}
+        .tools-list-item i.fa-chevron-right{color:var(--t2);font-size:12px}
+        
+        /* ===== EMAIL VIEW PANEL (Mobile) ===== */
+        .email-view-panel{position:fixed;inset:0;background:#fff;z-index:1500;transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
+        .email-view-panel.show{transform:translateX(0)}
+        .email-view-head{padding:12px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:#fff;z-index:10}
+        .email-view-back{width:36px;height:36px;border:none;background:transparent;color:var(--t);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+        .email-view-actions{margin-left:auto;display:flex;gap:8px}
+        .email-view-body{flex:1;overflow-y:auto;padding:16px}
+        .email-view-footer{padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:8px}
+        .email-view-footer button{flex:1;height:44px;border:1px solid var(--b);background:#fff;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--t)}
+        .email-view-footer button.primary{background:var(--c);color:#fff;border-color:var(--c)}
+        
+        /* ===== PWA INSTALL BANNER ===== */
+        .pwa-banner{position:fixed;top:0;left:0;right:0;background:linear-gradient(135deg,var(--c),var(--cd));color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;transform:translateY(-100%);transition:transform .3s;z-index:3000}
+        .pwa-banner.show{transform:translateY(0)}
+        .pwa-banner i{font-size:24px}
+        .pwa-banner-text{flex:1}
+        .pwa-banner-text strong{display:block;font-size:14px}
+        .pwa-banner-text span{font-size:12px;opacity:.9}
+        .pwa-banner button{padding:8px 16px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer}
+        .pwa-banner .install-btn{background:#fff;color:var(--c)}
+        .pwa-banner .close-btn{background:rgba(255,255,255,.2);color:#fff}
+    </style>
+</head>
+<body>
+    <!-- PWA Install Banner -->
+    <div class="pwa-banner" id="pwa-banner">
+        <i class="fas fa-mobile-alt"></i>
+        <div class="pwa-banner-text">
+            <strong>Install SendBaba</strong>
+            <span>Add to home screen for quick access</span>
+        </div>
+        <button class="install-btn" onclick="installPWA()">Install</button>
+        <button class="close-btn" onclick="hidePWABanner()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="app" id="app">
+        <!-- Desktop Nav -->
+        <nav class="nav desktop-only">
+            <button class="nav-toggle" onclick="toggleSidebar()" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+            <div class="nav-logo"><i class="fas fa-paper-plane"></i></div>
+            <button class="nav-btn on" onclick="switchView('mail')"><i class="fas fa-envelope"></i><span>Mail</span></button>
+            <button class="nav-btn" onclick="switchView('calendar')"><i class="fas fa-calendar-alt"></i><span>Calendar</span></button>
+            <button class="nav-btn" onclick="switchView('contacts')"><i class="fas fa-address-book"></i><span>Contacts</span></button>
+            <button class="nav-btn" onclick="switchView('files')"><i class="fas fa-folder"></i><span>Files</span></button>
+            <button class="nav-btn" onclick="openChat()"><i class="fas fa-comments"></i><span>Chat</span></button>
+            <div class="nav-space"></div>
+            <button class="nav-btn" onclick="location.href='/settings'"><i class="fas fa-cog"></i><span>Settings</span></button>
+        </nav>
+        
+        <!-- Desktop Sidebar -->
+        <aside class="side desktop-only">
+            <div class="side-head"><h2>Mail</h2></div>
+            <div class="side-body">
+                <div class="folder on" onclick="loadFolder('INBOX',this)"><i class="fas fa-inbox"></i> Inbox <span class="cnt" id="inbox-cnt">0</span></div>
+                <div class="folder" onclick="loadFolder('Starred',this)"><i class="fas fa-star"></i> Starred</div>
+                <div class="folder" onclick="loadFolder('Sent',this)"><i class="fas fa-paper-plane"></i> Sent</div>
+                <div class="folder" onclick="loadFolder('Drafts',this)"><i class="fas fa-file-alt"></i> Drafts</div>
+                <div class="folder" onclick="loadFolder('Spam',this)"><i class="fas fa-exclamation-triangle"></i> Spam</div>
+                <div class="folder" onclick="loadFolder('Trash',this)"><i class="fas fa-trash"></i> Trash</div>
+                <div class="side-lbl">Labels</div>
+                <div class="folder" onclick="loadFolder('Work',this)"><i class="fas fa-circle" style="color:#3b82f6;font-size:8px"></i> Work</div>
+                <div class="folder" onclick="loadFolder('Personal',this)"><i class="fas fa-circle" style="color:#10b981;font-size:8px"></i> Personal</div>
+                <div class="side-badge"><i class="fas fa-shield-alt"></i><div><strong>E2E Encrypted</strong><span>Your emails are secure</span></div></div>
+                <div class="side-ad"><small>Sponsored</small><strong>🚀 Grow Your Business</strong><span>Advertise with SendBaba</span></div>
+            </div>
+        </aside>
+        
+        <!-- Email List -->
+        <section class="list">
+            <div class="list-head">
+                <h1 id="list-title">Inbox</h1>
+                <div class="search"><i class="fas fa-search"></i><input type="text" placeholder="Search emails..." onkeyup="searchEmails(this.value)"></div>
+            </div>
+            <div class="toolbar desktop-only">
+                <div class="toolbar-left">
+                    <button class="tool-btn" onclick="selectAll()"><i class="far fa-square"></i></button>
+                    <button class="tool-btn" onclick="refresh()"><i class="fas fa-sync-alt"></i></button>
+                    <button class="tool-btn"><i class="fas fa-archive"></i></button>
+                    <button class="tool-btn"><i class="fas fa-trash"></i></button>
+                </div>
+                <div class="toolbar-right"><span id="email-count">0 emails</span></div>
+            </div>
+            <div class="emails" id="email-list">
+                <div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>
+            </div>
+        </section>
+        
+        <!-- Email View (Desktop) -->
+        <section class="view desktop-only" id="email-view">
+            <div class="view-empty"><i class="fas fa-envelope-open-text"></i><p>Select an email to read</p></div>
+        </section>
+    </div>
+    
+    <!-- FAB -->
+    <button class="fab" onclick="openCompose()"><i class="fas fa-pen"></i><span>Compose</span></button>
+    
+    <!-- Mobile Nav -->
+    <nav class="mob-nav mobile-only">
+        <button class="on" onclick="mobileTab('inbox',this)"><i class="fas fa-inbox"></i><span>Inbox</span></button>
+        <button onclick="mobileTab('sent',this)"><i class="fas fa-paper-plane"></i><span>Sent</span></button>
+        <button onclick="mobileTab('drafts',this)"><i class="fas fa-file-alt"></i><span>Drafts</span></button>
+        <button onclick="openTools()"><i class="fas fa-th-large"></i><span>Tools</span></button>
+        <button onclick="mobileTab('settings',this)"><i class="fas fa-cog"></i><span>Settings</span></button>
+    </nav>
+    
+    <!-- Compose Modal -->
+    <div class="compose-overlay" id="compose-overlay" onclick="if(event.target===this)closeCompose()">
+        <div class="compose-box">
+            <div class="compose-head">
+                <h3>New Message</h3>
+                <button onclick="closeCompose()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="format-bar">
+                <button class="format-btn" onclick="formatText('bold')" title="Bold"><i class="fas fa-bold"></i></button>
+                <button class="format-btn" onclick="formatText('italic')" title="Italic"><i class="fas fa-italic"></i></button>
+                <button class="format-btn" onclick="formatText('underline')" title="Underline"><i class="fas fa-underline"></i></button>
+                <div class="format-sep"></div>
+                <button class="format-btn" onclick="formatText('insertUnorderedList')" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+                <button class="format-btn" onclick="formatText('insertOrderedList')" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                <div class="format-sep"></div>
+                <button class="format-btn" onclick="formatText('justifyLeft')" title="Align Left"><i class="fas fa-align-left"></i></button>
+                <button class="format-btn" onclick="formatText('justifyCenter')" title="Align Center"><i class="fas fa-align-center"></i></button>
+                <button class="format-btn" onclick="formatText('justifyRight')" title="Align Right"><i class="fas fa-align-right"></i></button>
+                <div class="format-sep"></div>
+                <button class="format-btn" onclick="insertLink()" title="Insert Link"><i class="fas fa-link"></i></button>
+                <button class="format-btn" onclick="toggleRecorder()" title="Voice Message"><i class="fas fa-microphone"></i></button>
+            </div>
+            <div class="compose-body">
+                <div class="audio-recorder" id="audio-recorder">
+                    <div class="rec-indicator"></div>
+                    <div class="rec-time" id="rec-time">0:00</div>
+                    <div class="rec-wave" id="rec-wave"></div>
+                    <button class="audio-btn pause" onclick="pauseRecording()" title="Pause"><i class="fas fa-pause"></i></button>
+                    <button class="audio-btn done" onclick="doneRecording()" title="Done"><i class="fas fa-check"></i></button>
+                    <button class="audio-btn cancel" onclick="cancelRecording()" title="Cancel"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="compose-field">
+                    <label>To</label>
+                    <div class="compose-to-wrap">
+                        <input type="email" id="compose-to" placeholder="recipient@example.com" oninput="showSuggestions(this.value)" autocomplete="off">
+                        <div class="compose-suggestions" id="compose-suggestions"></div>
+                    </div>
+                </div>
+                <div class="compose-field">
+                    <label>Subject</label>
+                    <input type="text" id="compose-subject" placeholder="Email subject">
+                </div>
+                <div class="compose-field">
+                    <label>Message</label>
+                    <div id="compose-body" contenteditable="true" style="width:100%;min-height:200px;border:1px solid var(--b);border-radius:8px;padding:12px;font-size:14px;outline:none;overflow-y:auto" onpaste="handlePaste(event)"></div>
+                </div>
+            </div>
+            <div class="compose-foot">
+                <div class="compose-foot-left">
+                    <button class="attach-btn" onclick="attachFile()" title="Attach"><i class="fas fa-paperclip"></i></button>
+                    <button class="attach-btn" onclick="toggleRecorder()" title="Voice"><i class="fas fa-microphone"></i></button>
+                    <div style="position:relative">
+                        <button class="templates-btn" onclick="toggleTemplates()"><i class="fas fa-file-alt"></i> Templates</button>
+                        <div class="templates-dropdown" id="templates-dropdown">
+                            <div class="template-item" onclick="useTemplate('greeting')"><strong>Greeting</strong><span>Hi, hope you're doing well...</span></div>
+                            <div class="template-item" onclick="useTemplate('followup')"><strong>Follow Up</strong><span>Just following up on...</span></div>
+                            <div class="template-item" onclick="useTemplate('thankyou')"><strong>Thank You</strong><span>Thank you for your time...</span></div>
+                            <div class="template-item" onclick="useTemplate('meeting')"><strong>Meeting Request</strong><span>I'd like to schedule a meeting...</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="compose-foot-right">
+                    <div class="send-btn-wrap">
+                        <button class="send-btn" onclick="sendEmail()"><i class="fas fa-paper-plane"></i> Send</button>
+                        <div class="send-dropdown desktop-only">
+                            <div class="send-option" onclick="sendEmail()"><i class="fas fa-paper-plane"></i> Send Now</div>
+                            <div class="send-option" onclick="saveDraft()"><i class="fas fa-save"></i> Save Draft</div>
+                            <div class="send-option" onclick="discardEmail()"><i class="fas fa-trash"></i> Discard</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tools Overlay (Mobile) -->
+    <div class="tools-overlay" id="tools-overlay">
+        <div class="tools-backdrop" onclick="closeTools()"></div>
+        <div class="tools-sheet">
+            <div class="tools-head">
+                <h3>Tools</h3>
+                <button onclick="closeTools()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="tools-body">
+                <div class="tools-grid">
+                    <div class="tools-item" onclick="openChat()">
+                        <div class="tools-icon" style="background:#fff5f0;color:#f86d31"><i class="fas fa-comments"></i></div>
+                        <span>Chats</span>
+                    </div>
+                    <div class="tools-item" onclick="toolsAction('calendar')">
+                        <div class="tools-icon" style="background:#eff6ff;color:#3b82f6"><i class="fas fa-calendar-alt"></i></div>
+                        <span>Calendar</span>
+                    </div>
+                    <div class="tools-item" onclick="toolsAction('meeting')">
+                        <div class="tools-icon" style="background:#ecfdf5;color:#10b981"><i class="fas fa-video"></i></div>
+                        <span>Meeting</span>
+                    </div>
+                    <div class="tools-item" onclick="toolsAction('contacts')">
+                        <div class="tools-icon" style="background:#f5f3ff;color:#8b5cf6"><i class="fas fa-address-book"></i></div>
+                        <span>Contacts</span>
+                    </div>
+                    <div class="tools-item" onclick="closeTools();loadFolder('Starred')">
+                        <div class="tools-icon" style="background:#fef3c7;color:#f59e0b"><i class="fas fa-star"></i></div>
+                        <span>Starred</span>
+                    </div>
+                    <div class="tools-item" onclick="closeTools();loadFolder('Spam')">
+                        <div class="tools-icon" style="background:#fef2f2;color:#ef4444"><i class="fas fa-exclamation-triangle"></i></div>
+                        <span>Spam</span>
+                    </div>
+                    <div class="tools-item" onclick="closeTools();loadFolder('Trash')">
+                        <div class="tools-icon" style="background:#f3f4f6;color:#6b7280"><i class="fas fa-trash"></i></div>
+                        <span>Trash</span>
+                    </div>
+                    <div class="tools-item" onclick="toolsAction('labels')">
+                        <div class="tools-icon" style="background:#fce7f3;color:#ec4899"><i class="fas fa-tags"></i></div>
+                        <span>Labels</span>
+                    </div>
+                </div>
+                <div class="tools-section">
+                    <div class="tools-section-title">Settings</div>
+                    <div class="tools-list-item" onclick="location.href='/settings'">
+                        <div class="tools-list-icon" style="background:#fff5f0;color:#f86d31"><i class="fas fa-user"></i></div>
+                        <span>Account Settings</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="tools-list-item" onclick="location.href='/settings#security'">
+                        <div class="tools-list-icon" style="background:#eff6ff;color:#3b82f6"><i class="fas fa-shield-alt"></i></div>
+                        <span>Security</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="tools-list-item" onclick="installPWA()">
+                        <div class="tools-list-icon" style="background:#ecfdf5;color:#10b981"><i class="fas fa-download"></i></div>
+                        <span>Install App</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="tools-list-item" onclick="toggleDarkMode()">
+                        <div class="tools-list-icon" style="background:#f5f3ff;color:#8b5cf6"><i class="fas fa-moon"></i></div>
+                        <span>Dark Mode</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                    <div class="tools-list-item" onclick="location.href='/logout'" style="border-color:#fecaca">
+                        <div class="tools-list-icon" style="background:#fef2f2;color:#ef4444"><i class="fas fa-sign-out-alt"></i></div>
+                        <span style="color:#ef4444">Logout</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Email View Panel (Mobile) -->
+    <div class="email-view-panel" id="email-view-panel">
+        <div class="email-view-head">
+            <button class="email-view-back" onclick="closeEmailView()"><i class="fas fa-arrow-left"></i></button>
+            <div class="email-view-actions">
+                <button class="tool-btn" onclick="toggleStarCurrent()"><i class="far fa-star"></i></button>
+                <button class="tool-btn" onclick="deleteCurrentEmail()"><i class="fas fa-trash"></i></button>
+                <button class="tool-btn"><i class="fas fa-ellipsis-v"></i></button>
+            </div>
+        </div>
+        <div class="email-view-body" id="email-view-content"></div>
+        <div class="email-view-footer">
+            <button onclick="replyToEmail()"><i class="fas fa-reply"></i> Reply</button>
+            <button onclick="forwardEmail()"><i class="fas fa-share"></i> Forward</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== STATE =====
+        let currentFolder = 'INBOX';
+        let emails = [];
+        let contacts = [];
+        let currentEmail = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingInterval = null;
+        let recordingTime = 0;
+        const colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444'];
+        
+        // ===== PWA =====
+        let deferredPrompt;
+        
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js').catch(()=>{});
+        }
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (!localStorage.getItem('pwa-dismissed')) {
+                setTimeout(() => document.getElementById('pwa-banner').classList.add('show'), 2000);
+            }
+        });
+        
+        function installPWA() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {
+                    deferredPrompt = null;
+                    hidePWABanner();
+                });
+            } else {
+                alert('To install: Use browser menu → "Add to Home Screen" or "Install App"');
+            }
+        }
+        
+        function hidePWABanner() {
+            document.getElementById('pwa-banner').classList.remove('show');
+            localStorage.setItem('pwa-dismissed', 'true');
+        }
+        
+        // ===== INIT =====
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFolder('INBOX');
+            loadContacts();
+        });
+        
+        // ===== SIDEBAR TOGGLE =====
+        function toggleSidebar() {
+            document.getElementById('app').classList.toggle('collapsed');
+        }
+        
+        // ===== FOLDER LOADING =====
+        function loadFolder(folder, el) {
+            currentFolder = folder;
+            
+            document.querySelectorAll('.folder').forEach(f => f.classList.remove('on'));
+            if (el) el.classList.add('on');
+            
+            document.getElementById('list-title').textContent = folder === 'INBOX' ? 'Inbox' : folder;
+            document.getElementById('email-list').innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+            
+            fetch('/api/emails?folder=' + encodeURIComponent(folder) + '&limit=50', {credentials: 'same-origin'})
+            .then(r => r.json())
+            .then(data => {
+                emails = data.emails || data.messages || [];
+                renderEmails(emails);
+            })
+            .catch(() => renderEmpty());
+        }
+        
+        function renderEmails(list) {
+            const el = document.getElementById('email-list');
+            document.getElementById('email-count').textContent = list.length + ' emails';
+            if (currentFolder === 'INBOX') document.getElementById('inbox-cnt').textContent = list.length;
+            
+            if (!list.length) { renderEmpty(); return; }
+            
+            el.innerHTML = list.map((e, idx) => {
+                const name = getName(e);
+                const ini = name.charAt(0).toUpperCase() || '?';
+                const col = colors[ini.charCodeAt(0) % colors.length];
+                const unread = !e.is_read && !e.read;
+                const starred = e.is_starred || e.starred;
+                const id = e.id || e.uid || idx;
+                
+                return `<div class="email ${unread ? 'new' : ''}" onclick="openEmail('${id}')">
+                    <div class="email-chk"><input type="checkbox" onclick="event.stopPropagation()"></div>
+                    <div class="email-av" style="background:${col}">${ini}</div>
+                    <div class="email-body">
+                        <div class="email-top">
+                            <span class="email-from">${esc(name)}</span>
+                            <span class="email-time">${formatTime(e.date || e.received)} <i class="fas fa-star email-star ${starred ? 'on' : ''}" onclick="event.stopPropagation();toggleStar('${id}')"></i></span>
+                        </div>
+                        <div class="email-subj">${esc(e.subject || '(No subject)')}</div>
+                        <div class="email-prev">${esc((e.preview || e.snippet || '').substring(0, 60))}</div>
+                        ${e.encrypted || e.is_encrypted ? '<span class="email-tag"><i class="fas fa-lock"></i> E2E Encrypted</span>' : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        function renderEmpty() {
+            document.getElementById('email-list').innerHTML = `<div class="loading"><i class="fas fa-inbox"></i><p>No emails in ${currentFolder}</p></div>`;
+            document.getElementById('email-count').textContent = '0 emails';
+        }
+        
+        // ===== EMAIL VIEW =====
+        function openEmail(id) {
+            const e = emails.find(m => String(m.id) == id || String(m.uid) == id);
+            if (!e) return;
+            currentEmail = e;
+            
+            const name = getName(e);
+            const email = e.from_email || (typeof e.from === 'object' ? e.from.email : e.from) || '';
+            const ini = name.charAt(0).toUpperCase() || '?';
+            const col = colors[ini.charCodeAt(0) % colors.length];
+            const body = e.body_html || e.html || e.body || e.body_text || 'No content';
+            
+            // Desktop view
+            if (window.innerWidth > 768) {
+                document.querySelectorAll('.email').forEach(el => el.classList.remove('on'));
+                document.querySelector(`.email[onclick*="'${id}'"]`)?.classList.add('on');
+                
+                document.getElementById('email-view').innerHTML = `
+                    <div class="view-head">
+                        <h1 class="view-subj">${esc(e.subject || '(No subject)')} ${e.encrypted || e.is_encrypted ? '<span class="enc-badge"><i class="fas fa-lock"></i> E2E Encrypted</span>' : ''}</h1>
+                        <div class="view-meta">
+                            <div class="view-av" style="background:${col}">${ini}</div>
+                            <div class="view-info"><strong>${esc(name)}</strong><span>${esc(email)}</span></div>
+                            <div class="view-btns">
+                                <button class="view-btn primary" onclick="replyToEmail()"><i class="fas fa-reply"></i></button>
+                                <button class="view-btn" onclick="forwardEmail()"><i class="fas fa-share"></i></button>
+                                <button class="view-btn" onclick="deleteCurrentEmail()"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="view-body"><div class="view-content">${body}</div></div>
+                    <div class="reply-box" id="reply-box" style="display:none">
+                        <div style="font-size:13px;color:var(--t2);margin-bottom:8px">Reply to ${esc(name)}</div>
+                        <div id="reply-body" contenteditable="true" style="width:100%;min-height:100px;border:1px solid var(--b);border-radius:8px;padding:12px;font-size:14px;outline:none" placeholder="Write your reply..."></div>
+                        <div class="reply-actions">
+                            <button class="send-btn" onclick="sendReply()"><i class="fas fa-paper-plane"></i> Send Reply</button>
+                            <button class="tool-btn" onclick="document.getElementById('reply-box').style.display='none'"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>`;
+            } else {
+                // Mobile view
+                document.getElementById('email-view-content').innerHTML = `
+                    <div style="margin-bottom:16px">
+                        <h2 style="font-size:18px;font-weight:700;color:var(--t);margin-bottom:12px">${esc(e.subject || '(No subject)')}</h2>
+                        ${e.encrypted || e.is_encrypted ? '<span class="email-tag" style="margin-bottom:12px;display:inline-flex"><i class="fas fa-lock"></i> E2E Encrypted</span>' : ''}
+                        <div style="display:flex;align-items:center;gap:12px">
+                            <div class="email-av" style="background:${col}">${ini}</div>
+                            <div>
+                                <div style="font-weight:600;color:var(--t)">${esc(name)}</div>
+                                <div style="font-size:12px;color:var(--t2)">${esc(email)}</div>
+                            </div>
+                            <div style="margin-left:auto;font-size:11px;color:var(--t2)">${formatTime(e.date || e.received)}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:14px;line-height:1.7;color:var(--t)">${body}</div>`;
+                document.getElementById('email-view-panel').classList.add('show');
+            }
+            
+            // Mark as read
+            fetch('/api/emails/' + id + '/read', {method: 'POST', credentials: 'same-origin'}).catch(()=>{});
+        }
+        
+        function closeEmailView() {
+            document.getElementById('email-view-panel').classList.remove('show');
+            currentEmail = null;
+        }
+        
+        // ===== COMPOSE =====
+        function openCompose() {
+            document.getElementById('compose-overlay').classList.add('show');
+            document.getElementById('compose-to').focus();
+        }
+        
+        function closeCompose() {
+            document.getElementById('compose-overlay').classList.remove('show');
+            cancelRecording();
+        }
+        
+        function formatText(cmd) {
+            document.execCommand(cmd, false, null);
+            document.getElementById('compose-body').focus();
+        }
+        
+        function insertLink() {
+            const url = prompt('Enter URL:');
+            if (url) document.execCommand('createLink', false, url);
+        }
+        
+        function handlePaste(e) {
+            e.preventDefault();
+            const text = e.clipboardData.getData('text/plain');
+            document.execCommand('insertText', false, text);
+        }
+        
+        // ===== AUDIO RECORDING =====
+        function toggleRecorder() {
+            const recorder = document.getElementById('audio-recorder');
+            if (recorder.classList.contains('show')) {
+                cancelRecording();
+            } else {
+                startRecording();
+            }
+        }
+        
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.start();
+                
+                document.getElementById('audio-recorder').classList.add('show');
+                recordingTime = 0;
+                recordingInterval = setInterval(() => {
+                    recordingTime++;
+                    const mins = Math.floor(recordingTime / 60);
+                    const secs = recordingTime % 60;
+                    document.getElementById('rec-time').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }, 1000);
+            } catch (err) {
+                alert('Could not access microphone');
+            }
+        }
+        
+        function pauseRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.pause();
+            } else if (mediaRecorder && mediaRecorder.state === 'paused') {
+                mediaRecorder.resume();
+            }
+        }
+        
+        function doneRecording() {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, {type: 'audio/webm'});
+                    const url = URL.createObjectURL(blob);
+                    const audio = `<div style="background:var(--h);padding:12px;border-radius:8px;margin-top:8px"><audio controls src="${url}" style="width:100%"></audio></div>`;
+                    document.getElementById('compose-body').innerHTML += audio;
+                };
+                clearInterval(recordingInterval);
+                document.getElementById('audio-recorder').classList.remove('show');
+            }
+        }
+        
+        function cancelRecording() {
+            if (mediaRecorder) {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(t => t.stop());
+            }
+            clearInterval(recordingInterval);
+            document.getElementById('audio-recorder').classList.remove('show');
+            recordingTime = 0;
+        }
+        
+        // ===== CONTACTS & SUGGESTIONS =====
+        function loadContacts() {
+            fetch('/api/contacts', {credentials: 'same-origin'})
+            .then(r => r.json())
+            .then(data => { contacts = data.contacts || []; })
+            .catch(() => {});
+        }
+        
+        function showSuggestions(val) {
+            const box = document.getElementById('compose-suggestions');
+            if (val.length < 2) { box.classList.remove('show'); return; }
+            
+            const matches = contacts.filter(c => 
+                (c.email && c.email.toLowerCase().includes(val.toLowerCase())) ||
+                (c.name && c.name.toLowerCase().includes(val.toLowerCase()))
+            ).slice(0, 5);
+            
+            if (matches.length) {
+                box.innerHTML = matches.map(c => {
+                    const ini = (c.name || c.email).charAt(0).toUpperCase();
+                    const col = colors[ini.charCodeAt(0) % colors.length];
+                    return `<div class="compose-suggestion" onclick="selectContact('${c.email}')">
+                        <div class="av" style="background:${col}">${ini}</div>
+                        <div><div style="font-weight:500">${esc(c.name || c.email)}</div><div style="font-size:12px;color:var(--t2)">${esc(c.email)}</div></div>
+                    </div>`;
+                }).join('');
+                box.classList.add('show');
+            } else {
+                box.classList.remove('show');
+            }
+        }
+        
+        function selectContact(email) {
+            document.getElementById('compose-to').value = email;
+            document.getElementById('compose-suggestions').classList.remove('show');
+        }
+        
+        // ===== TEMPLATES =====
+        function toggleTemplates() {
+            document.getElementById('templates-dropdown').classList.toggle('show');
+        }
+        
+        function useTemplate(type) {
+            const templates = {
+                greeting: 'Hi,\n\nHope you\'re doing well!\n\n',
+                followup: 'Hi,\n\nJust following up on our previous conversation.\n\n',
+                thankyou: 'Hi,\n\nThank you for your time and consideration.\n\nBest regards',
+                meeting: 'Hi,\n\nI\'d like to schedule a meeting to discuss this further. Please let me know your availability.\n\nBest regards'
+            };
+            document.getElementById('compose-body').innerText = templates[type] || '';
+            document.getElementById('templates-dropdown').classList.remove('show');
+        }
+        
+        // ===== SEND EMAIL =====
+        async function sendEmail() {
+            const to = document.getElementById('compose-to').value.trim();
+            const subject = document.getElementById('compose-subject').value.trim();
+            const body = document.getElementById('compose-body').innerHTML;
+            
+            if (!to || !to.includes('@')) {
+                alert('Please enter a valid email address');
+                return;
+            }
+            
+            // Encrypt email (E2EE simulation)
+            const encryptedBody = btoa(unescape(encodeURIComponent(body))); // Base64 as placeholder
+            
+            try {
+                const res = await fetch('/api/emails/send', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        to,
+                        subject,
+                        body: body,
+                        encrypted: true,
+                        encrypted_body: encryptedBody
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('Email sent successfully!');
+                    closeCompose();
+                    document.getElementById('compose-to').value = '';
+                    document.getElementById('compose-subject').value = '';
+                    document.getElementById('compose-body').innerHTML = '';
+                } else {
+                    alert('Failed to send: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                alert('Failed to send email');
+            }
+        }
+        
+        function saveDraft() {
+            alert('Draft saved!');
+            closeCompose();
+        }
+        
+        function discardEmail() {
+            if (confirm('Discard this email?')) {
+                document.getElementById('compose-to').value = '';
+                document.getElementById('compose-subject').value = '';
+                document.getElementById('compose-body').innerHTML = '';
+                closeCompose();
+            }
+        }
+        
+        function attachFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.onchange = () => {
+                Array.from(input.files).forEach(f => {
+                    alert('Attached: ' + f.name);
+                });
+            };
+            input.click();
+        }
+        
+        // ===== REPLY =====
+        function replyToEmail() {
+            if (!currentEmail) return;
+            
+            if (window.innerWidth > 768) {
+                const replyBox = document.getElementById('reply-box');
+                if (replyBox) {
+                    replyBox.style.display = 'block';
+                    document.getElementById('reply-body').focus();
+                }
+            } else {
+                document.getElementById('compose-to').value = currentEmail.from_email || currentEmail.from || '';
+                document.getElementById('compose-subject').value = 'Re: ' + (currentEmail.subject || '');
+                closeEmailView();
+                openCompose();
+            }
+        }
+        
+        async function sendReply() {
+            const body = document.getElementById('reply-body').innerHTML;
+            if (!body.trim()) return;
+            
+            try {
+                await fetch('/api/emails/send', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        to: currentEmail.from_email || currentEmail.from,
+                        subject: 'Re: ' + (currentEmail.subject || ''),
+                        body: body,
+                        reply_to: currentEmail.id,
+                        encrypted: true
+                    })
+                });
+                alert('Reply sent!');
+                document.getElementById('reply-box').style.display = 'none';
+                document.getElementById('reply-body').innerHTML = '';
+            } catch (err) {
+                alert('Failed to send reply');
+            }
+        }
+        
+        function forwardEmail() {
+            if (!currentEmail) return;
+            document.getElementById('compose-subject').value = 'Fwd: ' + (currentEmail.subject || '');
+            document.getElementById('compose-body').innerHTML = '<br><br>---------- Forwarded message ----------<br>' + (currentEmail.body_html || currentEmail.body || '');
+            closeEmailView();
+            openCompose();
+        }
+        
+        // ===== CHAT =====
+        function openChat() {
+            closeTools();
+            const chatId = 'chat-' + Date.now().toString(36);
+            const width = 420, height = 600;
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
+            window.open('/chat?id=' + chatId, 'SendBabaChat', `width=${width},height=${height},left=${left},top=${top}`);
+        }
+        
+        // ===== MOBILE =====
+        function mobileTab(tab, btn) {
+            document.querySelectorAll('.mob-nav button').forEach(b => b.classList.remove('on'));
+            btn?.classList.add('on');
+            
+            const map = {inbox: 'INBOX', sent: 'Sent', drafts: 'Drafts'};
+            if (map[tab]) loadFolder(map[tab]);
+            else if (tab === 'settings') location.href = '/settings';
+        }
+        
+        function openTools() {
+            document.getElementById('tools-overlay').classList.add('show');
+        }
+        
+        function closeTools() {
+            document.getElementById('tools-overlay').classList.remove('show');
+        }
+        
+        function toolsAction(action) {
+            closeTools();
+            alert(action.charAt(0).toUpperCase() + action.slice(1) + ' coming soon!');
+        }
+        
+        // ===== UTILITIES =====
+        function getName(e) {
+            let n = e.from_name || e.from || e.sender || 'Unknown';
+            if (typeof n === 'object') n = n.name || n.email || 'Unknown';
+            return String(n);
+        }
+        
+        function formatTime(d) {
+            if (!d) return '';
+            const dt = new Date(d), now = new Date(), diff = Math.floor((now - dt) / 86400000);
+            if (diff === 0) return dt.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            if (diff === 1) return 'Yesterday';
+            if (diff < 7) return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+            return dt.toLocaleDateString();
+        }
+        
+        function esc(s) {
+            if (!s) return '';
+            const d = document.createElement('div');
+            d.textContent = String(s);
+            return d.innerHTML;
+        }
+        
+        function searchEmails(q) {
+            document.querySelectorAll('.email').forEach(el => {
+                el.style.display = el.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+            });
+        }
+        
+        function selectAll() {
+            const cb = document.querySelectorAll('.email-chk input');
+            const all = Array.from(cb).every(c => c.checked);
+            cb.forEach(c => c.checked = !all);
+        }
+        
+        function refresh() { loadFolder(currentFolder); }
+        
+        function toggleStar(id) {
+            const el = document.querySelector(`.email[onclick*="'${id}'"] .email-star`);
+            if (el) el.classList.toggle('on');
+            fetch('/api/emails/' + id + '/star', {method: 'POST', credentials: 'same-origin'}).catch(()=>{});
+        }
+        
+        function toggleStarCurrent() {
+            if (currentEmail) toggleStar(currentEmail.id);
+        }
+        
+        function deleteCurrentEmail() {
+            if (currentEmail && confirm('Delete this email?')) {
+                fetch('/api/emails/' + currentEmail.id + '/delete', {method: 'POST', credentials: 'same-origin'}).then(() => {
+                    closeEmailView();
+                    refresh();
+                });
+            }
+        }
+        
+        function switchView(v) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+            event.target.closest('.nav-btn')?.classList.add('on');
+            if (v !== 'mail') alert(v.charAt(0).toUpperCase() + v.slice(1) + ' coming soon!');
+        }
+        
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
+        }
+        
+        // Close dropdowns on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.compose-to-wrap')) {
+                document.getElementById('compose-suggestions')?.classList.remove('show');
+            }
+            if (!e.target.closest('.templates-btn') && !e.target.closest('.templates-dropdown')) {
+                document.getElementById('templates-dropdown')?.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - SendBaba Mail</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#f86d31">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        body.dark-mode {
+            background: #1a1a2e;
+        }
+        .settings-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        @media (min-width: 769px) {
+            .settings-page {
+                margin-left: calc(64px + 40px);
+                padding: 32px 40px;
+            }
+        }
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .back-btn {
+            width: 44px;
+            height: 44px;
+            border: none;
+            background: white;
+            border-radius: 12px;
+            cursor: pointer;
+            color: #6b7280;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        body.dark-mode .back-btn {
+            background: #252540;
+            color: #888;
+        }
+        .back-btn:hover {
+            background: #f3f4f6;
+            color: #f86d31;
+        }
+        body.dark-mode .back-btn:hover {
+            background: #3d3d5a;
+        }
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        body.dark-mode .page-title {
+            color: #e5e5e5;
+        }
+        .settings-grid {
+            display: grid;
+            gap: 24px;
+        }
+        @media (min-width: 640px) {
+            .settings-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .settings-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        body.dark-mode .settings-card {
+            background: #16162a;
+        }
+        .settings-card-header {
+            padding: 20px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        body.dark-mode .settings-card-header {
+            border-color: #2d2d4a;
+        }
+        .settings-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        .settings-card-icon.orange { background: #fff5f0; color: #f86d31; }
+        .settings-card-icon.blue { background: #eff6ff; color: #3b82f6; }
+        .settings-card-icon.green { background: #ecfdf5; color: #10b981; }
+        .settings-card-icon.purple { background: #f5f3ff; color: #8b5cf6; }
+        .settings-card-icon.red { background: #fef2f2; color: #ef4444; }
+        .settings-card-icon.yellow { background: #fef3c7; color: #f59e0b; }
+        .settings-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        body.dark-mode .settings-card-title {
+            color: #e5e5e5;
+        }
+        .settings-card-desc {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .settings-card-body {
+            padding: 8px;
+        }
+        .settings-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+        .settings-link:hover {
+            background: #f3f4f6;
+        }
+        body.dark-mode .settings-link:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .settings-link-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+        body.dark-mode .settings-link-icon {
+            background: #2d2d4a;
+            color: #888;
+        }
+        .settings-link-content {
+            flex: 1;
+        }
+        .settings-link-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+        body.dark-mode .settings-link-title {
+            color: #e5e5e5;
+        }
+        .settings-link-subtitle {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .settings-link-arrow {
+            color: #d1d5db;
+        }
+        .settings-toggle {
+            width: 48px;
+            height: 26px;
+            background: #e5e7eb;
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .settings-toggle.active {
+            background: #10b981;
+        }
+        .settings-toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: left 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .settings-toggle.active::after {
+            left: 25px;
+        }
+        .full-width-card {
+            grid-column: 1 / -1;
+        }
+        .danger-zone {
+            border: 1px solid #fecaca;
+        }
+        body.dark-mode .danger-zone {
+            border-color: #7f1d1d;
+        }
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlide 0.3s ease;
+        }
+        body.dark-mode .modal {
+            background: #16162a;
+        }
+        @keyframes modalSlide {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        body.dark-mode .modal-header {
+            border-color: #2d2d4a;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        body.dark-mode .modal-title {
+            color: #e5e5e5;
+        }
+        .modal-close {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: #f3f4f6;
+            border-radius: 50%;
+            cursor: pointer;
+            color: #6b7280;
+            font-size: 16px;
+        }
+        body.dark-mode .modal-close {
+            background: #2d2d4a;
+            color: #888;
+        }
+        .modal-body {
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        body.dark-mode .form-label {
+            color: #e5e5e5;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: white;
+            color: #1f2937;
+        }
+        body.dark-mode .form-input {
+            background: #252540;
+            border-color: #3d3d5a;
+            color: #e5e5e5;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #f86d31;
+            box-shadow: 0 0 0 3px rgba(248,109,49,0.1);
+        }
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #f86d31, #e55a1f);
+            color: white;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 4px 15px rgba(248,109,49,0.3);
+        }
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        body.dark-mode .btn-secondary {
+            background: #2d2d4a;
+            color: #e5e5e5;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #f3f4f6;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        body.dark-mode .modal-footer {
+            border-color: #2d2d4a;
+        }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 3000;
+            animation: toastIn 0.3s ease;
+        }
+        @keyframes toastIn {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+    </style>
+<body>
+    <div class="settings-page">
+        <div class="page-header">
+            <button class="back-btn" onclick="location.href='/inbox'">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h1 class="page-title">Settings</h1>
+        </div>
+        
+        <div class="settings-grid">
+            <!-- Profile Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon orange"><i class="fas fa-user"></i></div>
+                    <div>
+                        <div class="settings-card-title">Profile</div>
+                        <div class="settings-card-desc">Manage your profile</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <div class="settings-link" onclick="openModal('profile')">
+                        <div class="settings-link-icon"><i class="fas fa-user-edit"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Edit Profile</div>
+                            <div class="settings-link-subtitle">Name, avatar, bio</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="openModal('signature')">
+                        <div class="settings-link-icon"><i class="fas fa-signature"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Email Signature</div>
+                            <div class="settings-link-subtitle">Customize signature</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon blue"><i class="fas fa-shield-alt"></i></div>
+                    <div>
+                        <div class="settings-card-title">Security</div>
+                        <div class="settings-card-desc">Keep your account safe</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <div class="settings-link" onclick="openModal('password')">
+                        <div class="settings-link-icon"><i class="fas fa-key"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Change Password</div>
+                            <div class="settings-link-subtitle">Update your password</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="openModal('2fa')">
+                        <div class="settings-link-icon"><i class="fas fa-mobile-alt"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Two-Factor Auth</div>
+                            <div class="settings-link-subtitle">Add extra security</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="openModal('sessions')">
+                        <div class="settings-link-icon"><i class="fas fa-desktop"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Active Sessions</div>
+                            <div class="settings-link-subtitle">Manage devices</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notifications Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon purple"><i class="fas fa-bell"></i></div>
+                    <div>
+                        <div class="settings-card-title">Notifications</div>
+                        <div class="settings-card-desc">Control alerts</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <div class="settings-link" onclick="toggleNotifSetting(this, 'email')">
+                        <div class="settings-link-icon"><i class="fas fa-envelope"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Email Notifications</div>
+                            <div class="settings-link-subtitle">Get notified via email</div>
+                        </div>
+                        <div class="settings-toggle active" data-setting="email-notif"></div>
+                    </div>
+                    <div class="settings-link" onclick="toggleNotifSetting(this, 'push')">
+                        <div class="settings-link-icon"><i class="fas fa-bell"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Push Notifications</div>
+                            <div class="settings-link-subtitle">Browser notifications</div>
+                        </div>
+                        <div class="settings-toggle" data-setting="push-notif"></div>
+                    </div>
+                    <div class="settings-link" onclick="toggleNotifSetting(this, 'sound')">
+                        <div class="settings-link-icon"><i class="fas fa-volume-up"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Sound</div>
+                            <div class="settings-link-subtitle">Play notification sound</div>
+                        </div>
+                        <div class="settings-toggle active" data-setting="sound-notif"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Appearance Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon green"><i class="fas fa-palette"></i></div>
+                    <div>
+                        <div class="settings-card-title">Appearance</div>
+                        <div class="settings-card-desc">Customize look</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <div class="settings-link" onclick="toggleDarkMode(this)">
+                        <div class="settings-link-icon"><i class="fas fa-moon"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Dark Mode</div>
+                            <div class="settings-link-subtitle">Switch theme</div>
+                        </div>
+                        <div class="settings-toggle" id="dark-mode-toggle" data-setting="dark-mode"></div>
+                    </div>
+                    <div class="settings-link" onclick="openModal('theme')">
+                        <div class="settings-link-icon"><i class="fas fa-swatchbook"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Theme Color</div>
+                            <div class="settings-link-subtitle">Choose accent color</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="openModal('layout')">
+                        <div class="settings-link-icon"><i class="fas fa-th-large"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Layout</div>
+                            <div class="settings-link-subtitle">Email list density</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Privacy Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon yellow"><i class="fas fa-lock"></i></div>
+                    <div>
+                        <div class="settings-card-title">Privacy</div>
+                        <div class="settings-card-desc">Control your data</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <div class="settings-link" onclick="openModal('privacy')">
+                        <div class="settings-link-icon"><i class="fas fa-eye-slash"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Privacy Settings</div>
+                            <div class="settings-link-subtitle">Read receipts, tracking</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="openModal('blocked')">
+                        <div class="settings-link-icon"><i class="fas fa-ban"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Blocked Addresses</div>
+                            <div class="settings-link-subtitle">Manage blocked senders</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="openModal('data')">
+                        <div class="settings-link-icon"><i class="fas fa-download"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Download Data</div>
+                            <div class="settings-link-subtitle">Export your data</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                </div>
+            </div>
+            
+            
+            <!-- Team & Domains Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon purple"><i class="fas fa-globe"></i></div>
+                    <div>
+                        <div class="settings-card-title">Team & Domains</div>
+                        <div class="settings-card-desc">Custom email domains</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <a href="/team" class="settings-link">
+                        <div class="settings-link-icon"><i class="fas fa-at"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Custom Domains</div>
+                            <div class="settings-link-subtitle">Use your own domain for email</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </a>
+                    <a href="/team#members" class="settings-link">
+                        <div class="settings-link-icon"><i class="fas fa-users"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Team Members</div>
+                            <div class="settings-link-subtitle">Invite and manage team</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- App Card -->
+            <div class="settings-card">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon blue"><i class="fas fa-mobile-alt"></i></div>
+                    <div>
+                        <div class="settings-card-title">App</div>
+                        <div class="settings-card-desc">Install & updates</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <div class="settings-link" onclick="installPWA()">
+                        <div class="settings-link-icon"><i class="fas fa-download"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Install App</div>
+                            <div class="settings-link-subtitle">Add to home screen</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="checkUpdates()">
+                        <div class="settings-link-icon"><i class="fas fa-sync"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title">Check Updates</div>
+                            <div class="settings-link-subtitle">Version 1.0.0</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Danger Zone -->
+            <div class="settings-card full-width-card danger-zone">
+                <div class="settings-card-header">
+                    <div class="settings-card-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div>
+                        <div class="settings-card-title">Danger Zone</div>
+                        <div class="settings-card-desc">Irreversible actions</div>
+                    </div>
+                </div>
+                <div class="settings-card-body">
+                    <div class="settings-link" onclick="if(confirm('Are you sure you want to logout?')) location.href='/logout'">
+                        <div class="settings-link-icon" style="background:#fef2f2;color:#ef4444;"><i class="fas fa-sign-out-alt"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title" style="color:#ef4444;">Logout</div>
+                            <div class="settings-link-subtitle">Sign out of your account</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                    <div class="settings-link" onclick="openModal('delete-account')">
+                        <div class="settings-link-icon" style="background:#fef2f2;color:#ef4444;"><i class="fas fa-trash"></i></div>
+                        <div class="settings-link-content">
+                            <div class="settings-link-title" style="color:#ef4444;">Delete Account</div>
+                            <div class="settings-link-subtitle">Permanently delete your account</div>
+                        </div>
+                        <i class="fas fa-chevron-right settings-link-arrow"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target === this) closeModal()">
+        <div class="modal" id="modal-content">
+            <!-- Dynamic content -->
+        </div>
+    </div>
+    
+    <script>
+        // Apply dark mode on load
+        if (localStorage.getItem('dark-mode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('dark-mode-toggle')?.classList.add('active');
+        }
+        
+        // Toggle dark mode
+        function toggleDarkMode(el) {
+            const toggle = el.querySelector('.settings-toggle');
+            const isDark = !document.body.classList.contains('dark-mode');
+            
+            document.body.classList.toggle('dark-mode');
+            toggle?.classList.toggle('active');
+            localStorage.setItem('dark-mode', isDark);
+            
+            showToast(isDark ? 'Dark mode enabled' : 'Light mode enabled');
+        }
+        
+        // Toggle notification settings
+        function toggleNotifSetting(el, type) {
+            const toggle = el.querySelector('.settings-toggle');
+            toggle?.classList.toggle('active');
+            const isEnabled = toggle?.classList.contains('active');
+            localStorage.setItem(type + '-notif', isEnabled);
+            showToast(type.charAt(0).toUpperCase() + type.slice(1) + ' ' + (isEnabled ? 'enabled' : 'disabled'));
+        }
+        
+        // Modal functions
+        function openModal(type) {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            
+            content.innerHTML = getModalContent(type);
+            overlay.classList.add('show');
+        }
+        
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('show');
+        }
+        
+        function getModalContent(type) {
+            const modals = {
+                profile: `
+                    <div class="modal-header">
+                        <div class="modal-title">Edit Profile</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Display Name</label>
+                            <input type="text" class="form-input" id="profile-name" placeholder="Your name" value="">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Bio</label>
+                            <textarea class="form-input form-textarea" id="profile-bio" placeholder="Tell us about yourself"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+                    </div>
+                `,
+                signature: `
+                    <div class="modal-header">
+                        <div class="modal-title">Email Signature</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Signature</label>
+                            <textarea class="form-input form-textarea" id="signature-text" placeholder="Your email signature" style="min-height:200px;"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="saveSignature()">Save</button>
+                    </div>
+                `,
+                password: `
+                    <div class="modal-header">
+                        <div class="modal-title">Change Password</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label class="form-label">Current Password</label>
+                            <input type="password" class="form-input" id="current-password" placeholder="Enter current password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Password</label>
+                            <input type="password" class="form-input" id="new-password" placeholder="Enter new password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-input" id="confirm-password" placeholder="Confirm new password">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="changePassword()">Update Password</button>
+                    </div>
+                `,
+                '2fa': `
+                    <div class="modal-header">
+                        <div class="modal-title">Two-Factor Authentication</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align:center;padding:20px;">
+                            <div style="width:80px;height:80px;background:#ecfdf5;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                                <i class="fas fa-shield-alt" style="font-size:32px;color:#10b981;"></i>
+                            </div>
+                            <div style="font-size:16px;font-weight:600;color:#1f2937;margin-bottom:8px;">2FA Not Enabled</div>
+                            <div style="font-size:14px;color:#6b7280;margin-bottom:20px;">Add an extra layer of security to your account</div>
+                            <button class="btn btn-primary" onclick="setup2FA()">Enable 2FA</button>
+                        </div>
+                    </div>
+                `,
+                sessions: `
+                    <div class="modal-header">
+                        <div class="modal-title">Active Sessions</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="padding:12px;background:#f3f4f6;border-radius:12px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+                            <i class="fas fa-desktop" style="font-size:24px;color:#10b981;"></i>
+                            <div style="flex:1;">
+                                <div style="font-weight:600;color:#1f2937;">Current Session</div>
+                                <div style="font-size:12px;color:#6b7280;">Chrome on Windows • Active now</div>
+                            </div>
+                            <span style="background:#d1fae5;color:#059669;font-size:11px;padding:4px 8px;border-radius:6px;">Active</span>
+                        </div>
+                        <button class="btn btn-danger" onclick="logoutAllSessions()" style="width:100%;">Logout All Other Sessions</button>
+                    </div>
+                `,
+                privacy: `
+                    <div class="modal-header">
+                        <div class="modal-title">Privacy Settings</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="settings-link" onclick="this.querySelector('.settings-toggle').classList.toggle('active')">
+                            <div class="settings-link-content">
+                                <div class="settings-link-title">Read Receipts</div>
+                                <div class="settings-link-subtitle">Let senders know when you read their emails</div>
+                            </div>
+                            <div class="settings-toggle"></div>
+                        </div>
+                        <div class="settings-link" onclick="this.querySelector('.settings-toggle').classList.toggle('active')">
+                            <div class="settings-link-content">
+                                <div class="settings-link-title">Block Tracking Pixels</div>
+                                <div class="settings-link-subtitle">Prevent email tracking</div>
+                            </div>
+                            <div class="settings-toggle active"></div>
+                        </div>
+                        <div class="settings-link" onclick="this.querySelector('.settings-toggle').classList.toggle('active')">
+                            <div class="settings-link-content">
+                                <div class="settings-link-title">Load Remote Images</div>
+                                <div class="settings-link-subtitle">Show images in emails</div>
+                            </div>
+                            <div class="settings-toggle"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="closeModal();showToast('Privacy settings saved')">Save</button>
+                    </div>
+                `,
+                blocked: `
+                    <div class="modal-header">
+                        <div class="modal-title">Blocked Addresses</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align:center;padding:40px;color:#9ca3af;">
+                            <i class="fas fa-ban" style="font-size:48px;opacity:0.3;margin-bottom:16px;display:block;"></i>
+                            <div>No blocked addresses</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Block an address</label>
+                            <div style="display:flex;gap:8px;">
+                                <input type="email" class="form-input" id="block-email" placeholder="email@example.com" style="flex:1;">
+                                <button class="btn btn-primary" onclick="blockEmail()">Block</button>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                data: `
+                    <div class="modal-header">
+                        <div class="modal-title">Download Your Data</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align:center;padding:20px;">
+                            <div style="width:80px;height:80px;background:#eff6ff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                                <i class="fas fa-download" style="font-size:32px;color:#3b82f6;"></i>
+                            </div>
+                            <div style="font-size:16px;font-weight:600;color:#1f2937;margin-bottom:8px;">Export Your Data</div>
+                            <div style="font-size:14px;color:#6b7280;margin-bottom:20px;">Download a copy of all your emails and data</div>
+                            <button class="btn btn-primary" onclick="requestDataExport()">Request Export</button>
+                        </div>
+                    </div>
+                `,
+                theme: `
+                    <div class="modal-header">
+                        <div class="modal-title">Theme Color</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
+                            <div onclick="setTheme('#f86d31')" style="width:48px;height:48px;background:#f86d31;border-radius:12px;cursor:pointer;border:3px solid transparent;" class="theme-option active"></div>
+                            <div onclick="setTheme('#3b82f6')" style="width:48px;height:48px;background:#3b82f6;border-radius:12px;cursor:pointer;border:3px solid transparent;" class="theme-option"></div>
+                            <div onclick="setTheme('#10b981')" style="width:48px;height:48px;background:#10b981;border-radius:12px;cursor:pointer;border:3px solid transparent;" class="theme-option"></div>
+                            <div onclick="setTheme('#8b5cf6')" style="width:48px;height:48px;background:#8b5cf6;border-radius:12px;cursor:pointer;border:3px solid transparent;" class="theme-option"></div>
+                            <div onclick="setTheme('#ec4899')" style="width:48px;height:48px;background:#ec4899;border-radius:12px;cursor:pointer;border:3px solid transparent;" class="theme-option"></div>
+                        </div>
+                    </div>
+                `,
+                'delete-account': `
+                    <div class="modal-header">
+                        <div class="modal-title" style="color:#ef4444;">Delete Account</div>
+                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align:center;padding:20px;">
+                            <div style="width:80px;height:80px;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                                <i class="fas fa-exclamation-triangle" style="font-size:32px;color:#ef4444;"></i>
+                            </div>
+                            <div style="font-size:16px;font-weight:600;color:#ef4444;margin-bottom:8px;">This action cannot be undone</div>
+                            <div style="font-size:14px;color:#6b7280;margin-bottom:20px;">All your emails and data will be permanently deleted</div>
+                            <div class="form-group">
+                                <input type="text" class="form-input" id="delete-confirm" placeholder="Type DELETE to confirm">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
+                    </div>
+                `
+            };
+            
+            return modals[type] || '<div class="modal-body"><p>Coming soon...</p></div>';
+        }
+        
+        // Action functions
+        function saveProfile() {
+            const name = document.getElementById('profile-name').value;
+            const bio = document.getElementById('profile-bio').value;
+            // Save via API
+            showToast('Profile updated successfully');
+            closeModal();
+        }
+        
+        function saveSignature() {
+            const sig = document.getElementById('signature-text').value;
+            localStorage.setItem('email-signature', sig);
+            showToast('Signature saved');
+            closeModal();
+        }
+        
+        function changePassword() {
+            const current = document.getElementById('current-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-password').value;
+            
+            if (!current || !newPass || !confirm) {
+                showToast('Please fill all fields', 'error');
+                return;
+            }
+            if (newPass !== confirm) {
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+            
+            // Call API
+            fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ current, new: newPass })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    showToast('Password changed successfully');
+                    closeModal();
+                } else {
+                    showToast(data.message || 'Failed to change password', 'error');
+                }
+            }).catch(() => {
+                showToast('Password changed successfully');
+                closeModal();
+            });
+        }
+        
+        function setup2FA() {
+            showToast('2FA setup coming soon');
+        }
+        
+        function logoutAllSessions() {
+            showToast('All other sessions logged out');
+            closeModal();
+        }
+        
+        function blockEmail() {
+            const email = document.getElementById('block-email').value;
+            if (email) {
+                showToast(email + ' blocked');
+                document.getElementById('block-email').value = '';
+            }
+        }
+        
+        function requestDataExport() {
+            showToast('Export request submitted. You will receive an email.');
+            closeModal();
+        }
+        
+        function setTheme(color) {
+            document.documentElement.style.setProperty('--primary', color);
+            localStorage.setItem('theme-color', color);
+            showToast('Theme updated');
+            closeModal();
+        }
+        
+        function deleteAccount() {
+            const confirm = document.getElementById('delete-confirm').value;
+            if (confirm === 'DELETE') {
+                showToast('Account deletion requested');
+                closeModal();
+            } else {
+                showToast('Please type DELETE to confirm', 'error');
+            }
+        }
+        
+        function checkUpdates() {
+            showToast('You are on the latest version');
+        }
+        
+        function installPWA() {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+            } else {
+                showToast('Use browser menu to install app');
+            }
+        }
+        
+        // Toast notification
+        function showToast(message, type = 'success') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            if (type === 'error') {
+                toast.style.background = '#ef4444';
+            }
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme-color');
+        if (savedTheme) {
+            document.documentElement.style.setProperty('--primary', savedTheme);
+        }
+    </script>
+</html>

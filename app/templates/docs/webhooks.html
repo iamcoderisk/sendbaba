@@ -1,0 +1,64 @@
+{% extends 'univ.html' %}
+{% block title %}Webhooks - SendBaba Docs{% endblock %}
+{% block content %}
+<section class="pt-32 pb-12 px-4 bg-gradient-to-br from-orange-500 to-red-600 text-white">
+    <div class="max-w-7xl mx-auto">
+        <a href="/docs" class="text-white/80 hover:text-white mb-4 inline-block">← Back to Docs</a>
+        <h1 class="text-4xl font-bold">Webhooks</h1>
+        <p class="text-xl text-white/90 mt-4">Receive real-time notifications for email events</p>
+    </div>
+</section>
+<section class="py-16 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl border p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Overview</h2>
+            <p class="text-gray-600 mb-6">Webhooks allow you to receive HTTP POST requests when certain events occur with your emails. Configure your webhook URL in your <a href="/dashboard/settings" class="text-orange-500 hover:underline">dashboard settings</a>.</p>
+            
+            <h3 class="text-xl font-bold text-gray-900 mb-3">Event Types</h3>
+            <table class="w-full border-collapse mb-6">
+                <thead>
+                    <tr class="border-b bg-gray-50">
+                        <th class="text-left py-3 px-4">Event</th>
+                        <th class="text-left py-3 px-4">Description</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-600">
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">email.sent</td><td>Email was successfully sent</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">email.delivered</td><td>Email was delivered to recipient</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">email.opened</td><td>Recipient opened the email</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">email.clicked</td><td>Recipient clicked a link</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">email.bounced</td><td>Email bounced</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">email.complained</td><td>Recipient marked as spam</td></tr>
+                    <tr><td class="py-3 px-4 font-mono">email.unsubscribed</td><td>Recipient unsubscribed</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="bg-white rounded-2xl border p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Webhook Payload</h2>
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                <pre class="text-green-400 text-sm"><code>{
+  "event": "email.delivered",
+  "timestamp": "2024-12-22T10:30:00Z",
+  "data": {
+    "message_id": "msg_abc123xyz",
+    "email": "recipient@example.com",
+    "subject": "Welcome!",
+    "tags": ["welcome"],
+    "metadata": {}
+  }
+}</code></pre>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl border p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Verifying Webhooks</h2>
+            <p class="text-gray-600 mb-4">All webhook requests include a signature header for verification:</p>
+            <div class="bg-gray-100 rounded-xl p-4 mb-4">
+                <code class="text-sm">X-SendBaba-Signature: sha256=abc123...</code>
+            </div>
+            <p class="text-gray-600">Verify the signature by computing HMAC-SHA256 of the request body using your webhook secret.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

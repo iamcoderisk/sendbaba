@@ -1,0 +1,474 @@
+{% extends "hub/base.html" %}
+{% block title %}Email Templates - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center flex-wrap gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Email Templates</h1>
+        <p class="text-gray-500 text-sm mt-1">{{ total }} templates in the system</p>
+    </div>
+    <div class="flex gap-3">
+        <button onclick="showUploadModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium flex items-center gap-2">
+            <i class="fas fa-upload"></i> Upload HTML
+        </button>
+        <a href="/hub/templates/create" class="bg-[#f86d31] hover:bg-[#e55a1f] text-white px-5 py-2.5 rounded-lg font-medium flex items-center gap-2">
+            <i class="fas fa-plus"></i> Create Template
+        </a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-gray-900">{{ total }}</div>
+        <div class="text-sm text-gray-500">Total Templates</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-blue-600">{{ templates|selectattr('organization_id', 'equalto', 'system')|list|length }}</div>
+        <div class="text-sm text-gray-500">System Templates</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-purple-600">{{ templates|selectattr('has_json')|list|length }}</div>
+        <div class="text-sm text-gray-500">With JSON Editor</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-red-600">{{ templates|selectattr('is_hidden')|list|length }}</div>
+        <div class="text-sm text-gray-500">Hidden</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="flex gap-3 mb-4">
+    <input type="text" id="searchInput" placeholder="Search templates..." class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-64">
+    <select id="categoryFilter" class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}">{{ cat|title }}</option>
+        {% endfor %}
+    </select>
+    <select id="statusFilter" class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="hidden">Hidden</option>
+        <option value="json">Has JSON</option>
+    </select>
+</div>
+
+<!-- Table -->
+<div class="bg-white rounded-xl card-shadow overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Name</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Category</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Updated</th>
+                <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="templatesTable">
+            {% for t in templates %}
+            <tr class="border-b border-gray-100 hover:bg-gray-50" data-name="{{ t.name|lower }}" data-category="{{ t.category }}" data-hidden="{{ t.is_hidden }}" data-json="{{ t.has_json }}">
+                <td class="px-5 py-4">
+                    <div class="font-medium text-gray-900">{{ t.name }}</div>
+                    {% if t.subject %}<div class="text-xs text-gray-500 mt-0.5">{{ t.subject[:50] }}{% if t.subject|length > 50 %}...{% endif %}</div>{% endif %}
+                </td>
+                <td class="px-5 py-4">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ t.category|title if t.category else 'Uncategorized' }}</span>
+                </td>
+                <td class="px-5 py-4">
+                    {% if t.organization_id == 'system' %}<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">System</span>{% else %}<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">User</span>{% endif %}
+                    {% if t.has_json %}<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 ml-1">JSON</span>{% endif %}
+                </td>
+                <td class="px-5 py-4">
+                    {% if t.is_hidden %}<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">Hidden</span>{% else %}<span class="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>{% endif %}
+                </td>
+                <td class="px-5 py-4 text-sm text-gray-500">{{ t.updated_at.strftime('%b %d, %Y') if t.updated_at else '-' }}</td>
+                <td class="px-5 py-4">
+                    <div class="flex gap-2">
+                        <a href="/hub/templates/edit/{{ t.uuid or t.id }}" class="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100" title="Edit"><i class="fas fa-edit"></i></a>
+                        <button onclick="toggleHide('{{ t.uuid or t.id }}', {{ 'false' if t.is_hidden else 'true' }})" class="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100" title="{{ 'Show' if t.is_hidden else 'Hide' }}"><i class="fas fa-{{ 'eye' if t.is_hidden else 'eye-slash' }}"></i></button>
+                        <button onclick="duplicateTemplate('{{ t.uuid or t.id }}')" class="p-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100" title="Duplicate"><i class="fas fa-copy"></i></button>
+                        <button onclick="deleteTemplate('{{ t.uuid or t.id }}', '{{ t.name|e }}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Upload HTML Modal -->
+<div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
+        <div class="p-5 border-b flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-upload text-blue-500 mr-2"></i>Upload HTML Template</h3>
+            <button onclick="closeUploadModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1">
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Left: Template Info -->
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-4">Template Information</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Template Name *</label>
+                            <input type="text" id="uploadName" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="My Template">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <select id="uploadCategory" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="newsletter">Newsletter</option>
+                                <option value="welcome">Welcome</option>
+                                <option value="transactional">Transactional</option>
+                                <option value="marketing">Marketing</option>
+                                <option value="promotional">Promotional</option>
+                                <option value="event">Event</option>
+                                <option value="notification">Notification</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Subject Line</label>
+                            <input type="text" id="uploadSubject" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Default subject">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                            <textarea id="uploadDesc" rows="2" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Template description"></textarea>
+                        </div>
+                        
+                        <div class="pt-4 border-t">
+                            <h5 class="font-medium text-gray-800 mb-3">Conversion Options</h5>
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" id="optConvertJson" checked class="w-4 h-4 text-blue-500">
+                                    <span class="text-sm text-gray-700">Convert to JSON (editable in visual editor)</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" id="optActive" checked class="w-4 h-4 text-blue-500">
+                                    <span class="text-sm text-gray-700">Make active immediately</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right: HTML Input -->
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-4">HTML Content</h4>
+                    <div class="space-y-3">
+                        <div class="flex gap-2">
+                            <label class="flex-1 flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                                <i class="fas fa-file-upload text-2xl text-gray-400 mb-2"></i>
+                                <span class="text-sm text-gray-600">Upload HTML file</span>
+                                <input type="file" id="htmlFile" accept=".html,.htm" class="hidden" onchange="loadHTMLFile(this)">
+                            </label>
+                        </div>
+                        <div class="text-center text-sm text-gray-500">- or paste HTML below -</div>
+                        <textarea id="uploadHtml" rows="12" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Paste your HTML code here..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Preview -->
+            <div class="mt-6 pt-4 border-t">
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-semibold text-gray-800">Preview</h4>
+                    <button onclick="previewUpload()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium"><i class="fas fa-eye mr-1"></i>Refresh Preview</button>
+                </div>
+                <div class="border border-gray-200 rounded-lg bg-gray-50 p-4 max-h-64 overflow-auto">
+                    <iframe id="uploadPreview" class="w-full min-h-48 bg-white rounded border border-gray-200"></iframe>
+                </div>
+            </div>
+        </div>
+        <div class="p-5 border-t flex justify-end gap-3">
+            <button onclick="closeUploadModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-sm">Cancel</button>
+            <button onclick="uploadTemplate()" class="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm"><i class="fas fa-upload mr-2"></i>Upload Template</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filter functionality
+document.getElementById('searchInput').addEventListener('input', filterTable);
+document.getElementById('categoryFilter').addEventListener('change', filterTable);
+document.getElementById('statusFilter').addEventListener('change', filterTable);
+
+function filterTable() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    document.querySelectorAll('#templatesTable tr').forEach(row => {
+        const name = row.dataset.name || '';
+        const cat = row.dataset.category;
+        const hidden = row.dataset.hidden === 'True';
+        const hasJson = row.dataset.json === 'True';
+        
+        let show = true;
+        if (search && !name.includes(search)) show = false;
+        if (category && cat !== category) show = false;
+        if (status === 'active' && hidden) show = false;
+        if (status === 'hidden' && !hidden) show = false;
+        if (status === 'json' && !hasJson) show = false;
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Template actions
+async function toggleHide(id, hide) {
+    try {
+        const r = await fetch('/hub/api/templates/toggle-visibility', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({template_id: id, is_hidden: hide})
+        });
+        if (r.ok) location.reload();
+        else alert('Error updating template');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+async function duplicateTemplate(id) {
+    try {
+        const r = await fetch('/hub/api/templates/duplicate', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({template_id: id})
+        });
+        if (r.ok) location.reload();
+        else alert('Error duplicating template');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+async function deleteTemplate(id, name) {
+    if (!confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+    try {
+        const r = await fetch('/hub/api/templates/delete', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({template_id: id})
+        });
+        if (r.ok) location.reload();
+        else alert('Error deleting template');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+// Upload Modal
+function showUploadModal() {
+    document.getElementById('uploadModal').classList.remove('hidden');
+    document.getElementById('uploadModal').classList.add('flex');
+}
+
+function closeUploadModal() {
+    document.getElementById('uploadModal').classList.add('hidden');
+    document.getElementById('uploadModal').classList.remove('flex');
+}
+
+function loadHTMLFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('uploadHtml').value = e.target.result;
+        // Auto-fill name from filename
+        const name = file.name.replace(/\.(html|htm)$/i, '').replace(/[-_]/g, ' ');
+        document.getElementById('uploadName').value = name.charAt(0).toUpperCase() + name.slice(1);
+        previewUpload();
+    };
+    reader.readAsText(file);
+}
+
+function previewUpload() {
+    const html = document.getElementById('uploadHtml').value;
+    document.getElementById('uploadPreview').srcdoc = html || '<div style="padding:40px;text-align:center;color:#9ca3af;">No HTML content</div>';
+}
+
+// HTML to JSON converter
+function htmlToJson(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Extract styles from body or wrapper
+    const body = doc.body;
+    let bgColor = '#f4f4f5';
+    let contentBg = '#ffffff';
+    let fontFamily = 'Arial, sans-serif';
+    
+    // Try to detect background color
+    const bodyStyle = body.getAttribute('style') || '';
+    const bgMatch = bodyStyle.match(/background(?:-color)?:\s*([^;]+)/i);
+    if (bgMatch) bgColor = bgMatch[1].trim();
+    
+    // Find main content table
+    const tables = doc.querySelectorAll('table');
+    let contentTable = null;
+    tables.forEach(t => {
+        const style = t.getAttribute('style') || '';
+        if (style.includes('max-width') || t.getAttribute('width')) {
+            contentTable = t;
+            const bgMatch = style.match(/background(?:-color)?:\s*([^;]+)/i);
+            if (bgMatch) contentBg = bgMatch[1].trim();
+        }
+    });
+    
+    const json = {
+        globalStyles: {
+            backgroundColor: bgColor,
+            contentBackgroundColor: contentBg,
+            fontFamily: fontFamily,
+            maxWidth: '620px',
+            defaultButtonColor: '#f86d31'
+        },
+        sections: []
+    };
+    
+    // Parse content into sections
+    const rows = contentTable ? contentTable.querySelectorAll('tr') : [];
+    if (rows.length === 0) {
+        // Single section with all body content
+        json.sections.push({
+            id: 'sec_' + Math.random().toString(36).substr(2, 8),
+            style: { padding: '24px' },
+            elements: parseElements(body)
+        });
+    } else {
+        rows.forEach((row, i) => {
+            const td = row.querySelector('td');
+            if (td) {
+                const style = parseInlineStyle(td.getAttribute('style') || '');
+                json.sections.push({
+                    id: 'sec_' + Math.random().toString(36).substr(2, 8),
+                    style: { padding: style.padding || '24px', backgroundColor: style.backgroundColor },
+                    elements: parseElements(td)
+                });
+            }
+        });
+    }
+    
+    return json;
+}
+
+function parseElements(container) {
+    const elements = [];
+    const children = container.children;
+    
+    for (let i = 0; i < children.length; i++) {
+        const el = children[i];
+        const tag = el.tagName.toLowerCase();
+        const style = parseInlineStyle(el.getAttribute('style') || '');
+        const id = 'el_' + Math.random().toString(36).substr(2, 8);
+        
+        if (['h1','h2','h3','h4','h5','h6'].includes(tag)) {
+            elements.push({
+                id, type: 'heading', level: tag,
+                text: el.textContent.trim(),
+                style: { color: style.color, fontSize: style.fontSize }
+            });
+        } else if (tag === 'p') {
+            elements.push({
+                id, type: 'text',
+                text: el.innerHTML.trim(),
+                style: { color: style.color, fontSize: style.fontSize, textAlign: style.textAlign }
+            });
+        } else if (tag === 'img') {
+            elements.push({
+                id, type: 'image',
+                src: el.getAttribute('src') || '',
+                alt: el.getAttribute('alt') || '',
+                style: { borderRadius: style.borderRadius }
+            });
+        } else if (tag === 'a' && el.querySelector('img')) {
+            const img = el.querySelector('img');
+            elements.push({
+                id, type: 'image',
+                src: img.getAttribute('src') || '',
+                alt: img.getAttribute('alt') || '',
+                link: el.getAttribute('href') || '',
+                style: { borderRadius: parseInlineStyle(img.getAttribute('style') || '').borderRadius }
+            });
+        } else if (tag === 'a' || (tag === 'div' && el.querySelector('a'))) {
+            const link = tag === 'a' ? el : el.querySelector('a');
+            if (link && link.getAttribute('style')?.includes('background')) {
+                const linkStyle = parseInlineStyle(link.getAttribute('style') || '');
+                elements.push({
+                    id, type: 'button',
+                    text: link.textContent.trim(),
+                    link: link.getAttribute('href') || '#',
+                    align: style.textAlign || 'center',
+                    style: { backgroundColor: linkStyle.background || linkStyle.backgroundColor, color: linkStyle.color, borderRadius: linkStyle.borderRadius }
+                });
+            }
+        } else if (tag === 'hr') {
+            elements.push({ id, type: 'divider', style: {} });
+        } else if (tag === 'div' && !el.children.length && !el.textContent.trim()) {
+            elements.push({ id, type: 'spacer', style: { height: style.height || '24px' } });
+        } else if (tag === 'div' || tag === 'table') {
+            // Recursively parse nested content
+            const nested = parseElements(el);
+            elements.push(...nested);
+        }
+    }
+    
+    return elements;
+}
+
+function parseInlineStyle(styleStr) {
+    const style = {};
+    styleStr.split(';').forEach(s => {
+        const [key, value] = s.split(':').map(x => x?.trim());
+        if (key && value) {
+            // Convert CSS property to camelCase
+            const camelKey = key.replace(/-([a-z])/g, (m, c) => c.toUpperCase());
+            style[camelKey] = value;
+        }
+    });
+    return style;
+}
+
+async function uploadTemplate() {
+    const name = document.getElementById('uploadName').value.trim();
+    const html = document.getElementById('uploadHtml').value.trim();
+    
+    if (!name) { alert('Please enter a template name'); return; }
+    if (!html) { alert('Please provide HTML content'); return; }
+    
+    const convertToJson = document.getElementById('optConvertJson').checked;
+    const isActive = document.getElementById('optActive').checked;
+    
+    let jsonData = null;
+    if (convertToJson) {
+        try {
+            jsonData = htmlToJson(html);
+        } catch(e) {
+            console.error('JSON conversion error:', e);
+            // Still save with just HTML
+        }
+    }
+    
+    try {
+        const r = await fetch('/hub/api/templates/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name,
+                category: document.getElementById('uploadCategory').value,
+                subject: document.getElementById('uploadSubject').value,
+                description: document.getElementById('uploadDesc').value,
+                html_content: html,
+                json_data: jsonData,
+                is_active: isActive,
+                is_hidden: false
+            })
+        });
+        const data = await r.json();
+        if (data.success) {
+            alert('Template uploaded successfully!');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch(e) {
+        alert('Error uploading template: ' + e);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,275 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Admin - Campaign Management{% endblock %}
+{% block page_title %}Campaign Management{% endblock %}
+{% block page_subtitle %}View and manage all user campaigns and drafts{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.stats-row { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.stat-card { background: white; border-radius: 8px; padding: 14px 18px; border: 1px solid #e2e8f0; min-width: 100px; }
+.stat-card .num { font-size: 24px; font-weight: 700; color: #1e293b; }
+.stat-card .label { font-size: 12px; color: #64748b; }
+.stat-card.draft .num { color: #F59E0B; }
+.stat-card.sent .num { color: #10B981; }
+.stat-card.sending .num { color: #3B82F6; }
+
+.filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+.filter-input { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; }
+.filter-input:focus { outline: none; border-color: #F97316; }
+
+.btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px; }
+.btn-danger { background: #FEE2E2; color: #991B1B; }
+.btn-danger:hover { background: #FECACA; }
+.btn-warning { background: #FEF3C7; color: #92400E; }
+.btn-warning:hover { background: #FDE68A; }
+.btn-primary { background: #F97316; color: white; }
+.btn-primary:hover { background: #EA580C; }
+
+.campaigns-table { width: 100%; background: white; border-radius: 8px; border: 1px solid #e2e8f0; border-collapse: collapse; }
+.campaigns-table th, .campaigns-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+.campaigns-table th { background: #f8fafc; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+.campaigns-table tr:hover { background: #fafafa; }
+.campaigns-table tr:last-child td { border-bottom: none; }
+
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-draft { background: #FEF3C7; color: #92400E; }
+.badge-queued { background: #DBEAFE; color: #1D4ED8; }
+.badge-sending { background: #D1FAE5; color: #065F46; }
+.badge-completed { background: #D1FAE5; color: #065F46; }
+.badge-paused { background: #E5E7EB; color: #374151; }
+.badge-cancelled { background: #FEE2E2; color: #991B1B; }
+.badge-failed { background: #FEE2E2; color: #991B1B; }
+
+.actions { display: flex; gap: 6px; }
+.btn-sm { padding: 5px 10px; border-radius: 4px; font-size: 11px; font-weight: 500; cursor: pointer; border: none; }
+.btn-view { background: #EFF6FF; color: #1D4ED8; }
+.btn-delete { background: #FEE2E2; color: #991B1B; }
+
+.checkbox-col { width: 40px; }
+.checkbox-col input { width: 16px; height: 16px; }
+
+.bulk-actions { display: none; align-items: center; gap: 12px; padding: 12px 16px; background: #FEF3C7; border-radius: 8px; margin-bottom: 16px; }
+.bulk-actions.show { display: flex; }
+.bulk-actions span { font-size: 13px; font-weight: 500; }
+
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+.modal-bg.show { display: flex; }
+.modal { background: white; border-radius: 10px; padding: 24px; max-width: 450px; width: 95%; }
+.modal h3 { margin: 0 0 16px; font-size: 18px; }
+.modal p { margin: 0 0 20px; color: #64748b; font-size: 14px; }
+.modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div>
+        <h1 style="font-size: 24px; font-weight: 700; margin: 0;">All Campaigns</h1>
+        <p style="color: #64748b; margin: 4px 0 0;">Manage campaigns across all users</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button class="btn btn-warning" onclick="showClearDraftsModal()">
+            <i class="fas fa-trash-alt"></i> Clear Drafts
+        </button>
+    </div>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="num">{{ stats.total }}</div>
+        <div class="label">Total</div>
+    </div>
+    <div class="stat-card draft">
+        <div class="num">{{ stats.draft }}</div>
+        <div class="label">Drafts</div>
+    </div>
+    <div class="stat-card sending">
+        <div class="num">{{ stats.sending + stats.get('queued', 0) }}</div>
+        <div class="label">In Progress</div>
+    </div>
+    <div class="stat-card sent">
+        <div class="num">{{ stats.completed }}</div>
+        <div class="label">Completed</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">{{ stats.cancelled + stats.get('failed', 0) }}</div>
+        <div class="label">Failed/Cancelled</div>
+    </div>
+</div>
+
+<div class="filters">
+    <select class="filter-input" id="statusFilter" onchange="applyFilters()">
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+        <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+        <option value="queued" {% if status_filter == 'queued' %}selected{% endif %}>Queued</option>
+        <option value="sending" {% if status_filter == 'sending' %}selected{% endif %}>Sending</option>
+        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+        <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
+        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+    </select>
+    <select class="filter-input" id="userFilter" onchange="applyFilters()">
+        <option value="">All Users</option>
+        {% for u in users %}
+        <option value="{{ u.organization_id }}" {% if user_filter == u.organization_id %}selected{% endif %}>{{ u.email }} {% if u.org_name %}({{ u.org_name }}){% endif %}</option>
+        {% endfor %}
+    </select>
+    <input type="text" class="filter-input" id="searchInput" placeholder="Search campaigns..." style="width: 200px;">
+</div>
+
+<div class="bulk-actions" id="bulkActions">
+    <span><span id="selectedCount">0</span> selected</span>
+    <button class="btn btn-danger" onclick="deleteBulk()"><i class="fas fa-trash"></i> Delete Selected</button>
+    <button class="btn" style="background:#e5e7eb;" onclick="clearSelection()">Cancel</button>
+</div>
+
+<table class="campaigns-table">
+    <thead>
+        <tr>
+            <th class="checkbox-col"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+            <th>Campaign</th>
+            <th>User</th>
+            <th>Status</th>
+            <th>Recipients</th>
+            <th>Sent</th>
+            <th>Updated</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="campaignsBody">
+        {% for c in campaigns %}
+        <tr data-id="{{ c.id }}" data-name="{{ c.name|lower }}" data-status="{{ c.status }}">
+            <td class="checkbox-col"><input type="checkbox" class="row-check" value="{{ c.id }}" onchange="updateBulkActions()"></td>
+            <td>
+                <strong>{{ c.name or 'Untitled' }}</strong>
+                {% if c.subject %}<br><small style="color:#64748b;">{{ c.subject[:40] }}{% if c.subject|length > 40 %}...{% endif %}</small>{% endif %}
+            </td>
+            <td>
+                <small>{{ c.user_email or 'Unknown' }}</small>
+                {% if c.org_name %}<br><small style="color:#64748b;">{{ c.org_name }}</small>{% endif %}
+            </td>
+            <td><span class="badge badge-{{ c.status }}">{{ c.status|title }}</span></td>
+            <td>{{ '{:,}'.format(c.total_recipients) }}</td>
+            <td>{{ '{:,}'.format(c.emails_sent) }}</td>
+            <td>{{ c.updated_at.strftime('%b %d, %H:%M') if c.updated_at else '-' }}</td>
+            <td>
+                <div class="actions">
+                    <a href="{{ url_for('admin_templates.view_campaign', campaign_id=c.id) }}" class="btn-sm btn-view"><i class="fas fa-eye"></i></a>
+                    <button class="btn-sm btn-delete" onclick="deleteCampaign('{{ c.id }}', '{{ c.name|e }}')"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Clear Drafts Modal -->
+<div class="modal-bg" id="clearDraftsModal">
+    <div class="modal">
+        <h3><i class="fas fa-exclamation-triangle" style="color:#F59E0B;"></i> Clear Drafts</h3>
+        <p>This will permanently delete draft campaigns. This cannot be undone.</p>
+        <div style="margin-bottom: 16px;">
+            <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:500;">Select scope:</label>
+            <select class="filter-input" id="clearDraftsScope" style="width:100%;">
+                <option value="all">All drafts (all users)</option>
+                {% for u in users %}
+                <option value="{{ u.organization_id }}">{{ u.email }} only</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="modal-btns">
+            <button class="btn" style="background:#e5e7eb;" onclick="closeClearDraftsModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="clearDrafts()"><i class="fas fa-trash"></i> Clear Drafts</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const user = document.getElementById('userFilter').value;
+    let url = '{{ url_for("admin_templates.list_all_campaigns") }}?status=' + status;
+    if (user) url += '&user_id=' + user;
+    window.location.href = url;
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    document.querySelectorAll('#campaignsBody tr').forEach(row => {
+        const name = row.dataset.name || '';
+        row.style.display = name.includes(search) ? '' : 'none';
+    });
+});
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selected = document.querySelectorAll('.row-check:checked').length;
+    document.getElementById('selectedCount').textContent = selected;
+    document.getElementById('bulkActions').classList.toggle('show', selected > 0);
+}
+
+function clearSelection() {
+    document.getElementById('selectAll').checked = false;
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
+    updateBulkActions();
+}
+
+async function deleteCampaign(id, name) {
+    if (!confirm(`Delete campaign "${name}"?`)) return;
+    try {
+        const r = await fetch('/admin/campaigns/api/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({campaign_id: id})
+        });
+        if (r.ok) location.reload();
+        else alert('Error deleting campaign');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+async function deleteBulk() {
+    const ids = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} campaigns? This cannot be undone.`)) return;
+    try {
+        const r = await fetch('/admin/campaigns/api/delete-bulk', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({campaign_ids: ids})
+        });
+        if (r.ok) location.reload();
+        else alert('Error deleting campaigns');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+function showClearDraftsModal() { document.getElementById('clearDraftsModal').classList.add('show'); }
+function closeClearDraftsModal() { document.getElementById('clearDraftsModal').classList.remove('show'); }
+
+async function clearDrafts() {
+    const scope = document.getElementById('clearDraftsScope').value;
+    const params = scope === 'all' ? {} : {organization_id: scope};
+    
+    if (!confirm('Are you sure? This will permanently delete all matching drafts.')) return;
+    
+    try {
+        const r = await fetch('/admin/campaigns/api/clear-drafts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(params)
+        });
+        const data = await r.json();
+        if (r.ok) {
+            alert(`${data.deleted} drafts deleted`);
+            location.reload();
+        } else alert('Error: ' + data.error);
+    } catch(e) { alert('Error: ' + e); }
+}
+</script>
+{% endblock %}

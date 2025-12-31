@@ -1,0 +1,401 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'alerts' %}
+
+{% block title %}Alerts & Notifications{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Alerts & Notifications</h1>
+            <p class="text-gray-500">Configure alerts and view system notifications</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="markAllRead()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+                <i class="fas fa-check-double mr-2"></i>Mark All Read
+            </button>
+            <button onclick="openAlertSettings()" class="px-4 py-2 gradient-primary text-white rounded-xl card-shadow">
+                <i class="fas fa-cog mr-2"></i>Alert Settings
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Summary -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-red-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Critical</p>
+                    <p class="text-3xl font-bold text-red-600" id="critical-count">0</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-yellow-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Warning</p>
+                    <p class="text-3xl font-bold text-yellow-600" id="warning-count">0</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-blue-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Info</p>
+                    <p class="text-3xl font-bold text-blue-600" id="info-count">0</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-info-circle text-blue-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Resolved</p>
+                    <p class="text-3xl font-bold text-green-600" id="resolved-count">0</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Alerts -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">Active Alerts</h3>
+            <select id="alert-filter" onchange="filterAlerts(this.value)" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm">
+                <option value="all">All Alerts</option>
+                <option value="critical">Critical Only</option>
+                <option value="warning">Warnings</option>
+                <option value="info">Info</option>
+            </select>
+        </div>
+        <div class="space-y-3" id="alerts-list">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+
+    <!-- Alert Rules -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">Alert Rules</h3>
+            <button onclick="openAddRuleModal()" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100">
+                <i class="fas fa-plus mr-1"></i>Add Rule
+            </button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">Rule Name</th>
+                        <th class="pb-3 font-medium">Condition</th>
+                        <th class="pb-3 font-medium">Threshold</th>
+                        <th class="pb-3 font-medium">Notify Via</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rules-table" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Notification Channels -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <h3 class="font-bold text-gray-800 mb-4">Notification Channels</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center space-x-3 mb-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-envelope text-blue-500"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-800">Email</h4>
+                        <p class="text-xs text-green-500">Connected</p>
+                    </div>
+                </div>
+                <button onclick="configureChannel('email')" class="w-full py-2 bg-gray-50 text-gray-700 rounded-lg text-sm hover:bg-gray-100">Configure</button>
+            </div>
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center space-x-3 mb-3">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i class="fab fa-slack text-purple-500"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-800">Slack</h4>
+                        <p class="text-xs text-gray-400">Not connected</p>
+                    </div>
+                </div>
+                <button onclick="configureChannel('slack')" class="w-full py-2 bg-purple-50 text-purple-700 rounded-lg text-sm hover:bg-purple-100">Connect</button>
+            </div>
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center space-x-3 mb-3">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fab fa-telegram text-blue-500"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-800">Telegram</h4>
+                        <p class="text-xs text-gray-400">Not connected</p>
+                    </div>
+                </div>
+                <button onclick="configureChannel('telegram')" class="w-full py-2 bg-blue-50 text-blue-700 rounded-lg text-sm hover:bg-blue-100">Connect</button>
+            </div>
+            <div class="border border-gray-200 rounded-xl p-4">
+                <div class="flex items-center space-x-3 mb-3">
+                    <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i class="fab fa-whatsapp text-green-500"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-800">WhatsApp</h4>
+                        <p class="text-xs text-gray-400">Not connected</p>
+                    </div>
+                </div>
+                <button onclick="configureChannel('whatsapp')" class="w-full py-2 bg-green-50 text-green-700 rounded-lg text-sm hover:bg-green-100">Connect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Settings Modal -->
+<div id="alert-settings-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeAlertSettings()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl card-shadow-lg p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Alert Settings</h3>
+            <button onclick="closeAlertSettings()" class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-400"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="flex items-center justify-between">
+                    <span class="text-gray-700">Email notifications</span>
+                    <input type="checkbox" checked class="toggle">
+                </label>
+            </div>
+            <div>
+                <label class="flex items-center justify-between">
+                    <span class="text-gray-700">Critical alerts only</span>
+                    <input type="checkbox" class="toggle">
+                </label>
+            </div>
+            <div>
+                <label class="flex items-center justify-between">
+                    <span class="text-gray-700">Daily digest</span>
+                    <input type="checkbox" checked class="toggle">
+                </label>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Alert email recipients</label>
+                <input type="text" value="ekeminyd@gmail.com" class="w-full border border-gray-200 rounded-xl p-3">
+            </div>
+            <button onclick="saveAlertSettings()" class="w-full py-3 gradient-primary text-white rounded-xl font-medium">
+                Save Settings
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Rule Modal -->
+<div id="add-rule-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeAddRuleModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl card-shadow-lg p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Add Alert Rule</h3>
+            <button onclick="closeAddRuleModal()" class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-400"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Rule Name</label>
+                <input type="text" id="rule-name" placeholder="e.g., High Bounce Rate" class="w-full border border-gray-200 rounded-xl p-3">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Condition</label>
+                <select id="rule-condition" class="w-full border border-gray-200 rounded-xl p-3">
+                    <option value="bounce_rate">Bounce Rate exceeds</option>
+                    <option value="queue_size">Queue Size exceeds</option>
+                    <option value="server_offline">Server goes offline</option>
+                    <option value="sending_rate_low">Sending rate drops below</option>
+                    <option value="delivery_rate_low">Delivery rate drops below</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Threshold</label>
+                <input type="number" id="rule-threshold" placeholder="e.g., 5" class="w-full border border-gray-200 rounded-xl p-3">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Severity</label>
+                <select id="rule-severity" class="w-full border border-gray-200 rounded-xl p-3">
+                    <option value="critical">Critical</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                </select>
+            </div>
+            <button onclick="saveRule()" class="w-full py-3 gradient-primary text-white rounded-xl font-medium">
+                Create Rule
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function fetchAlerts() {
+    try {
+        const res = await fetch('/hub/api/alerts');
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('critical-count').textContent = data.critical || 0;
+            document.getElementById('warning-count').textContent = data.warning || 0;
+            document.getElementById('info-count').textContent = data.info || 0;
+            document.getElementById('resolved-count').textContent = data.resolved || 0;
+            
+            renderAlerts(data.alerts || []);
+            renderRules(data.rules || []);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderAlerts(alerts) {
+    const container = document.getElementById('alerts-list');
+    
+    if (alerts.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-check-circle text-4xl text-green-300 mb-3"></i>
+                <p>No active alerts. All systems operational!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = alerts.map(alert => `
+        <div class="flex items-start space-x-4 p-4 rounded-xl ${
+            alert.severity === 'critical' ? 'bg-red-50 border border-red-200' :
+            alert.severity === 'warning' ? 'bg-yellow-50 border border-yellow-200' :
+            'bg-blue-50 border border-blue-200'
+        }">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center ${
+                alert.severity === 'critical' ? 'bg-red-100' :
+                alert.severity === 'warning' ? 'bg-yellow-100' :
+                'bg-blue-100'
+            }">
+                <i class="fas ${
+                    alert.severity === 'critical' ? 'fa-exclamation-circle text-red-500' :
+                    alert.severity === 'warning' ? 'fa-exclamation-triangle text-yellow-500' :
+                    'fa-info-circle text-blue-500'
+                }"></i>
+            </div>
+            <div class="flex-1">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-medium text-gray-800">${alert.title}</h4>
+                    <span class="text-xs text-gray-500">${alert.time}</span>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">${alert.message}</p>
+                <div class="flex items-center space-x-2 mt-2">
+                    <button onclick="acknowledgeAlert('${alert.id}')" class="text-xs text-blue-600 hover:text-blue-800">Acknowledge</button>
+                    <span class="text-gray-300">|</span>
+                    <button onclick="resolveAlert('${alert.id}')" class="text-xs text-green-600 hover:text-green-800">Resolve</button>
+                    <span class="text-gray-300">|</span>
+                    <button onclick="dismissAlert('${alert.id}')" class="text-xs text-gray-600 hover:text-gray-800">Dismiss</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderRules(rules) {
+    const tbody = document.getElementById('rules-table');
+    
+    // Default rules
+    const defaultRules = [
+        { name: 'High Bounce Rate', condition: 'Bounce rate > 5%', threshold: '5%', notify: 'Email', active: true },
+        { name: 'Server Offline', condition: 'Server unreachable', threshold: '60s', notify: 'Email, Slack', active: true },
+        { name: 'Queue Overflow', condition: 'Queue size > 100K', threshold: '100,000', notify: 'Email', active: true },
+        { name: 'Low Delivery Rate', condition: 'Delivery rate < 90%', threshold: '90%', notify: 'Email', active: false },
+    ];
+    
+    const allRules = [...defaultRules, ...rules];
+    
+    tbody.innerHTML = allRules.map(rule => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50">
+            <td class="py-3 font-medium">${rule.name}</td>
+            <td class="py-3 text-gray-500">${rule.condition}</td>
+            <td class="py-3">${rule.threshold}</td>
+            <td class="py-3">${rule.notify}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${rule.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}">
+                    ${rule.active ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td class="py-3">
+                <div class="flex space-x-1">
+                    <button onclick="editRule('${rule.name}')" class="p-1.5 hover:bg-gray-100 rounded" title="Edit">
+                        <i class="fas fa-edit text-gray-400"></i>
+                    </button>
+                    <button onclick="toggleRule('${rule.name}')" class="p-1.5 hover:bg-gray-100 rounded" title="Toggle">
+                        <i class="fas fa-power-off text-gray-400"></i>
+                    </button>
+                    <button onclick="deleteRule('${rule.name}')" class="p-1.5 hover:bg-gray-100 rounded" title="Delete">
+                        <i class="fas fa-trash text-red-400"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openAlertSettings() { document.getElementById('alert-settings-modal').classList.remove('hidden'); }
+function closeAlertSettings() { document.getElementById('alert-settings-modal').classList.add('hidden'); }
+function openAddRuleModal() { document.getElementById('add-rule-modal').classList.remove('hidden'); }
+function closeAddRuleModal() { document.getElementById('add-rule-modal').classList.add('hidden'); }
+
+function saveAlertSettings() {
+    showToast('Settings saved', 'success');
+    closeAlertSettings();
+}
+
+function saveRule() {
+    const name = document.getElementById('rule-name').value;
+    if (!name) { showToast('Please enter a rule name', 'error'); return; }
+    showToast('Rule created', 'success');
+    closeAddRuleModal();
+    fetchAlerts();
+}
+
+function configureChannel(channel) {
+    showToast(`Configuring ${channel}...`, 'info');
+}
+
+function acknowledgeAlert(id) { showToast('Alert acknowledged', 'info'); }
+function resolveAlert(id) { showToast('Alert resolved', 'success'); fetchAlerts(); }
+function dismissAlert(id) { showToast('Alert dismissed', 'info'); fetchAlerts(); }
+function editRule(name) { showToast(`Editing ${name}...`, 'info'); }
+function toggleRule(name) { showToast(`Rule toggled`, 'success'); fetchAlerts(); }
+function deleteRule(name) { if (confirm('Delete this rule?')) { showToast('Rule deleted', 'success'); fetchAlerts(); } }
+function markAllRead() { showToast('All alerts marked as read', 'success'); }
+function filterAlerts(type) { fetchAlerts(); }
+
+// Initialize
+fetchAlerts();
+setInterval(fetchAlerts, 30000);
+</script>
+{% endblock %}

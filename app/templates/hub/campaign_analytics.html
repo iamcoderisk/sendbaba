@@ -1,0 +1,419 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'campaigns' %}
+
+{% block title %}Campaign Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Campaign Analytics</h1>
+            <p class="text-gray-500">Track performance, engagement, and ROI across all campaigns</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <select id="date-range" onchange="changeDateRange(this.value)" class="px-4 py-2 bg-white border border-gray-200 rounded-xl">
+                <option value="7d">Last 7 Days</option>
+                <option value="30d" selected>Last 30 Days</option>
+                <option value="90d">Last 90 Days</option>
+                <option value="all">All Time</option>
+            </select>
+            <button onclick="exportCampaignReport()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Overview Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Total Campaigns</span>
+                <i class="fas fa-bullhorn text-blue-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="total-campaigns">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Emails Sent</span>
+                <i class="fas fa-paper-plane text-green-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-green-600" id="total-sent">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Delivered</span>
+                <i class="fas fa-check-double text-blue-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-blue-600" id="total-delivered">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Open Rate</span>
+                <i class="fas fa-envelope-open text-purple-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-purple-600"><span id="open-rate">0</span>%</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Click Rate</span>
+                <i class="fas fa-mouse-pointer text-cyan-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-cyan-600"><span id="click-rate">0</span>%</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Bounce Rate</span>
+                <i class="fas fa-exclamation-triangle text-red-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-red-600"><span id="bounce-rate">0</span>%</p>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Campaign Performance Trend</h3>
+            <div id="performance-chart" style="height: 300px;"></div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Engagement Funnel</h3>
+            <div id="funnel-chart" style="height: 300px;"></div>
+        </div>
+    </div>
+
+    <!-- Campaign Comparison -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">Campaign Comparison</h3>
+            <div class="flex items-center space-x-2">
+                <select id="compare-metric" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm">
+                    <option value="sent">Sent</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="opens">Opens</option>
+                    <option value="clicks">Clicks</option>
+                </select>
+            </div>
+        </div>
+        <div id="comparison-chart" style="height: 300px;"></div>
+    </div>
+
+    <!-- All Campaigns Table -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">All Campaigns</h3>
+            <div class="flex items-center space-x-2">
+                <input type="text" placeholder="Search campaigns..." 
+                       class="px-4 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-blue-500"
+                       onkeyup="searchCampaigns(this.value)">
+                <select id="status-filter" onchange="filterCampaigns()" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm">
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="sending">Sending</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="draft">Draft</option>
+                </select>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">Campaign</th>
+                        <th class="pb-3 font-medium">Organization</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Sent</th>
+                        <th class="pb-3 font-medium">Delivered</th>
+                        <th class="pb-3 font-medium">Opens</th>
+                        <th class="pb-3 font-medium">Clicks</th>
+                        <th class="pb-3 font-medium">Bounces</th>
+                        <th class="pb-3 font-medium">Date</th>
+                        <th class="pb-3 font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="campaigns-table" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Best Performing -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">🏆 Top by Open Rate</h3>
+            <div class="space-y-3" id="top-opens">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">🎯 Top by Click Rate</h3>
+            <div class="space-y-3" id="top-clicks">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">📈 Best Delivery Rate</h3>
+            <div class="space-y-3" id="top-delivery">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Campaign Detail Modal -->
+<div id="campaign-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeCampaignModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl bg-white rounded-2xl card-shadow-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800" id="modal-campaign-name">Campaign Details</h3>
+            <button onclick="closeCampaignModal()" class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-400"></i>
+            </button>
+        </div>
+        <div id="campaign-modal-content">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let performanceChart, funnelChart, comparisonChart;
+let allCampaigns = [];
+
+function initCharts() {
+    // Performance trend
+    performanceChart = new ApexCharts(document.querySelector("#performance-chart"), {
+        chart: { type: 'area', height: 300, toolbar: { show: false } },
+        series: [
+            { name: 'Sent', data: [1200, 1800, 2400, 2100, 2800, 3200, 2900] },
+            { name: 'Delivered', data: [1150, 1750, 2350, 2050, 2750, 3150, 2850] },
+            { name: 'Opens', data: [400, 600, 800, 700, 950, 1100, 1000] }
+        ],
+        colors: ['#3b82f6', '#10b981', '#8b5cf6'],
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.3, opacityTo: 0.1 } },
+        stroke: { curve: 'smooth', width: 2 },
+        xaxis: { categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] },
+        yaxis: { labels: { formatter: v => formatNumber(v) } },
+        legend: { position: 'top' },
+        grid: { borderColor: '#f1f5f9' }
+    });
+    performanceChart.render();
+
+    // Funnel chart
+    funnelChart = new ApexCharts(document.querySelector("#funnel-chart"), {
+        chart: { type: 'bar', height: 300, toolbar: { show: false } },
+        series: [{ name: 'Count', data: [10000, 9500, 3200, 850, 120] }],
+        colors: ['#3b82f6'],
+        plotOptions: { 
+            bar: { 
+                horizontal: true, 
+                borderRadius: 4,
+                distributed: true,
+                dataLabels: { position: 'bottom' }
+            } 
+        },
+        xaxis: { categories: ['Sent', 'Delivered', 'Opened', 'Clicked', 'Converted'] },
+        yaxis: { labels: { style: { fontWeight: 'bold' } } },
+        dataLabels: { enabled: true, formatter: v => formatNumber(v) },
+        colors: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444'],
+        legend: { show: false }
+    });
+    funnelChart.render();
+
+    // Comparison chart
+    comparisonChart = new ApexCharts(document.querySelector("#comparison-chart"), {
+        chart: { type: 'bar', height: 300, toolbar: { show: false } },
+        series: [{ name: 'Sent', data: [4500, 3200, 2800, 2100, 1800] }],
+        colors: ['#3b82f6'],
+        plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
+        xaxis: { categories: ['Newsletter #12', 'Promo Campaign', 'Welcome Series', 'Re-engagement', 'Product Update'] },
+        yaxis: { labels: { formatter: v => formatNumber(v) } },
+        dataLabels: { enabled: false },
+        grid: { borderColor: '#f1f5f9' }
+    });
+    comparisonChart.render();
+}
+
+async function fetchCampaignData() {
+    try {
+        const res = await fetch('/hub/api/campaigns/analytics');
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('total-campaigns').textContent = data.stats.total_campaigns;
+            document.getElementById('total-sent').textContent = formatNumber(data.stats.total_sent);
+            document.getElementById('total-delivered').textContent = formatNumber(data.stats.total_delivered);
+            document.getElementById('open-rate').textContent = data.stats.open_rate.toFixed(1);
+            document.getElementById('click-rate').textContent = data.stats.click_rate.toFixed(1);
+            document.getElementById('bounce-rate').textContent = data.stats.bounce_rate.toFixed(2);
+            
+            allCampaigns = data.campaigns;
+            renderCampaignsTable(data.campaigns);
+            renderTopCampaigns(data.top_opens, 'top-opens', 'open_rate');
+            renderTopCampaigns(data.top_clicks, 'top-clicks', 'click_rate');
+            renderTopCampaigns(data.top_delivery, 'top-delivery', 'delivery_rate');
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderCampaignsTable(campaigns) {
+    const tbody = document.getElementById('campaigns-table');
+    
+    const statusColors = {
+        completed: 'bg-green-100 text-green-700',
+        sending: 'bg-blue-100 text-blue-700',
+        scheduled: 'bg-yellow-100 text-yellow-700',
+        draft: 'bg-gray-100 text-gray-700',
+        failed: 'bg-red-100 text-red-700'
+    };
+    
+    tbody.innerHTML = campaigns.map(c => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onclick="viewCampaign('${c.id}')">
+            <td class="py-3">
+                <div>
+                    <p class="font-medium text-gray-800">${c.name}</p>
+                    <p class="text-xs text-gray-500">${c.subject || 'No subject'}</p>
+                </div>
+            </td>
+            <td class="py-3 text-gray-500">${c.organization || '-'}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${statusColors[c.status] || 'bg-gray-100 text-gray-700'}">${c.status}</span>
+            </td>
+            <td class="py-3 font-medium">${formatNumber(c.sent)}</td>
+            <td class="py-3 text-green-600">${formatNumber(c.delivered)}</td>
+            <td class="py-3 text-purple-600">${formatNumber(c.opens)} <span class="text-xs text-gray-400">(${c.open_rate}%)</span></td>
+            <td class="py-3 text-cyan-600">${formatNumber(c.clicks)} <span class="text-xs text-gray-400">(${c.click_rate}%)</span></td>
+            <td class="py-3 text-red-600">${formatNumber(c.bounces)}</td>
+            <td class="py-3 text-gray-500">${c.date}</td>
+            <td class="py-3">
+                <div class="flex space-x-1">
+                    <button onclick="event.stopPropagation(); viewCampaign('${c.id}')" class="p-1.5 hover:bg-gray-100 rounded" title="View">
+                        <i class="fas fa-eye text-gray-400"></i>
+                    </button>
+                    <button onclick="event.stopPropagation(); duplicateCampaign('${c.id}')" class="p-1.5 hover:bg-gray-100 rounded" title="Duplicate">
+                        <i class="fas fa-copy text-gray-400"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderTopCampaigns(campaigns, containerId, metric) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = campaigns.map((c, i) => `
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center ${i === 0 ? 'bg-yellow-100 text-yellow-600' : i === 1 ? 'bg-gray-100 text-gray-600' : 'bg-orange-100 text-orange-600'} font-bold text-sm">
+                ${i + 1}
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-800 truncate">${c.name}</p>
+                <p class="text-xs text-gray-500">${c.organization}</p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold text-gray-800">${c[metric]}%</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function viewCampaign(id) {
+    const campaign = allCampaigns.find(c => c.id == id);
+    if (!campaign) return;
+    
+    document.getElementById('modal-campaign-name').textContent = campaign.name;
+    document.getElementById('campaign-modal-content').innerHTML = `
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-blue-50 rounded-xl p-4 text-center">
+                <p class="text-2xl font-bold text-blue-600">${formatNumber(campaign.sent)}</p>
+                <p class="text-sm text-blue-500">Sent</p>
+            </div>
+            <div class="bg-green-50 rounded-xl p-4 text-center">
+                <p class="text-2xl font-bold text-green-600">${formatNumber(campaign.delivered)}</p>
+                <p class="text-sm text-green-500">Delivered</p>
+            </div>
+            <div class="bg-purple-50 rounded-xl p-4 text-center">
+                <p class="text-2xl font-bold text-purple-600">${campaign.open_rate}%</p>
+                <p class="text-sm text-purple-500">Open Rate</p>
+            </div>
+            <div class="bg-cyan-50 rounded-xl p-4 text-center">
+                <p class="text-2xl font-bold text-cyan-600">${campaign.click_rate}%</p>
+                <p class="text-sm text-cyan-500">Click Rate</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">Subject Line</p>
+                <p class="font-medium">${campaign.subject || 'No subject'}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">From</p>
+                <p class="font-medium">${campaign.from_email || '-'}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">Organization</p>
+                <p class="font-medium">${campaign.organization || '-'}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">Created</p>
+                <p class="font-medium">${campaign.date}</p>
+            </div>
+        </div>
+        <div class="flex space-x-3">
+            <button onclick="duplicateCampaign('${campaign.id}')" class="flex-1 py-2 bg-blue-500 text-white rounded-xl font-medium">
+                <i class="fas fa-copy mr-2"></i>Duplicate
+            </button>
+            <button onclick="exportCampaignDetails('${campaign.id}')" class="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium">
+                <i class="fas fa-download mr-2"></i>Export Report
+            </button>
+        </div>
+    `;
+    document.getElementById('campaign-modal').classList.remove('hidden');
+}
+
+function closeCampaignModal() {
+    document.getElementById('campaign-modal').classList.add('hidden');
+}
+
+function searchCampaigns(query) {
+    const filtered = allCampaigns.filter(c => 
+        c.name.toLowerCase().includes(query.toLowerCase()) ||
+        (c.subject && c.subject.toLowerCase().includes(query.toLowerCase()))
+    );
+    renderCampaignsTable(filtered);
+}
+
+function filterCampaigns() {
+    const status = document.getElementById('status-filter').value;
+    const filtered = status ? allCampaigns.filter(c => c.status === status) : allCampaigns;
+    renderCampaignsTable(filtered);
+}
+
+function duplicateCampaign(id) {
+    showToast('Campaign duplicated', 'success');
+}
+
+function exportCampaignReport() {
+    showToast('Exporting campaign report...', 'info');
+}
+
+function exportCampaignDetails(id) {
+    showToast('Exporting campaign details...', 'info');
+}
+
+function changeDateRange(range) {
+    fetchCampaignData();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    fetchCampaignData();
+});
+</script>
+{% endblock %}

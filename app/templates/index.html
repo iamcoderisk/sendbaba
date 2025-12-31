@@ -1,169 +1,682 @@
 {% extends 'univ.html' %}
 
-{% block title %}SendBaba - Email Marketing on Autopilot{% endblock %}
+{% block title %}SendBaba - Email Marketing & Business Mail Platform{% endblock %}
 {% block body_class %}bg-white overflow-x-hidden{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Page-specific animations */
+@keyframes hero-float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    33% { transform: translateY(-15px) rotate(1deg); }
+    66% { transform: translateY(-8px) rotate(-1deg); }
+}
+@keyframes blob-morph {
+    0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+    25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+    50% { border-radius: 50% 60% 30% 60% / 30% 40% 70% 60%; }
+    75% { border-radius: 60% 40% 60% 30% / 70% 30% 50% 60%; }
+}
+.hero-float { animation: hero-float 6s ease-in-out infinite; }
+.blob-morph { animation: blob-morph 8s ease-in-out infinite; }
+
+/* Trusted logos animation */
+@keyframes scroll-logos {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+.logos-scroll { animation: scroll-logos 25s linear infinite; }
+.logos-scroll:hover { animation-play-state: paused; }
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- Hero Section -->
-<section class="pt-32 pb-20 px-4 relative overflow-hidden">
-    <div class="absolute top-20 right-10 w-64 h-64 bg-brand-yellow/30 blob"></div>
-    <div class="absolute bottom-20 left-10 w-48 h-48 bg-brand-soft/20 blob" style="animation-delay: 2s;"></div>
-    
-    <div class="max-w-7xl mx-auto relative z-10">
-        <div class="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-                <div class="inline-block bg-gradient-to-r from-brand-orange/10 to-brand-light/10 rounded-full px-6 py-2 mb-6">
-                    <span class="text-brand-orange font-semibold flex items-center gap-2">
-                        <img src="https://cdn-icons-png.flaticon.com/128/3472/3472620.png" class="w-5 h-5" alt="AI">
-                        AI-Powered Email Marketing
-                    </span>
-                </div>
-                
-                <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-                    Email Marketing
-                    <span class="gradient-text">on Autopilot</span>
-                </h1>
-                
-                <p class="text-xl text-gray-600 mb-8 leading-relaxed">
-                    All-in-one platform for crafting, managing, and optimizing email campaigns smoothly on autopilot. Send 2+ billion emails per day with industry-leading deliverability.
-                </p>
-                
-                <div class="flex flex-col sm:flex-row gap-4 mb-12">
-                    <a href="/register" class="btn-primary">
-                        <span>Explore Demo</span>
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
-                    <a href="/docs" class="btn-secondary">
-                        <img src="https://cdn-icons-png.flaticon.com/128/2702/2702134.png" class="w-5 h-5" alt="Docs">
-                        <span>Documentation</span>
-                    </a>
-                </div>
-
-                <div class="grid grid-cols-3 gap-8">
-                    <div>
-                        <div class="stat-number text-brand-orange" data-value="14">0</div>
-                        <p class="text-gray-600 text-sm mt-1">K+ Active Users</p>
-                    </div>
-                    <div>
-                        <div class="stat-number text-brand-orange" data-value="99" data-suffix="%">0%</div>
-                        <p class="text-gray-600 text-sm mt-1">Delivery Rate</p>
-                    </div>
-                    <div>
-                        <div class="stat-number text-brand-orange" data-value="89" data-suffix="%">0%</div>
-                        <p class="text-gray-600 text-sm mt-1">Open Rate</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="relative hero-image">
-                <img src="https://cdn.pixabay.com/photo/2020/08/09/14/25/business-5475661_1280.jpg" alt="Email Marketing Dashboard" class="w-full h-auto rounded-2xl shadow-2xl">
-                
-                <div class="absolute -top-6 -right-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
-                    <div class="flex items-center space-x-2">
-                        <img src="https://cdn-icons-png.flaticon.com/128/5610/5610944.png" class="w-6 h-6" alt="Success">
-                        <span class="font-semibold text-gray-900">Email Delivered</span>
-                    </div>
-                </div>
-
-                <div class="absolute -bottom-6 -left-6 bg-white rounded-2xl shadow-xl p-4 border border-gray-100">
-                    <div class="flex items-center space-x-2">
-                        <div class="flex -space-x-2">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-white"></div>
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white"></div>
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 border-2 border-white"></div>
-                        </div>
-                        <span class="font-semibold text-gray-900">+2.4K Users</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- ============================================
+     HERO SECTION
+     ============================================ -->
+<section class="relative min-h-screen flex items-center pt-20 pb-16 px-4 overflow-hidden">
+    <!-- Animated Background -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-orange-300/30 to-red-300/30 rounded-full blur-3xl blob-morph"></div>
+        <div class="absolute top-40 right-10 w-96 h-96 bg-gradient-to-br from-yellow-200/25 to-orange-300/25 rounded-full blur-3xl blob-morph" style="animation-delay: -2s;"></div>
+        <div class="absolute bottom-20 left-1/3 w-80 h-80 bg-gradient-to-br from-red-200/20 to-pink-200/20 rounded-full blur-3xl blob-morph" style="animation-delay: -4s;"></div>
+        <!-- Grid pattern -->
+        <div class="absolute inset-0 bg-[linear-gradient(rgba(247,96,31,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(247,96,31,0.03)_1px,transparent_1px)] bg-[size:60px_60px]"></div>
     </div>
-</section>
-
-<!-- Features Section -->
-<section class="py-20 px-4 bg-gray-50">
-    <div class="max-w-7xl mx-auto">
-        <div class="text-center mb-16">
-            <div class="inline-block bg-brand-orange/10 rounded-full px-6 py-2 mb-4">
-                <span class="text-brand-orange font-semibold flex items-center gap-2 justify-center">
-                    <img src="https://cdn-icons-png.flaticon.com/128/2910/2910791.png" class="w-5 h-5" alt="Features">
-                    Features
+    
+    <div class="max-w-7xl mx-auto relative z-10 w-full">
+        <div class="text-center mb-12">
+            <!-- Trust Badge -->
+            <div class="reveal inline-flex items-center gap-3 glass rounded-full px-6 py-3 mb-8 shadow-lg border border-white/50">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                 </span>
+                <span class="text-gray-700 font-medium">Trusted by <span class="text-brand-orange font-bold">14,000+</span> businesses worldwide</span>
             </div>
-            <h2 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                Reach the right <span class="gradient-text">audience</span><br/>without headaches.
-            </h2>
-            <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                Everything you need to create, send, and track professional email campaigns
+            
+            <!-- Main Headline -->
+            <h1 class="reveal stagger-1 text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight">
+                The Complete<br/>
+                <span class="shimmer-text">Email Platform</span><br/>
+                <span class="text-gray-700">for Modern Business</span>
+            </h1>
+            
+            <!-- Subheadline -->
+            <p class="reveal stagger-2 text-lg md:text-xl lg:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed px-4">
+                From professional business mailboxes to high-volume marketing campaigns — 
+                everything you need to <span class="text-brand-orange font-semibold">connect</span>, <span class="text-brand-orange font-semibold">communicate</span>, and <span class="text-brand-orange font-semibold">convert</span>.
+            </p>
+            
+            <!-- CTA Buttons -->
+            <div class="reveal stagger-3 flex flex-col sm:flex-row gap-4 justify-center mb-8 px-4">
+                <a href="/auth/register" class="btn-primary text-lg px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl">
+                    <i class="fas fa-rocket"></i>
+                    <span>Start Free — No Card Required</span>
+                </a>
+                <a href="#demo" class="btn-secondary text-lg px-8 py-4 rounded-2xl">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Watch Demo</span>
+                </a>
+            </div>
+            
+            <p class="reveal stagger-4 text-gray-500 text-sm">
+                ✓ Free forever plan &nbsp;•&nbsp; ✓ No credit card &nbsp;•&nbsp; ✓ Setup in 2 minutes
             </p>
         </div>
-
-        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                <img src="https://cdn-icons-png.flaticon.com/128/4712/4712035.png" class="w-14 h-14 mb-6" alt="AI">
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">AI-Powered</h3>
-                <p class="text-gray-600 mb-4">Automated responses, sentiment analysis, and smart reply suggestions powered by advanced AI</p>
-                <a href="/features#ai" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+        
+        <!-- Choice Cards: What are you here for? -->
+        <div class="reveal stagger-5 max-w-4xl mx-auto mt-16 px-4">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 text-center mb-8">
+                <span class="wave">👋</span> What brings you here today?
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Business Mail Card -->
+                <a href="https://mail.sendbaba.com/register" class="group gradient-border bg-white rounded-3xl p-6 md:p-8 text-center hover-lift">
+                    <div class="w-20 h-20 mx-auto mb-5 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform pulse-glow">
+                        <i class="fas fa-envelope text-3xl text-white"></i>
+                    </div>
+                    <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-3">Business Mailbox</h3>
+                    <p class="text-gray-600 mb-5 text-sm md:text-base">Professional email @sendbaba.com or your custom domain. Secure, ad-free, with team chat.</p>
+                    <div class="flex flex-wrap gap-2 justify-center mb-5">
+                        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Free Plan</span>
+                        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Custom Domain</span>
+                        <span class="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">Team Chat</span>
+                    </div>
+                    <div class="inline-flex items-center gap-2 text-orange-500 font-semibold group-hover:gap-4 transition-all">
+                        <span>Get Your Mailbox</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </a>
+                
+                <!-- Campaigns Card -->
+                <a href="/auth/register" class="group gradient-border bg-white rounded-3xl p-6 md:p-8 text-center hover-lift">
+                    <div class="w-20 h-20 mx-auto mb-5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
+                        <i class="fas fa-chart-line text-3xl text-white"></i>
+                    </div>
+                    <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-3">Email Campaigns</h3>
+                    <p class="text-gray-600 mb-5 text-sm md:text-base">Send millions of marketing emails. AI-powered automation, analytics, and team collaboration.</p>
+                    <div class="flex flex-wrap gap-2 justify-center mb-5">
+                        <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">Bulk Sending</span>
+                        <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">AI Powered</span>
+                        <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">Analytics</span>
+                    </div>
+                    <div class="inline-flex items-center gap-2 text-blue-500 font-semibold group-hover:gap-4 transition-all">
+                        <span>Start Campaigns</span>
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+                </a>
             </div>
+            
+            <p class="text-center text-gray-500 mt-6 text-sm">
+                Already have an account? <a href="/auth/login" class="text-orange-500 font-semibold hover:underline">Sign in here</a>
+            </p>
+        </div>
+    </div>
+</section>
 
-            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                <img src="https://cdn-icons-png.flaticon.com/128/2920/2920277.png" class="w-14 h-14 mb-6" alt="Analytics">
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Real-Time Analytics</h3>
-                <p class="text-gray-600 mb-4">Track opens, clicks, and conversions with beautiful dashboards and detailed reports</p>
-                <a href="/features#analytics" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
-            </div>
-
-            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                <img src="https://cdn-icons-png.flaticon.com/128/3209/3209265.png" class="w-14 h-14 mb-6" alt="Builder">
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Drag & Drop Builder</h3>
-                <p class="text-gray-600 mb-4">Create stunning emails without code using our intuitive visual editor</p>
-                <a href="/features#builder" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
-            </div>
-
-            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                <img src="https://cdn-icons-png.flaticon.com/128/2920/2920349.png" class="w-14 h-14 mb-6" alt="Automation">
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Automation Workflows</h3>
-                <p class="text-gray-600 mb-4">Set up trigger-based workflows for welcome series, drip campaigns, and more</p>
-                <a href="/features#automation" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
-            </div>
-
-            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                <img src="https://cdn-icons-png.flaticon.com/128/7595/7595571.png" class="w-14 h-14 mb-6" alt="Validation">
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">Email Validation</h3>
-                <p class="text-gray-600 mb-4">Advanced validation including syntax, domain, SMTP, and disposable email detection</p>
-                <a href="/features#validation" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
-            </div>
-
-            <div class="feature-card bg-white rounded-2xl p-8 border border-gray-100">
-                <img src="https://cdn-icons-png.flaticon.com/128/785/785116.png" class="w-14 h-14 mb-6" alt="Warmup">
-                <h3 class="text-2xl font-bold text-gray-900 mb-3">IP Warmup</h3>
-                <p class="text-gray-600 mb-4">Automated 14-day warmup schedule to maximize deliverability and sender reputation</p>
-                <a href="/features#warmup" class="text-brand-orange font-semibold inline-flex items-center hover:gap-2 transition-all">Learn more <i class="fas fa-arrow-right ml-1"></i></a>
+<!-- ============================================
+     TRUSTED BY SECTION (Logo Marquee)
+     ============================================ -->
+<section class="py-12 bg-gray-50 border-y border-gray-100 overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4">
+        <p class="text-center text-gray-500 text-sm font-medium mb-8 uppercase tracking-wider">Trusted by innovative companies worldwide</p>
+        <div class="logo-marquee">
+            <div class="logos-scroll flex items-center gap-16">
+                <!-- Repeat twice for seamless loop -->
+                {% for _ in range(2) %}
+                <div class="flex items-center gap-16">
+                    <div class="flex items-center gap-3 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-building text-2xl"></i>
+                        <span class="font-bold text-lg">TechCorp</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-shopping-cart text-2xl"></i>
+                        <span class="font-bold text-lg">ShopMax</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-chart-pie text-2xl"></i>
+                        <span class="font-bold text-lg">DataFlow</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-globe text-2xl"></i>
+                        <span class="font-bold text-lg">GlobalNet</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-rocket text-2xl"></i>
+                        <span class="font-bold text-lg">LaunchPad</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-cloud text-2xl"></i>
+                        <span class="font-bold text-lg">CloudFirst</span>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
 </section>
 
-<!-- CTA Section -->
-<section class="py-20 px-4">
-    <div class="max-w-4xl mx-auto">
-        <div class="bg-gradient-to-br from-brand-orange to-brand-light rounded-3xl p-12 text-center text-white relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
-            <div class="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
+<!-- ============================================
+     STATS SECTION
+     ============================================ -->
+<section class="py-16 md:py-20 px-4 bg-gray-900 relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-r from-orange-600/10 via-transparent to-red-600/10"></div>
+    <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+    
+    <div class="max-w-7xl mx-auto relative z-10">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+            <div class="reveal stat-card text-center p-6 rounded-2xl">
+                <div class="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2">
+                    <span data-counter="2" data-suffix="B+">0</span>
+                </div>
+                <p class="text-gray-400 text-sm md:text-base">Emails Sent Daily</p>
+            </div>
+            <div class="reveal stagger-1 stat-card text-center p-6 rounded-2xl">
+                <div class="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2">
+                    <span data-counter="99" data-suffix=".9%">0</span>
+                </div>
+                <p class="text-gray-400 text-sm md:text-base">Delivery Rate</p>
+            </div>
+            <div class="reveal stagger-2 stat-card text-center p-6 rounded-2xl">
+                <div class="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2">
+                    <span data-counter="14" data-suffix="K+">0</span>
+                </div>
+                <p class="text-gray-400 text-sm md:text-base">Active Businesses</p>
+            </div>
+            <div class="reveal stagger-3 stat-card text-center p-6 rounded-2xl">
+                <div class="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2">
+                    <span data-counter="150" data-suffix="+">0</span>
+                </div>
+                <p class="text-gray-400 text-sm md:text-base">Countries Served</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     INDUSTRIES WE SUPPORT
+     ============================================ -->
+<section class="py-16 md:py-24 px-4 bg-gradient-to-b from-gray-50 to-white">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-12">
+            <div class="reveal inline-block bg-orange-100 rounded-full px-6 py-2 mb-4">
+                <span class="text-orange-600 font-semibold">🌍 Industries We Support</span>
+            </div>
+            <h2 class="reveal stagger-1 text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                Built for <span class="gradient-text">Every Business</span>
+            </h2>
+            <p class="reveal stagger-2 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                Unlike competitors who reject certain industries, we welcome <strong>all legitimate businesses</strong>
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+            <div class="reveal industry-badge bg-white rounded-2xl p-4 text-center shadow-md border border-gray-100">
+                <div class="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">💹</span>
+                </div>
+                <h4 class="font-bold text-gray-900 text-sm">Forex</h4>
+                <p class="text-xs text-gray-500 hidden sm:block">Trading & Signals</p>
+            </div>
             
-            <div class="relative z-10">
-                <h2 class="text-4xl md:text-5xl font-bold mb-6">Start sending smarter<br/>emails today</h2>
-                <p class="text-xl mb-8 opacity-90">Begin your email marketing journey with industry-leading deliverability</p>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="/register" class="bg-white text-brand-orange px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transform hover:-translate-y-1 transition inline-flex items-center justify-center">
-                        <span>Get Started Free</span>
-                        <i class="fas fa-arrow-right ml-2"></i>
-                    </a>
-                    <a href="/docs" class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-brand-orange transition inline-flex items-center justify-center">
-                        <span>View Documentation</span>
-                    </a>
+            <div class="reveal stagger-1 industry-badge bg-white rounded-2xl p-4 text-center shadow-md border border-gray-100">
+                <div class="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">🏠</span>
+                </div>
+                <h4 class="font-bold text-gray-900 text-sm">Real Estate</h4>
+                <p class="text-xs text-gray-500 hidden sm:block">Properties</p>
+            </div>
+            
+            <div class="reveal stagger-2 industry-badge bg-white rounded-2xl p-4 text-center shadow-md border border-gray-100">
+                <div class="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">🎰</span>
+                </div>
+                <h4 class="font-bold text-gray-900 text-sm">Betting</h4>
+                <p class="text-xs text-gray-500 hidden sm:block">Sports & Gaming</p>
+            </div>
+            
+            <div class="reveal stagger-3 industry-badge bg-white rounded-2xl p-4 text-center shadow-md border border-gray-100">
+                <div class="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">₿</span>
+                </div>
+                <h4 class="font-bold text-gray-900 text-sm">Crypto</h4>
+                <p class="text-xs text-gray-500 hidden sm:block">Blockchain</p>
+            </div>
+            
+            <div class="reveal stagger-4 industry-badge bg-white rounded-2xl p-4 text-center shadow-md border border-gray-100">
+                <div class="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-pink-400 to-red-500 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">⛪</span>
+                </div>
+                <h4 class="font-bold text-gray-900 text-sm">Religious</h4>
+                <p class="text-xs text-gray-500 hidden sm:block">Churches</p>
+            </div>
+            
+            <div class="reveal stagger-5 industry-badge bg-white rounded-2xl p-4 text-center shadow-md border border-gray-100">
+                <div class="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-gray-600 to-gray-800 rounded-xl flex items-center justify-center">
+                    <span class="text-xl">💼</span>
+                </div>
+                <h4 class="font-bold text-gray-900 text-sm">Enterprise</h4>
+                <p class="text-xs text-gray-500 hidden sm:block">Business</p>
+            </div>
+        </div>
+        
+        <p class="reveal text-center text-gray-600 mt-8">
+            And many more: <span class="font-semibold">E-commerce, SaaS, Education, Healthcare, Non-profits, Agencies...</span>
+        </p>
+    </div>
+</section>
+
+<!-- ============================================
+     SENDBABA MAIL FEATURE
+     ============================================ -->
+<section class="py-16 md:py-24 px-4 bg-white" id="mail">
+    <div class="max-w-7xl mx-auto">
+        <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div class="reveal-left">
+                <div class="inline-block bg-orange-100 rounded-full px-6 py-2 mb-6">
+                    <span class="text-orange-600 font-semibold">📧 SendBaba Mail</span>
+                </div>
+                
+                <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+                    Professional Email<br/>
+                    <span class="gradient-text">Without the Price Tag</span>
+                </h2>
+                
+                <p class="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed">
+                    Get a professional business mailbox with your own domain or @sendbaba.com. 
+                    Full-featured webmail with enterprise security, team collaboration, and zero ads.
+                </p>
+                
+                <div class="space-y-4 mb-8">
+                    <div class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-colors group">
+                        <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-globe text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900">Custom Domain Support</h4>
+                            <p class="text-gray-600 text-sm">Use your own domain for branded emails like you@yourbusiness.com</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-colors group">
+                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-comments text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900">Team Chat & Collaboration</h4>
+                            <p class="text-gray-600 text-sm">Built-in team messaging, shared mailboxes, and real-time collaboration</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start gap-4 p-4 bg-gray-50 rounded-xl hover:bg-orange-50 transition-colors group">
+                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-shield-alt text-white"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-900">Login Security Alerts</h4>
+                            <p class="text-gray-600 text-sm">Instant notifications with IP, location, device & browser for every login</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <a href="https://mail.sendbaba.com/register" class="btn-primary text-lg">
+                    <i class="fas fa-envelope"></i>
+                    <span>Get Your Free Mailbox</span>
+                </a>
+            </div>
+            
+            <div class="reveal-right relative">
+                <div class="bg-gradient-to-br from-orange-100 to-red-100 rounded-3xl p-6 md:p-8">
+                    <!-- Mail UI Preview -->
+                    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden hero-float">
+                        <div class="bg-gradient-to-r from-orange-500 to-red-600 p-4">
+                            <div class="flex items-center gap-3">
+                                <div class="flex gap-2">
+                                    <div class="w-3 h-3 bg-white/30 rounded-full"></div>
+                                    <div class="w-3 h-3 bg-white/30 rounded-full"></div>
+                                    <div class="w-3 h-3 bg-white/30 rounded-full"></div>
+                                </div>
+                                <div class="text-white font-semibold">SendBaba Mail</div>
+                            </div>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div class="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+                                <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">J</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-gray-900 truncate">John from Sales</div>
+                                    <div class="text-sm text-gray-500 truncate">Re: Q4 Campaign Strategy</div>
+                                </div>
+                                <div class="text-xs text-gray-400">2m</div>
+                            </div>
+                            <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                                <div class="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">S</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-gray-900 truncate">Sarah Marketing</div>
+                                    <div class="text-sm text-gray-500 truncate">New design files ready</div>
+                                </div>
+                                <div class="text-xs text-gray-400">1h</div>
+                            </div>
+                            <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors">
+                                <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">T</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="font-semibold text-gray-900 truncate">Team Chat</div>
+                                    <div class="text-sm text-gray-500 truncate">5 new messages</div>
+                                </div>
+                                <div class="w-5 h-5 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">5</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FREE Badge -->
+                <div class="absolute -top-4 -right-4 bg-green-500 text-white px-5 py-2 rounded-full font-bold shadow-lg bounce-gentle">
+                    FREE
                 </div>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     CAMPAIGN FEATURES
+     ============================================ -->
+<section class="py-16 md:py-24 px-4 bg-gray-50" id="campaigns">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-12">
+            <div class="reveal inline-block bg-blue-100 rounded-full px-6 py-2 mb-4">
+                <span class="text-blue-600 font-semibold">📊 Email Campaigns</span>
+            </div>
+            <h2 class="reveal stagger-1 text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                Campaign Tools That <span class="text-blue-500">Actually Work</span>
+            </h2>
+            <p class="reveal stagger-2 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                Everything you need to create, send, and analyze high-performing email campaigns
+            </p>
+        </div>
+        
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Team Campaigns -->
+            <div class="reveal feature-card p-6 lg:p-8 border border-gray-100">
+                <div class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                    <i class="fas fa-users text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Team Campaigns</h3>
+                <p class="text-gray-600 mb-4">Collaborate with your team on campaigns. Role-based permissions, shared templates, and approval workflows.</p>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Multi-user access</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Campaign approval flow</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Shared template library</li>
+                </ul>
+            </div>
+            
+            <!-- AI Powered -->
+            <div class="reveal stagger-1 feature-card p-6 lg:p-8 border border-gray-100">
+                <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                    <i class="fas fa-brain text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl lg:text-2xl font-bold text-gray-900 mb-3">AI-Powered Intelligence</h3>
+                <p class="text-gray-600 mb-4">Smart subject lines, send time optimization, and automated response suggestions.</p>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> AI subject line generator</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Optimal send time</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Reply sentiment analysis</li>
+                </ul>
+            </div>
+            
+            <!-- Analytics -->
+            <div class="reveal stagger-2 feature-card p-6 lg:p-8 border border-gray-100">
+                <div class="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                    <i class="fas fa-chart-bar text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Advanced Analytics</h3>
+                <p class="text-gray-600 mb-4">Real-time dashboards, click heatmaps, revenue attribution, and detailed reports.</p>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Real-time tracking</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Click heatmaps</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Revenue tracking</li>
+                </ul>
+            </div>
+            
+            <!-- Automation -->
+            <div class="reveal stagger-3 feature-card p-6 lg:p-8 border border-gray-100">
+                <div class="w-14 h-14 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                    <i class="fas fa-bolt text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Automation Workflows</h3>
+                <p class="text-gray-600 mb-4">Visual workflow builder for welcome series, abandoned carts, and drip campaigns.</p>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Visual builder</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Trigger-based flows</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> A/B testing</li>
+                </ul>
+            </div>
+            
+            <!-- Drag & Drop Builder -->
+            <div class="reveal stagger-4 feature-card p-6 lg:p-8 border border-gray-100">
+                <div class="w-14 h-14 bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                    <i class="fas fa-paint-brush text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Drag & Drop Builder</h3>
+                <p class="text-gray-600 mb-4">Create stunning emails without code. Mobile-responsive templates and live preview.</p>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> 100+ templates</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Mobile responsive</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Custom HTML support</li>
+                </ul>
+            </div>
+            
+            <!-- Email Validation -->
+            <div class="reveal stagger-5 feature-card p-6 lg:p-8 border border-gray-100">
+                <div class="w-14 h-14 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                    <i class="fas fa-shield-alt text-2xl text-white"></i>
+                </div>
+                <h3 class="text-xl lg:text-2xl font-bold text-gray-900 mb-3">Email Validation</h3>
+                <p class="text-gray-600 mb-4">Clean your lists automatically. Detect disposable, invalid, and risky emails.</p>
+                <ul class="space-y-2 text-sm text-gray-600">
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Real-time validation</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Bulk list cleaning</li>
+                    <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Disposable detection</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     COMPARISON TABLE
+     ============================================ -->
+<section class="py-16 md:py-24 px-4 bg-white">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-12">
+            <div class="reveal inline-block bg-green-100 rounded-full px-6 py-2 mb-4">
+                <span class="text-green-600 font-semibold">🏆 Why SendBaba</span>
+            </div>
+            <h2 class="reveal stagger-1 text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+                What Sets Us <span class="text-green-500">Apart</span>
+            </h2>
+            <p class="reveal stagger-2 text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
+                Features and benefits you won't find with other email providers
+            </p>
+        </div>
+        
+        <!-- Comparison Table -->
+        <div class="reveal max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-900 text-white">
+                        <tr>
+                            <th class="py-5 px-6 text-left font-semibold">Feature</th>
+                            <th class="py-5 px-6 text-center font-semibold bg-gradient-to-r from-orange-500 to-red-600">
+                                <div class="flex items-center justify-center gap-2">
+                                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="" class="h-5 brightness-0 invert">
+                                    SendBaba
+                                </div>
+                            </th>
+                            <th class="py-5 px-6 text-center font-semibold">SendGrid</th>
+                            <th class="py-5 px-6 text-center font-semibold">Mailchimp</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-gray-700">
+                        <tr class="comparison-row border-b">
+                            <td class="py-4 px-6 font-medium">Forex/Betting/Crypto</td>
+                            <td class="py-4 px-6 text-center"><span class="text-green-500 text-xl">✅</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-red-500 text-xl">❌</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-red-500 text-xl">❌</span></td>
+                        </tr>
+                        <tr class="comparison-row border-b">
+                            <td class="py-4 px-6 font-medium">Built-in Business Mailbox</td>
+                            <td class="py-4 px-6 text-center"><span class="text-green-500 text-xl">✅</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-red-500 text-xl">❌</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-red-500 text-xl">❌</span></td>
+                        </tr>
+                        <tr class="comparison-row border-b">
+                            <td class="py-4 px-6 font-medium">Team Chat & Collaboration</td>
+                            <td class="py-4 px-6 text-center"><span class="text-green-500 text-xl">✅</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-red-500 text-xl">❌</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-red-500 text-xl">❌</span></td>
+                        </tr>
+                        <tr class="comparison-row border-b">
+                            <td class="py-4 px-6 font-medium">AI Reply Intelligence</td>
+                            <td class="py-4 px-6 text-center"><span class="text-green-500 text-xl">✅</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-red-500 text-xl">❌</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-yellow-500 text-xl">⚠️</span></td>
+                        </tr>
+                        <tr class="comparison-row border-b">
+                            <td class="py-4 px-6 font-medium">99.9% Deliverability</td>
+                            <td class="py-4 px-6 text-center"><span class="text-green-500 text-xl">✅</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-green-500 text-xl">✅</span></td>
+                            <td class="py-4 px-6 text-center"><span class="text-yellow-500 text-xl">⚠️</span></td>
+                        </tr>
+                        <tr class="comparison-row">
+                            <td class="py-4 px-6 font-medium">Starting Price</td>
+                            <td class="py-4 px-6 text-center font-bold text-green-600 text-lg">FREE</td>
+                            <td class="py-4 px-6 text-center text-gray-600">$15/mo</td>
+                            <td class="py-4 px-6 text-center text-gray-600">$13/mo</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     TESTIMONIALS
+     ============================================ -->
+<section class="py-16 md:py-24 px-4 bg-gray-900 text-white relative overflow-hidden">
+    <div class="absolute inset-0">
+        <div class="absolute top-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-red-500/10 rounded-full blur-3xl"></div>
+    </div>
+    
+    <div class="max-w-7xl mx-auto relative z-10">
+        <div class="text-center mb-12">
+            <h2 class="reveal text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+                Trusted by <span class="text-orange-400">14,000+</span> Businesses
+            </h2>
+            <p class="reveal stagger-1 text-lg md:text-xl text-gray-400">From startups to enterprises, businesses love SendBaba</p>
+        </div>
+        
+        <div class="grid md:grid-cols-3 gap-6 lg:gap-8">
+            <div class="reveal testimonial-card bg-white/5 backdrop-blur-lg border border-white/10 text-white">
+                <div class="flex items-center gap-1 mb-4">
+                    <span class="text-yellow-400">★★★★★</span>
+                </div>
+                <p class="text-gray-300 mb-6">"Finally an email platform that doesn't reject our forex business. SendBaba has been a game-changer for our trading signals newsletter."</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center font-bold">M</div>
+                    <div>
+                        <div class="font-semibold">Marcus T.</div>
+                        <div class="text-sm text-gray-500">ForexPro Signals</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="reveal stagger-1 testimonial-card bg-white/5 backdrop-blur-lg border border-white/10 text-white">
+                <div class="flex items-center gap-1 mb-4">
+                    <span class="text-yellow-400">★★★★★</span>
+                </div>
+                <p class="text-gray-300 mb-6">"The team collaboration features are incredible. Our entire marketing department uses SendBaba Mail for communication and campaigns."</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center font-bold">S</div>
+                    <div>
+                        <div class="font-semibold">Sarah K.</div>
+                        <div class="text-sm text-gray-500">TechStart Inc.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="reveal stagger-2 testimonial-card bg-white/5 backdrop-blur-lg border border-white/10 text-white">
+                <div class="flex items-center gap-1 mb-4">
+                    <span class="text-yellow-400">★★★★★</span>
+                </div>
+                <p class="text-gray-300 mb-6">"We send over 5 million emails monthly through SendBaba. The deliverability is outstanding and the analytics help us optimize every campaign."</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center font-bold">D</div>
+                    <div>
+                        <div class="font-semibold">David L.</div>
+                        <div class="text-sm text-gray-500">E-commerce Giant</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================
+     FINAL CTA SECTION
+     ============================================ -->
+<section class="py-16 md:py-24 px-4 bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 relative overflow-hidden">
+    <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full -mr-48 -mt-48"></div>
+        <div class="absolute bottom-0 left-0 w-64 h-64 bg-white/10 rounded-full -ml-32 -mb-32"></div>
+    </div>
+    
+    <div class="max-w-5xl mx-auto relative z-10">
+        <div class="text-center text-white">
+            <h2 class="reveal text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
+                Ready to Transform Your<br/>Email Experience?
+            </h2>
+            <p class="reveal stagger-1 text-lg md:text-xl mb-10 opacity-90 max-w-2xl mx-auto">
+                Join 14,000+ businesses already using SendBaba for email marketing and professional communication.
+            </p>
+            
+            <div class="reveal stagger-2 flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="https://mail.sendbaba.com/register" class="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold text-lg hover:shadow-2xl transform hover:-translate-y-1 transition inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-envelope"></i>
+                    <span>Get Free Mailbox</span>
+                </a>
+                <a href="/auth/register" class="border-2 border-white text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-orange-600 transition inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Start Campaigns</span>
+                </a>
+            </div>
+            
+            <p class="reveal stagger-3 mt-8 text-white/70 text-sm">
+                ✓ No credit card required &nbsp;•&nbsp; ✓ Free tier available &nbsp;•&nbsp; ✓ Setup in 2 minutes
+            </p>
         </div>
     </div>
 </section>

@@ -1,0 +1,1182 @@
+{% extends "hub/base.html" %}
+{% block title %}Edit Template - {{ template.name }}{% endblock %}
+
+{% block content %}
+<style>
+.editor-layout { display: flex; gap: 16px; height: calc(100vh - 120px); }
+.editor-left { width: 300px; background: white; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+.editor-center { flex: 1; background: white; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+.editor-right { width: 320px; background: white; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+
+.panel-header { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.panel-header h3 { font-size: 14px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
+.panel-header h3 i { color: #f86d31; }
+.panel-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 500; color: #374151; margin-bottom: 5px; }
+.form-input { width: 100%; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 13px; }
+.form-input:focus { outline: none; border-color: #f86d31; }
+.form-select { appearance: none; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E") no-repeat right 10px center; padding-right: 30px; }
+.form-textarea { min-height: 70px; resize: vertical; font-family: inherit; }
+
+.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6b7280; margin: 18px 0 10px; display: flex; align-items: center; gap: 6px; }
+.section-title:first-child { margin-top: 0; }
+.section-title i { color: #f86d31; font-size: 12px; }
+
+.check-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.check-row input { width: 16px; height: 16px; }
+.check-row label { font-size: 13px; color: #374151; }
+
+.blocks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.block-btn { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 6px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.block-btn:hover { border-color: #f86d31; background: #fff7ed; transform: translateY(-1px); }
+.block-btn:active { transform: translateY(0); }
+.block-btn i { font-size: 16px; color: #f86d31; display: block; margin-bottom: 4px; }
+.block-btn span { font-size: 10px; font-weight: 500; color: #374151; }
+
+/* Tabs */
+.view-tabs { display: flex; gap: 4px; background: #f3f4f6; padding: 4px; border-radius: 8px; }
+.view-tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; color: #6b7280; transition: all 0.15s; }
+.view-tab:hover { color: #374151; }
+.view-tab.active { background: white; color: #f86d31; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+.canvas-area { flex: 1; overflow: auto; padding: 16px; background: #f3f4f6; }
+.canvas-frame { max-width: 650px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); min-height: 400px; overflow: hidden; }
+
+/* Code Editor */
+.code-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; display: none; }
+.code-area.active { display: flex; }
+.code-toolbar { padding: 10px 16px; background: #1e293b; display: flex; justify-content: space-between; align-items: center; }
+.code-toolbar-left, .code-toolbar-right { display: flex; gap: 8px; align-items: center; }
+.code-btn { padding: 6px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; display: flex; align-items: center; gap: 5px; }
+.code-btn-default { background: #374151; color: #e5e7eb; }
+.code-btn-default:hover { background: #4b5563; }
+.code-btn-primary { background: #f86d31; color: white; }
+.code-btn-primary:hover { background: #e55a1f; }
+.code-btn-success { background: #10b981; color: white; }
+.code-btn-success:hover { background: #059669; }
+.code-editor { flex: 1; background: #0f172a; color: #e2e8f0; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.5; padding: 16px; border: none; resize: none; outline: none; }
+
+/* Visual Editor Elements */
+.e-sec { position: relative; border: 2px solid transparent; transition: border-color 0.15s; cursor: pointer; min-height: 60px; }
+.e-sec:hover { border-color: rgba(248,109,49,0.4); }
+.e-sec.sel { border-color: #f86d31; }
+.e-el { position: relative; border: 2px solid transparent; transition: border-color 0.15s; cursor: pointer; }
+.e-el:hover { border-color: rgba(99,102,241,0.4); }
+.e-el.sel { border-color: #6366f1; }
+
+.sec-bar { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: #1f2937; border-radius: 6px; padding: 3px; display: none; gap: 2px; z-index: 10; }
+.e-sec:hover .sec-bar, .e-sec.sel .sec-bar { display: flex; }
+.sec-bar button { background: none; border: none; color: rgba(255,255,255,0.7); padding: 4px 7px; cursor: pointer; border-radius: 4px; font-size: 11px; }
+.sec-bar button:hover { background: rgba(255,255,255,0.1); color: white; }
+
+.el-bar { position: absolute; top: -24px; right: 4px; background: #6366f1; border-radius: 4px; padding: 2px; display: none; gap: 2px; z-index: 10; }
+.e-el:hover .el-bar, .e-el.sel .el-bar { display: flex; }
+.el-bar button { background: none; border: none; color: white; padding: 3px 6px; cursor: pointer; border-radius: 3px; font-size: 10px; }
+.el-bar button:hover { background: rgba(255,255,255,0.2); }
+
+.empty-canvas { padding: 50px 30px; text-align: center; color: #9ca3af; }
+.empty-canvas i { font-size: 40px; margin-bottom: 14px; opacity: 0.4; display: block; }
+.drop-zone { padding: 20px; text-align: center; color: #9ca3af; font-size: 12px; border: 2px dashed #e5e7eb; border-radius: 6px; margin: 10px; }
+
+/* Properties Panel */
+.prop-group { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f3f4f6; }
+.prop-group:last-child { border-bottom: none; margin-bottom: 0; }
+.prop-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #9ca3af; margin-bottom: 10px; }
+.prop-row { margin-bottom: 10px; }
+.prop-label { font-size: 11px; font-weight: 500; color: #374151; margin-bottom: 4px; display: block; }
+.prop-input { width: 100%; padding: 7px 9px; border: 1px solid #e5e7eb; border-radius: 5px; font-size: 12px; }
+.prop-input:focus { outline: none; border-color: #f86d31; }
+.prop-textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+.prop-select { appearance: none; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E") no-repeat right 8px center; padding-right: 24px; }
+.prop-color { display: flex; gap: 6px; align-items: center; }
+.prop-color input[type="color"] { width: 28px; height: 28px; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px; cursor: pointer; }
+.prop-color input[type="text"] { flex: 1; }
+.prop-row-inline { display: flex; gap: 8px; }
+.prop-row-inline > div { flex: 1; }
+
+.empty-props { text-align: center; padding: 40px 20px; color: #9ca3af; }
+.empty-props i { font-size: 32px; opacity: 0.3; margin-bottom: 10px; display: block; }
+
+/* Toast */
+.toast-wrap { position: fixed; bottom: 20px; right: 20px; z-index: 9999; }
+.toast { background: #1f2937; color: white; padding: 12px 18px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 10px; margin-top: 8px; animation: slideUp 0.3s ease; }
+.toast.success { background: #10b981; }
+.toast.error { background: #ef4444; }
+.toast.warning { background: #f59e0b; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Modal */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+.modal-bg.show { display: flex; }
+.modal-box { background: white; border-radius: 12px; max-width: 800px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; }
+.modal-header { padding: 16px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 16px; font-weight: 600; margin: 0; }
+.modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #9ca3af; }
+.modal-body { flex: 1; overflow: auto; padding: 20px; }
+
+/* Status */
+.save-status { font-size: 12px; display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; }
+.save-status.saved { background: #d1fae5; color: #065f46; }
+.save-status.dirty { background: #fef3c7; color: #92400e; }
+.save-status.saving { background: #e0e7ff; color: #3730a3; }
+
+/* Buttons */
+.btn { padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
+.btn-ghost { background: transparent; color: #6b7280; }
+.btn-ghost:hover { background: #f3f4f6; }
+.btn-outline { background: white; border: 1px solid #e5e7eb; color: #374151; }
+.btn-outline:hover { background: #f9fafb; border-color: #d1d5db; }
+.btn-primary { background: #f86d31; color: white; }
+.btn-primary:hover { background: #e55a1f; }
+.btn-success { background: #10b981; color: white; }
+.btn-success:hover { background: #059669; }
+</style>
+
+<!-- Header -->
+<div class="mb-4 flex justify-between items-center">
+    <div class="flex items-center gap-4">
+        <a href="/hub/templates" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left"></i></a>
+        <div>
+            <h1 class="text-lg font-bold text-gray-900">{{ template.name }}</h1>
+            <span class="text-xs text-gray-500">{{ template.category|title if template.category else 'Uncategorized' }} Template</span>
+        </div>
+        <div class="save-status saved" id="saveStatus"><i class="fas fa-check-circle"></i> Saved</div>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="previewTemplate()" class="btn btn-outline"><i class="fas fa-eye"></i> Preview</button>
+        <button onclick="saveTemplate()" class="btn btn-primary"><i class="fas fa-save"></i> Save</button>
+    </div>
+</div>
+
+<div class="editor-layout">
+    <!-- LEFT PANEL: Template Info & Blocks -->
+    <div class="editor-left card-shadow">
+        <div class="panel-header">
+            <h3><i class="fas fa-cog"></i> Settings</h3>
+        </div>
+        <div class="panel-body">
+            <div class="section-title"><i class="fas fa-info-circle"></i> Template Info</div>
+            <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" class="form-input" id="inpName" value="{{ template.name }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select class="form-input form-select" id="inpCategory">
+                    {% for cat in categories %}<option value="{{ cat }}" {% if template.category == cat %}selected{% endif %}>{{ cat|title }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Subject</label>
+                <input type="text" class="form-input" id="inpSubject" value="{{ template.subject or '' }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-input form-textarea" id="inpDesc">{{ template.description or '' }}</textarea>
+            </div>
+            
+            <div class="section-title"><i class="fas fa-toggle-on"></i> Settings</div>
+            <div class="check-row">
+                <input type="checkbox" id="chkActive" {% if template.is_active != False %}checked{% endif %}>
+                <label for="chkActive">Active</label>
+            </div>
+            <div class="check-row">
+                <input type="checkbox" id="chkHidden" {% if template.is_hidden %}checked{% endif %}>
+                <label for="chkHidden">Hidden from gallery</label>
+            </div>
+            
+            <div class="section-title"><i class="fas fa-th-large"></i> Add Content</div>
+            <p class="text-xs text-gray-500 mb-2">Click to add blocks to your template</p>
+            <div class="blocks-grid">
+                <div class="block-btn" data-type="heading"><i class="fas fa-heading"></i><span>Heading</span></div>
+                <div class="block-btn" data-type="text"><i class="fas fa-align-left"></i><span>Text</span></div>
+                <div class="block-btn" data-type="image"><i class="fas fa-image"></i><span>Image</span></div>
+                <div class="block-btn" data-type="button"><i class="fas fa-mouse-pointer"></i><span>Button</span></div>
+                <div class="block-btn" data-type="divider"><i class="fas fa-minus"></i><span>Divider</span></div>
+                <div class="block-btn" data-type="spacer"><i class="fas fa-arrows-alt-v"></i><span>Spacer</span></div>
+                <div class="block-btn" data-type="logo"><i class="fas fa-star"></i><span>Logo</span></div>
+                <div class="block-btn" data-type="social"><i class="fas fa-share-alt"></i><span>Social</span></div>
+                <div class="block-btn" data-type="footer"><i class="fas fa-shoe-prints"></i><span>Footer</span></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CENTER: Canvas / Code Editor -->
+    <div class="editor-center card-shadow">
+        <div class="panel-header">
+            <div class="view-tabs">
+                <div class="view-tab active" data-view="visual"><i class="fas fa-paint-brush mr-1"></i> Visual</div>
+                <div class="view-tab" data-view="code"><i class="fas fa-code mr-1"></i> HTML</div>
+                <div class="view-tab" data-view="json"><i class="fas fa-brackets-curly mr-1"></i> JSON</div>
+            </div>
+            <div class="flex gap-2">
+                <button class="btn btn-ghost" id="btnAddSection"><i class="fas fa-plus"></i> Section</button>
+            </div>
+        </div>
+        
+        <!-- Visual Canvas -->
+        <div class="canvas-area" id="visualView">
+            <div class="canvas-frame" id="canvas"></div>
+        </div>
+        
+        <!-- Code Editor -->
+        <div class="code-area" id="codeView">
+            <div class="code-toolbar">
+                <div class="code-toolbar-left">
+                    <span class="text-gray-400 text-sm"><i class="fas fa-code mr-2"></i>HTML Editor</span>
+                </div>
+                <div class="code-toolbar-right">
+                    <button class="code-btn code-btn-default" id="btnFormatCode"><i class="fas fa-indent"></i> Format</button>
+                    <button class="code-btn code-btn-default" id="btnCopyCode"><i class="fas fa-copy"></i> Copy</button>
+                    <button class="code-btn code-btn-success" id="btnApplyCode"><i class="fas fa-check"></i> Apply</button>
+                </div>
+            </div>
+            <textarea id="codeEditor" class="code-editor" placeholder="HTML code will appear here..."></textarea>
+        </div>
+        
+        <!-- JSON Editor -->
+        <div class="code-area" id="jsonView">
+            <div class="code-toolbar">
+                <div class="code-toolbar-left">
+                    <span class="text-gray-400 text-sm"><i class="fas fa-code mr-2"></i>JSON Structure</span>
+                </div>
+                <div class="code-toolbar-right">
+                    <button class="code-btn code-btn-default" id="btnFormatJson"><i class="fas fa-indent"></i> Format</button>
+                    <button class="code-btn code-btn-default" id="btnCopyJson"><i class="fas fa-copy"></i> Copy</button>
+                    <button class="code-btn code-btn-success" id="btnApplyJson"><i class="fas fa-check"></i> Apply</button>
+                </div>
+            </div>
+            <textarea id="jsonEditor" class="code-editor" placeholder="JSON structure will appear here..."></textarea>
+        </div>
+    </div>
+    
+    <!-- RIGHT PANEL: Properties -->
+    <div class="editor-right card-shadow">
+        <div class="panel-header">
+            <h3 id="propTitle"><i class="fas fa-sliders-h"></i> Properties</h3>
+        </div>
+        <div class="panel-body" id="propBody">
+            <div class="empty-props">
+                <i class="fas fa-mouse-pointer"></i>
+                <h4 class="text-sm font-medium text-gray-700 mb-1">No Selection</h4>
+                <p class="text-xs">Click any element to edit its properties</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal-bg">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3><i class="fas fa-eye text-blue-500 mr-2"></i>Template Preview</h3>
+            <button class="modal-close" id="btnClosePreview">&times;</button>
+        </div>
+        <div class="modal-body">
+            <iframe id="previewFrame" class="w-full min-h-[500px] border rounded-lg"></iframe>
+        </div>
+    </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+(function() {
+    'use strict';
+    
+    // ============ CONSTANTS ============
+    const TPL_ID = '{{ template.uuid or template.id }}';
+    const DEF_TEMPLATE = {
+        globalStyles: {
+            backgroundColor: '#f4f4f5',
+            contentBackgroundColor: '#ffffff',
+            fontFamily: 'Arial, sans-serif',
+            maxWidth: '620px',
+            defaultButtonColor: '#f86d31'
+        },
+        sections: []
+    };
+
+    // ============ STATE ============
+    let D;
+    try {
+        const rawData = {{ template.json_data|tojson|safe if template.json_data else 'null' }};
+        D = rawData ? rawData : JSON.parse(JSON.stringify(DEF_TEMPLATE));
+    } catch(e) {
+        console.error('Error parsing template data:', e);
+        D = JSON.parse(JSON.stringify(DEF_TEMPLATE));
+    }
+    
+    // Ensure required structure
+    if (!D.sections) D.sections = [];
+    if (!D.globalStyles) D.globalStyles = DEF_TEMPLATE.globalStyles;
+    
+    let selSec = null;
+    let selEl = null;
+    let dirty = false;
+    let currentView = 'visual';
+
+    console.log('Editor initialized. Template ID:', TPL_ID);
+    console.log('Initial data:', D);
+
+    // ============ UTILITIES ============
+    function genId() { 
+        return 'i' + Math.random().toString(36).substr(2, 8); 
+    }
+    
+    function findSec(id) { 
+        return D.sections.find(s => s.id === id); 
+    }
+    
+    function findSecIdx(id) { 
+        return D.sections.findIndex(s => s.id === id); 
+    }
+    
+    function css(o) { 
+        return Object.entries(o || {})
+            .filter(([k, v]) => v)
+            .map(([k, v]) => `${k.replace(/([A-Z])/g, '-$1').toLowerCase()}:${v}`)
+            .join(';'); 
+    }
+    
+    function esc(s) { 
+        const d = document.createElement('div'); 
+        d.textContent = s || ''; 
+        return d.innerHTML; 
+    }
+    
+    function toast(msg, type = 'success') {
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'exclamation-circle';
+        t.innerHTML = `<i class="fas fa-${icon}"></i> ${msg}`;
+        document.getElementById('toasts').appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    // ============ RENDER ============
+    function render() {
+        console.log('Rendering. Sections:', D.sections.length);
+        const c = document.getElementById('canvas');
+        const g = D.globalStyles || {};
+        
+        if (!D.sections || D.sections.length === 0) {
+            c.innerHTML = `
+                <div class="empty-canvas">
+                    <i class="fas fa-plus-circle"></i>
+                    <h3 class="text-lg font-medium text-gray-700 mb-2">Start Building</h3>
+                    <p class="text-sm mb-4">Click "Section" button or any block to add content</p>
+                    <button class="btn btn-primary" id="btnEmptyAddSection">
+                        <i class="fas fa-plus mr-1"></i> Add Section
+                    </button>
+                </div>`;
+            // Bind the empty state button
+            const emptyBtn = document.getElementById('btnEmptyAddSection');
+            if (emptyBtn) {
+                emptyBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    addSection();
+                });
+            }
+            return;
+        }
+        
+        let h = `<div style="background:${g.backgroundColor || '#f4f4f5'};padding:16px;">
+            <div style="max-width:${g.maxWidth || '620px'};margin:0 auto;background:${g.contentBackgroundColor || '#fff'};border-radius:8px;overflow:hidden;font-family:${g.fontFamily || 'Arial,sans-serif'};">`;
+        
+        D.sections.forEach((s, i) => {
+            h += renderSec(s, i);
+        });
+        
+        h += '</div></div>';
+        c.innerHTML = h;
+        
+        // Bind section click events
+        c.querySelectorAll('.e-sec').forEach(secEl => {
+            secEl.addEventListener('click', function(e) {
+                if (!e.target.closest('.e-el') && !e.target.closest('button')) {
+                    const sid = this.dataset.sid;
+                    clickSec(sid);
+                    e.stopPropagation();
+                }
+            });
+        });
+        
+        // Bind element click events
+        c.querySelectorAll('.e-el').forEach(elEl => {
+            elEl.addEventListener('click', function(e) {
+                if (!e.target.closest('button')) {
+                    const eid = this.dataset.eid;
+                    const sid = this.closest('.e-sec').dataset.sid;
+                    clickEl(eid, sid);
+                    e.stopPropagation();
+                }
+            });
+        });
+        
+        // Bind section action buttons
+        c.querySelectorAll('[data-action]').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const action = this.dataset.action;
+                const sid = this.dataset.sid;
+                const eid = this.dataset.eid;
+                
+                switch(action) {
+                    case 'sec-up': mvSecUp(sid); break;
+                    case 'sec-down': mvSecDn(sid); break;
+                    case 'sec-dup': dupSec(sid); break;
+                    case 'sec-del': delSec(sid); break;
+                    case 'el-up': mvElUp(eid, sid); break;
+                    case 'el-down': mvElDn(eid, sid); break;
+                    case 'el-dup': dupEl(eid, sid); break;
+                    case 'el-del': delEl(eid, sid); break;
+                }
+            });
+        });
+    }
+
+    function renderSec(s, i) {
+        const st = css(s.style || {});
+        const sel = selSec === s.id;
+        
+        let h = `<div class="e-sec ${sel ? 'sel' : ''}" data-sid="${s.id}" style="${st}">`;
+        h += `<div class="sec-bar">
+            <button data-action="sec-up" data-sid="${s.id}" title="Move Up"><i class="fas fa-arrow-up"></i></button>
+            <button data-action="sec-down" data-sid="${s.id}" title="Move Down"><i class="fas fa-arrow-down"></i></button>
+            <button data-action="sec-dup" data-sid="${s.id}" title="Duplicate"><i class="fas fa-copy"></i></button>
+            <button data-action="sec-del" data-sid="${s.id}" title="Delete"><i class="fas fa-trash"></i></button>
+        </div>`;
+        
+        if (s.elements && s.elements.length > 0) {
+            s.elements.forEach((e, j) => {
+                h += renderEl(e, s.id, j);
+            });
+        } else {
+            h += `<div class="drop-zone"><i class="fas fa-plus mr-1"></i> Click blocks to add content</div>`;
+        }
+        
+        return h + '</div>';
+    }
+
+    function renderEl(el, sid, i) {
+        const sel = selEl === el.id;
+        const g = D.globalStyles || {};
+        const st = el.style || {};
+        let cnt = '';
+        
+        switch(el.type) {
+            case 'heading':
+                const lv = el.level || 'h2';
+                const fs = {h1:'28px',h2:'24px',h3:'20px',h4:'18px',h5:'16px',h6:'14px'}[lv];
+                cnt = `<${lv} style="margin:0;font-size:${fs};${css(st)}">${el.text || 'Heading'}</${lv}>`;
+                break;
+            case 'text':
+                cnt = `<p style="margin:0;line-height:1.6;${css(st)}">${el.text || 'Text content...'}</p>`;
+                break;
+            case 'image':
+                cnt = `<img src="${el.src || 'https://via.placeholder.com/580x220'}" alt="${el.alt || ''}" style="max-width:100%;display:block;${css(st)}">`;
+                break;
+            case 'button':
+                const bg = st.backgroundColor || g.defaultButtonColor || '#f86d31';
+                cnt = `<div style="text-align:${el.align || 'center'};padding:8px 0;">
+                    <a href="${el.link || '#'}" style="display:inline-block;background:${bg};color:${st.color || '#fff'};padding:12px 28px;border-radius:${st.borderRadius || '6px'};text-decoration:none;font-weight:600;">${el.text || 'Button'}</a>
+                </div>`;
+                break;
+            case 'divider':
+                cnt = `<hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">`;
+                break;
+            case 'spacer':
+                cnt = `<div style="height:${st.height || '24px'};"></div>`;
+                break;
+            case 'logo':
+                cnt = `<div style="text-align:center;"><img src="${el.src || 'https://via.placeholder.com/150x50'}" style="max-height:50px;"></div>`;
+                break;
+            case 'social':
+                const icons = (el.networks || []).map(n => 
+                    `<a href="${n.url || '#'}" style="margin:0 6px;"><img src="${n.icon}" width="28"></a>`
+                ).join('');
+                cnt = `<div style="text-align:center;padding:8px 0;">${icons || 'Social icons'}</div>`;
+                break;
+            case 'footer':
+                cnt = `<div style="text-align:center;font-size:12px;color:#6b7280;">
+                    <p style="margin:0 0 6px;">${el.text || '© Company'}</p>
+                    <a href="${el.unsubscribeUrl || '#'}" style="color:#6b7280;">Unsubscribe</a>
+                </div>`;
+                break;
+            default:
+                cnt = `<div style="padding:12px;background:#fef2f2;color:#dc2626;border-radius:4px;">Unknown: ${el.type}</div>`;
+        }
+        
+        return `<div class="e-el ${sel ? 'sel' : ''}" data-eid="${el.id}">
+            <div class="el-bar">
+                <button data-action="el-up" data-eid="${el.id}" data-sid="${sid}"><i class="fas fa-arrow-up"></i></button>
+                <button data-action="el-down" data-eid="${el.id}" data-sid="${sid}"><i class="fas fa-arrow-down"></i></button>
+                <button data-action="el-dup" data-eid="${el.id}" data-sid="${sid}"><i class="fas fa-copy"></i></button>
+                <button data-action="el-del" data-eid="${el.id}" data-sid="${sid}"><i class="fas fa-trash"></i></button>
+            </div>
+            ${cnt}
+        </div>`;
+    }
+
+    // ============ SELECTION ============
+    function clickSec(id) {
+        console.log('Section clicked:', id);
+        selSec = id;
+        selEl = null;
+        render();
+        showSecProps(id);
+    }
+    
+    function clickEl(eid, sid) {
+        console.log('Element clicked:', eid, 'in section:', sid);
+        selEl = eid;
+        selSec = sid;
+        render();
+        showElProps(eid, sid);
+    }
+    
+    function clearSel() {
+        selSec = null;
+        selEl = null;
+        render();
+        showEmptyProps();
+    }
+
+    // ============ ADD SECTION / ELEMENT ============
+    function addSection() {
+        console.log('Adding section...');
+        
+        if (!D.sections) D.sections = [];
+        
+        const ns = {
+            id: genId(),
+            style: { padding: '24px' },
+            elements: []
+        };
+        
+        D.sections.push(ns);
+        selSec = ns.id;
+        selEl = null;
+        
+        console.log('Section added:', ns.id, 'Total sections:', D.sections.length);
+        
+        markDirty();
+        render();
+        showSecProps(ns.id);
+        toast('Section added');
+    }
+    
+    function addBlock(type) {
+        console.log('Adding block:', type);
+        
+        let sid = selSec;
+        
+        // If no section selected, use the last one or create a new one
+        if (!sid) {
+            if (D.sections && D.sections.length > 0) {
+                sid = D.sections[D.sections.length - 1].id;
+                console.log('Using last section:', sid);
+            } else {
+                console.log('No sections exist, creating one first');
+                addSection();
+                sid = selSec;
+            }
+        }
+        
+        addEl(sid, type);
+    }
+    
+    function addEl(sid, type) {
+        console.log('Adding element:', type, 'to section:', sid);
+        
+        const sec = findSec(sid);
+        if (!sec) {
+            console.error('Section not found:', sid);
+            toast('Error: Section not found', 'error');
+            return;
+        }
+        
+        if (!sec.elements) sec.elements = [];
+        
+        const g = D.globalStyles || {};
+        
+        const templates = {
+            heading: { id: genId(), type: 'heading', level: 'h2', text: 'New Heading', style: {} },
+            text: { id: genId(), type: 'text', text: 'Enter your text here...', style: {} },
+            image: { id: genId(), type: 'image', src: 'https://via.placeholder.com/580x220/e5e7eb/9ca3af?text=Image', alt: '', style: { borderRadius: '8px' } },
+            button: { id: genId(), type: 'button', text: 'Click Here', link: '#', align: 'center', style: { backgroundColor: g.defaultButtonColor || '#f86d31', borderRadius: '6px' } },
+            divider: { id: genId(), type: 'divider', style: {} },
+            spacer: { id: genId(), type: 'spacer', style: { height: '24px' } },
+            logo: { id: genId(), type: 'logo', src: 'https://via.placeholder.com/150x50/f86d31/fff?text=LOGO', link: '', style: {} },
+            social: { id: genId(), type: 'social', networks: [
+                {icon: 'https://img.icons8.com/color/32/facebook.png', url: '#'},
+                {icon: 'https://img.icons8.com/color/32/twitter.png', url: '#'},
+                {icon: 'https://img.icons8.com/color/32/instagram-new.png', url: '#'}
+            ], style: {} },
+            footer: { id: genId(), type: 'footer', text: '© 2024 {{company_name}}', unsubscribeUrl: '{{unsubscribe_url}}', style: {} }
+        };
+        
+        const ne = templates[type] || { id: genId(), type: type, style: {} };
+        
+        sec.elements.push(ne);
+        selEl = ne.id;
+        selSec = sid;
+        
+        console.log('Element added:', ne.id, 'Total elements in section:', sec.elements.length);
+        
+        markDirty();
+        render();
+        showElProps(ne.id, sid);
+        toast(`${type.charAt(0).toUpperCase() + type.slice(1)} added`);
+    }
+
+    // ============ SECTION OPERATIONS ============
+    function mvSecUp(id) {
+        const i = findSecIdx(id);
+        if (i > 0) {
+            [D.sections[i], D.sections[i-1]] = [D.sections[i-1], D.sections[i]];
+            markDirty();
+            render();
+        }
+    }
+    
+    function mvSecDn(id) {
+        const i = findSecIdx(id);
+        if (i < D.sections.length - 1) {
+            [D.sections[i], D.sections[i+1]] = [D.sections[i+1], D.sections[i]];
+            markDirty();
+            render();
+        }
+    }
+    
+    function dupSec(id) {
+        const s = findSec(id);
+        if (s) {
+            const ns = JSON.parse(JSON.stringify(s));
+            ns.id = genId();
+            ns.elements = ns.elements.map(x => ({...x, id: genId()}));
+            const i = findSecIdx(id);
+            D.sections.splice(i + 1, 0, ns);
+            markDirty();
+            render();
+            toast('Section duplicated');
+        }
+    }
+    
+    function delSec(id) {
+        if (confirm('Delete this section?')) {
+            const i = findSecIdx(id);
+            D.sections.splice(i, 1);
+            selSec = null;
+            selEl = null;
+            markDirty();
+            render();
+            showEmptyProps();
+            toast('Section deleted');
+        }
+    }
+
+    // ============ ELEMENT OPERATIONS ============
+    function mvElUp(eid, sid) {
+        const sec = findSec(sid);
+        const i = sec?.elements?.findIndex(x => x.id === eid);
+        if (i > 0) {
+            [sec.elements[i], sec.elements[i-1]] = [sec.elements[i-1], sec.elements[i]];
+            markDirty();
+            render();
+        }
+    }
+    
+    function mvElDn(eid, sid) {
+        const sec = findSec(sid);
+        const i = sec?.elements?.findIndex(x => x.id === eid);
+        if (i < sec.elements.length - 1) {
+            [sec.elements[i], sec.elements[i+1]] = [sec.elements[i+1], sec.elements[i]];
+            markDirty();
+            render();
+        }
+    }
+    
+    function dupEl(eid, sid) {
+        const sec = findSec(sid);
+        const el = sec?.elements?.find(x => x.id === eid);
+        if (el) {
+            const ne = JSON.parse(JSON.stringify(el));
+            ne.id = genId();
+            const i = sec.elements.findIndex(x => x.id === eid);
+            sec.elements.splice(i + 1, 0, ne);
+            markDirty();
+            render();
+            toast('Element duplicated');
+        }
+    }
+    
+    function delEl(eid, sid) {
+        const sec = findSec(sid);
+        const i = sec?.elements?.findIndex(x => x.id === eid);
+        if (i >= 0) {
+            sec.elements.splice(i, 1);
+            selEl = null;
+            markDirty();
+            render();
+            showSecProps(sid);
+            toast('Element deleted');
+        }
+    }
+
+    // ============ PROPERTIES PANEL ============
+    function showEmptyProps() {
+        document.getElementById('propTitle').innerHTML = '<i class="fas fa-sliders-h"></i> Properties';
+        document.getElementById('propBody').innerHTML = `
+            <div class="empty-props">
+                <i class="fas fa-mouse-pointer"></i>
+                <h4 class="text-sm font-medium text-gray-700 mb-1">No Selection</h4>
+                <p class="text-xs">Click any element to edit</p>
+            </div>`;
+    }
+    
+    function showSecProps(id) {
+        const s = findSec(id);
+        if (!s) return;
+        const st = s.style || {};
+        
+        document.getElementById('propTitle').innerHTML = '<i class="fas fa-layer-group"></i> Section';
+        document.getElementById('propBody').innerHTML = `
+            <div class="prop-group">
+                <div class="prop-title">Background</div>
+                <div class="prop-row">
+                    <label class="prop-label">Color</label>
+                    <div class="prop-color">
+                        <input type="color" value="${st.backgroundColor || '#ffffff'}" data-prop="backgroundColor" data-target="sec" data-id="${id}">
+                        <input type="text" class="prop-input" value="${st.backgroundColor || '#ffffff'}" data-prop="backgroundColor" data-target="sec" data-id="${id}">
+                    </div>
+                </div>
+            </div>
+            <div class="prop-group">
+                <div class="prop-title">Spacing</div>
+                <div class="prop-row">
+                    <label class="prop-label">Padding</label>
+                    <input type="text" class="prop-input" value="${st.padding || '24px'}" data-prop="padding" data-target="sec" data-id="${id}">
+                </div>
+            </div>`;
+        
+        bindPropInputs();
+    }
+    
+    function showElProps(eid, sid) {
+        const sec = findSec(sid);
+        const el = sec?.elements?.find(e => e.id === eid);
+        if (!el) return;
+        
+        const names = {heading:'Heading',text:'Text',image:'Image',button:'Button',divider:'Divider',spacer:'Spacer',logo:'Logo',social:'Social',footer:'Footer'};
+        document.getElementById('propTitle').innerHTML = `<i class="fas fa-edit"></i> ${names[el.type] || el.type}`;
+        
+        const st = el.style || {};
+        const g = D.globalStyles || {};
+        let h = '';
+        
+        switch(el.type) {
+            case 'heading':
+                h = `<div class="prop-group"><div class="prop-title">Content</div>
+                    <div class="prop-row"><label class="prop-label">Text</label>
+                        <input type="text" class="prop-input" value="${esc(el.text || '')}" data-prop="text" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Level</label>
+                        <select class="prop-input prop-select" data-prop="level" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                            ${['h1','h2','h3','h4','h5','h6'].map(l => `<option value="${l}" ${el.level === l ? 'selected' : ''}>${l.toUpperCase()}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="prop-group"><div class="prop-title">Style</div>
+                    <div class="prop-row"><label class="prop-label">Color</label>
+                        <div class="prop-color">
+                            <input type="color" value="${st.color || '#1e293b'}" data-prop="color" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                            <input type="text" class="prop-input" value="${st.color || '#1e293b'}" data-prop="color" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                        </div>
+                    </div>
+                </div>`;
+                break;
+            case 'text':
+                h = `<div class="prop-group"><div class="prop-title">Content</div>
+                    <div class="prop-row"><label class="prop-label">Text</label>
+                        <textarea class="prop-input prop-textarea" data-prop="text" data-target="el" data-eid="${eid}" data-sid="${sid}">${esc(el.text || '')}</textarea>
+                    </div>
+                </div>
+                <div class="prop-group"><div class="prop-title">Style</div>
+                    <div class="prop-row"><label class="prop-label">Color</label>
+                        <div class="prop-color">
+                            <input type="color" value="${st.color || '#374151'}" data-prop="color" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                            <input type="text" class="prop-input" value="${st.color || '#374151'}" data-prop="color" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                        </div>
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Font Size</label>
+                        <input type="text" class="prop-input" value="${st.fontSize || '16px'}" data-prop="fontSize" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                </div>`;
+                break;
+            case 'image':
+                h = `<div class="prop-group"><div class="prop-title">Image</div>
+                    <div class="prop-row"><label class="prop-label">URL</label>
+                        <input type="text" class="prop-input" value="${el.src || ''}" data-prop="src" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Alt Text</label>
+                        <input type="text" class="prop-input" value="${el.alt || ''}" data-prop="alt" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Link URL</label>
+                        <input type="text" class="prop-input" value="${el.link || ''}" data-prop="link" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                </div>`;
+                break;
+            case 'button':
+                h = `<div class="prop-group"><div class="prop-title">Button</div>
+                    <div class="prop-row"><label class="prop-label">Text</label>
+                        <input type="text" class="prop-input" value="${esc(el.text || '')}" data-prop="text" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Link URL</label>
+                        <input type="text" class="prop-input" value="${el.link || ''}" data-prop="link" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                </div>
+                <div class="prop-group"><div class="prop-title">Colors</div>
+                    <div class="prop-row"><label class="prop-label">Background</label>
+                        <div class="prop-color">
+                            <input type="color" value="${st.backgroundColor || g.defaultButtonColor || '#f86d31'}" data-prop="backgroundColor" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                            <input type="text" class="prop-input" value="${st.backgroundColor || g.defaultButtonColor || '#f86d31'}" data-prop="backgroundColor" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                        </div>
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Text Color</label>
+                        <div class="prop-color">
+                            <input type="color" value="${st.color || '#ffffff'}" data-prop="color" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                            <input type="text" class="prop-input" value="${st.color || '#ffffff'}" data-prop="color" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                        </div>
+                    </div>
+                </div>`;
+                break;
+            case 'spacer':
+                h = `<div class="prop-group"><div class="prop-title">Size</div>
+                    <div class="prop-row"><label class="prop-label">Height</label>
+                        <input type="text" class="prop-input" value="${st.height || '24px'}" data-prop="height" data-target="elst" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                </div>`;
+                break;
+            case 'logo':
+                h = `<div class="prop-group"><div class="prop-title">Logo</div>
+                    <div class="prop-row"><label class="prop-label">Image URL</label>
+                        <input type="text" class="prop-input" value="${el.src || ''}" data-prop="src" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Link URL</label>
+                        <input type="text" class="prop-input" value="${el.link || ''}" data-prop="link" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                </div>`;
+                break;
+            case 'footer':
+                h = `<div class="prop-group"><div class="prop-title">Footer</div>
+                    <div class="prop-row"><label class="prop-label">Text</label>
+                        <input type="text" class="prop-input" value="${esc(el.text || '')}" data-prop="text" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                    <div class="prop-row"><label class="prop-label">Unsubscribe URL</label>
+                        <input type="text" class="prop-input" value="${el.unsubscribeUrl || '{{unsubscribe_url}}'}" data-prop="unsubscribeUrl" data-target="el" data-eid="${eid}" data-sid="${sid}">
+                    </div>
+                </div>`;
+                break;
+            default:
+                h = '<p class="text-gray-500 text-sm">No properties available</p>';
+        }
+        
+        document.getElementById('propBody').innerHTML = h;
+        bindPropInputs();
+    }
+    
+    function bindPropInputs() {
+        document.querySelectorAll('#propBody [data-prop]').forEach(input => {
+            const eventType = input.tagName === 'SELECT' ? 'change' : 'input';
+            input.addEventListener(eventType, function() {
+                const prop = this.dataset.prop;
+                const target = this.dataset.target;
+                const value = this.value;
+                
+                if (target === 'sec') {
+                    const sec = findSec(this.dataset.id);
+                    if (sec) {
+                        if (!sec.style) sec.style = {};
+                        sec.style[prop] = value;
+                    }
+                } else if (target === 'el') {
+                    const sec = findSec(this.dataset.sid);
+                    const el = sec?.elements?.find(e => e.id === this.dataset.eid);
+                    if (el) el[prop] = value;
+                } else if (target === 'elst') {
+                    const sec = findSec(this.dataset.sid);
+                    const el = sec?.elements?.find(e => e.id === this.dataset.eid);
+                    if (el) {
+                        if (!el.style) el.style = {};
+                        el.style[prop] = value;
+                    }
+                }
+                
+                markDirty();
+                render();
+            });
+        });
+    }
+
+    // ============ BUILD HTML ============
+    function buildHTML() {
+        const g = D.globalStyles || {};
+        let h = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:${g.backgroundColor || '#f4f4f5'};font-family:${g.fontFamily || 'Arial,sans-serif'};">
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center" style="padding:20px;">
+                <table style="max-width:${g.maxWidth || '620px'};width:100%;background:${g.contentBackgroundColor || '#fff'};border-radius:8px;overflow:hidden;">`;
+        
+        (D.sections || []).forEach(s => {
+            h += `
+                    <tr>
+                        <td style="${css(s.style || {})}">`;
+            (s.elements || []).forEach(el => {
+                h += buildElHTML(el);
+            });
+            h += `
+                        </td>
+                    </tr>`;
+        });
+        
+        h += `
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+        return h;
+    }
+    
+    function buildElHTML(el) {
+        const g = D.globalStyles || {};
+        const st = el.style || {};
+        
+        switch(el.type) {
+            case 'heading':
+                return `\n                            <${el.level || 'h2'} style="margin:0;${css(st)}">${el.text || ''}</${el.level || 'h2'}>`;
+            case 'text':
+                return `\n                            <p style="margin:0;line-height:1.6;${css(st)}">${el.text || ''}</p>`;
+            case 'image':
+                const img = `<img src="${el.src || ''}" alt="${el.alt || ''}" style="max-width:100%;display:block;${css(st)}">`;
+                return '\n                            ' + (el.link ? `<a href="${el.link}">${img}</a>` : img);
+            case 'button':
+                return `\n                            <div style="text-align:${el.align || 'center'};padding:8px 0;"><a href="${el.link || '#'}" style="display:inline-block;background:${st.backgroundColor || g.defaultButtonColor || '#f86d31'};color:${st.color || '#fff'};padding:12px 28px;border-radius:${st.borderRadius || '6px'};text-decoration:none;font-weight:600;">${el.text || ''}</a></div>`;
+            case 'divider':
+                return `\n                            <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">`;
+            case 'spacer':
+                return `\n                            <div style="height:${st.height || '24px'};"></div>`;
+            case 'logo':
+                const logo = `<img src="${el.src || ''}" style="max-height:50px;">`;
+                return `\n                            <div style="text-align:center;">${el.link ? `<a href="${el.link}">${logo}</a>` : logo}</div>`;
+            case 'social':
+                return `\n                            <div style="text-align:center;padding:8px 0;">${(el.networks || []).map(n => `<a href="${n.url || '#'}" style="margin:0 6px;"><img src="${n.icon}" width="28"></a>`).join('')}</div>`;
+            case 'footer':
+                return `\n                            <div style="text-align:center;font-size:12px;color:#6b7280;"><p style="margin:0 0 6px;">${el.text || ''}</p><a href="${el.unsubscribeUrl || '#'}" style="color:#6b7280;">Unsubscribe</a></div>`;
+            default:
+                return '';
+        }
+    }
+
+    // ============ SAVE ============
+    function markDirty() {
+        dirty = true;
+        document.getElementById('saveStatus').innerHTML = '<i class="fas fa-circle"></i> Unsaved';
+        document.getElementById('saveStatus').className = 'save-status dirty';
+        
+        if (currentView === 'code') updateCodeEditor();
+        if (currentView === 'json') updateJsonEditor();
+    }
+    
+    async function saveTemplate() {
+        console.log('Saving template...');
+        document.getElementById('saveStatus').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        document.getElementById('saveStatus').className = 'save-status saving';
+        
+        const html = buildHTML();
+        
+        try {
+            const r = await fetch('/hub/api/templates/save', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    template_id: TPL_ID,
+                    name: document.getElementById('inpName').value,
+                    category: document.getElementById('inpCategory').value,
+                    subject: document.getElementById('inpSubject').value,
+                    description: document.getElementById('inpDesc').value,
+                    html_content: html,
+                    json_data: D,
+                    is_active: document.getElementById('chkActive').checked,
+                    is_hidden: document.getElementById('chkHidden').checked
+                })
+            });
+            
+            const data = await r.json();
+            
+            if (data.success) {
+                dirty = false;
+                document.getElementById('saveStatus').innerHTML = '<i class="fas fa-check-circle"></i> Saved';
+                document.getElementById('saveStatus').className = 'save-status saved';
+                toast('Template saved!', 'success');
+                console.log('Template saved successfully');
+            } else {
+                throw new Error(data.error || 'Save failed');
+            }
+        } catch(e) {
+            console.error('Save error:', e);
+            document.getElementById('saveStatus').innerHTML = '<i class="fas fa-times-circle"></i> Error';
+            document.getElementById('saveStatus').className = 'save-status dirty';
+            toast('Save failed: ' + e.message, 'error');
+        }
+    }
+
+    // ============ VIEW SWITCHING ============
+    function switchView(view) {
+        currentView = view;
+        document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+        document.getElementById('visualView').style.display = view === 'visual' ? 'block' : 'none';
+        document.getElementById('codeView').classList.toggle('active', view === 'code');
+        document.getElementById('jsonView').classList.toggle('active', view === 'json');
+        
+        if (view === 'code') updateCodeEditor();
+        if (view === 'json') updateJsonEditor();
+    }
+    
+    function updateCodeEditor() {
+        document.getElementById('codeEditor').value = buildHTML();
+    }
+    
+    function updateJsonEditor() {
+        document.getElementById('jsonEditor').value = JSON.stringify(D, null, 2);
+    }
+
+    // ============ PREVIEW ============
+    function previewTemplate() {
+        document.getElementById('previewFrame').srcdoc = buildHTML();
+        document.getElementById('previewModal').classList.add('show');
+    }
+    
+    function closePreview() {
+        document.getElementById('previewModal').classList.remove('show');
+    }
+
+    // ============ EVENT BINDINGS ============
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing editor...');
+        
+        // Initial render
+        render();
+        
+        // Block buttons
+        document.querySelectorAll('.block-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const type = this.dataset.type;
+                console.log('Block button clicked:', type);
+                addBlock(type);
+            });
+        });
+        
+        // Add section button
+        document.getElementById('btnAddSection').addEventListener('click', function(e) {
+            e.preventDefault();
+            addSection();
+        });
+        
+        // View tabs
+        document.querySelectorAll('.view-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                switchView(this.dataset.view);
+            });
+        });
+        
+        // Code editor buttons
+        document.getElementById('btnFormatCode').addEventListener('click', function() {
+            const code = document.getElementById('codeEditor').value;
+            const formatted = code.replace(/></g, '>\n<').replace(/\n\s*\n/g, '\n');
+            document.getElementById('codeEditor').value = formatted;
+        });
+        
+        document.getElementById('btnCopyCode').addEventListener('click', function() {
+            navigator.clipboard.writeText(document.getElementById('codeEditor').value);
+            toast('HTML copied!', 'success');
+        });
+        
+        document.getElementById('btnApplyCode').addEventListener('click', function() {
+            toast('HTML to JSON conversion not yet implemented', 'warning');
+        });
+        
+        // JSON editor buttons
+        document.getElementById('btnFormatJson').addEventListener('click', function() {
+            try {
+                const json = JSON.parse(document.getElementById('jsonEditor').value);
+                document.getElementById('jsonEditor').value = JSON.stringify(json, null, 2);
+            } catch(e) {
+                toast('Invalid JSON', 'error');
+            }
+        });
+        
+        document.getElementById('btnCopyJson').addEventListener('click', function() {
+            navigator.clipboard.writeText(document.getElementById('jsonEditor').value);
+            toast('JSON copied!', 'success');
+        });
+        
+        document.getElementById('btnApplyJson').addEventListener('click', function() {
+            try {
+                D = JSON.parse(document.getElementById('jsonEditor').value);
+                if (!D.sections) D.sections = [];
+                if (!D.globalStyles) D.globalStyles = DEF_TEMPLATE.globalStyles;
+                render();
+                updateCodeEditor();
+                markDirty();
+                toast('JSON applied!', 'success');
+            } catch(e) {
+                toast('Invalid JSON: ' + e.message, 'error');
+            }
+        });
+        
+        // Preview modal close
+        document.getElementById('btnClosePreview').addEventListener('click', closePreview);
+        document.getElementById('previewModal').addEventListener('click', function(e) {
+            if (e.target === this) closePreview();
+        });
+        
+        // Canvas click to deselect
+        document.getElementById('canvas').addEventListener('click', function(e) {
+            if (!e.target.closest('.e-sec') && !e.target.closest('.e-el')) {
+                clearSel();
+            }
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveTemplate();
+            }
+        });
+        
+        console.log('Editor initialized successfully');
+    });
+    
+    // Expose functions globally for inline onclick handlers (legacy support)
+    window.addSection = addSection;
+    window.addBlock = addBlock;
+    window.saveTemplate = saveTemplate;
+    window.previewTemplate = previewTemplate;
+    
+})();
+</script>
+{% endblock %}

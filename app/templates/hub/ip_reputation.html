@@ -1,0 +1,663 @@
+{% extends "hub/base.html" %}
+{% block title %}IP Reputation & Warmup - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">IP Reputation & Warmup</h1>
+            <p class="text-gray-500">Monitor IP health, manage rate limits, and warm up IPs</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="checkAllBlacklists()" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200">
+                <i class="fas fa-shield-alt mr-2"></i>Check Blacklists
+            </button>
+            <button onclick="openWarmupModal()" class="px-4 py-2 bg-[#f86d31] text-white rounded-xl hover:bg-[#e55a20]">
+                <i class="fas fa-fire mr-2"></i>Warm Up IPs
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-5 gap-4">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-total-ips" class="text-2xl font-bold text-blue-600">-</div>
+            <div class="text-sm text-gray-500">Total IPs</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-clean-ips" class="text-2xl font-bold text-green-600">-</div>
+            <div class="text-sm text-gray-500">Clean IPs</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-blacklisted" class="text-2xl font-bold text-red-600">-</div>
+            <div class="text-sm text-gray-500">Blacklisted</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-warmup-sent" class="text-2xl font-bold text-orange-600">-</div>
+            <div class="text-sm text-gray-500">Warmup Sent (24h)</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-open-rate" class="text-2xl font-bold text-purple-600">-</div>
+            <div class="text-sm text-gray-500">Open Rate</div>
+        </div>
+    </div>
+
+    <!-- Warmup Emails Management -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-envelope text-blue-500 mr-2"></i>Warmup Email Addresses</h2>
+            <button onclick="openAddEmailModal()" class="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm hover:bg-green-200">
+                <i class="fas fa-plus mr-1"></i>Add Email
+            </button>
+        </div>
+        <div id="warmup-emails-container" class="flex flex-wrap gap-2">
+            <div class="text-gray-400 text-sm">Loading...</div>
+        </div>
+    </div>
+
+    <!-- IP List with Rate Limits -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b border-gray-100">
+            <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-server text-gray-500 mr-2"></i>IP Addresses & Rate Limits</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hostname</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Warmup Day</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rate Limits</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Warmup Stats</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ip-table-body" class="divide-y divide-gray-100">
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Warmup History -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-history text-gray-500 mr-2"></i>Recent Warmup Sends</h2>
+            <button onclick="loadWarmupHistory()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
+                <i class="fas fa-sync mr-1"></i>Refresh
+            </button>
+        </div>
+        <div id="warmup-history" class="max-h-64 overflow-y-auto">
+            <div class="p-4 text-center text-gray-400">Loading history...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Warmup Modal -->
+<div id="warmup-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-lg w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-fire text-orange-500 mr-2"></i>Warm Up IPs</h3>
+        
+        <div class="space-y-4">
+            <div class="bg-blue-50 p-3 rounded-lg text-sm text-blue-800">
+                <i class="fas fa-info-circle mr-1"></i>
+                This will send test emails from each IP to your warmup addresses to build reputation.
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select IPs to Warm</label>
+                <div id="warmup-ip-selection" class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                    <div class="text-gray-400 text-sm">Loading IPs...</div>
+                </div>
+                <div class="mt-2 flex gap-2">
+                    <button onclick="selectAllIPs()" class="text-xs text-blue-600 hover:underline">Select All</button>
+                    <button onclick="selectNoneIPs()" class="text-xs text-gray-600 hover:underline">Select None</button>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Emails per IP</label>
+                <input type="number" id="warmup-count" value="1" min="1" max="10" class="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                <p class="text-xs text-gray-500 mt-1">Number of emails to send per IP (1-10)</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Delay Between Sends (seconds)</label>
+                <input type="number" id="warmup-delay" value="5" min="1" max="60" class="w-full px-3 py-2 border border-gray-200 rounded-lg">
+            </div>
+        </div>
+        
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeWarmupModal()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Cancel</button>
+            <button onclick="startWarmup()" class="flex-1 px-4 py-2 bg-[#f86d31] text-white rounded-xl hover:bg-[#e55a20]">
+                <i class="fas fa-fire mr-1"></i>Start Warmup
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Rate Limit Modal -->
+<div id="rate-limit-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-tachometer-alt text-blue-500 mr-2"></i>Set Rate Limits</h3>
+        <p class="text-sm text-gray-500 mb-4">IP: <span id="rate-limit-ip" class="font-medium"></span></p>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Per Minute Limit</label>
+                <input type="number" id="rate-per-minute" class="w-full px-3 py-2 border border-gray-200 rounded-lg" value="100">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hourly Limit</label>
+                <input type="number" id="rate-hourly" class="w-full px-3 py-2 border border-gray-200 rounded-lg" value="1000">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Daily Limit</label>
+                <input type="number" id="rate-daily" class="w-full px-3 py-2 border border-gray-200 rounded-lg" value="50000">
+            </div>
+        </div>
+        
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeRateLimitModal()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Cancel</button>
+            <button onclick="saveRateLimits()" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Email Modal -->
+<div id="add-email-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-envelope text-green-500 mr-2"></i>Add Warmup Email</h3>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <input type="email" id="new-warmup-email" class="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="email@example.com">
+        </div>
+        
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeAddEmailModal()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Cancel</button>
+            <button onclick="addWarmupEmail()" class="flex-1 px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600">Add</button>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div id="progress-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-spinner fa-spin text-orange-500 mr-2"></i>Warming Up IPs</h3>
+        <div class="space-y-3">
+            <div class="w-full bg-gray-200 rounded-full h-4">
+                <div id="warmup-progress-bar" class="bg-[#f86d31] h-4 rounded-full transition-all" style="width: 0%"></div>
+            </div>
+            <p id="warmup-progress-text" class="text-sm text-gray-600 text-center">Starting...</p>
+            <div id="warmup-progress-log" class="max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3 text-xs font-mono"></div>
+        </div>
+        <div class="flex justify-end mt-4">
+            <button id="warmup-close-btn" onclick="closeProgressModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200" disabled>Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentRateLimitIP = null;
+let ipData = [];
+
+// Load all data on page load
+async function loadData() {
+    await Promise.all([
+        loadIPs(),
+        loadWarmupEmails(),
+        loadWarmupHistory(),
+        loadStats()
+    ]);
+}
+
+// Load IPs
+async function loadIPs() {
+    try {
+        const r = await fetch('/hub/api/ip-reputation/ips');
+        const data = await r.json();
+        if (data.success) {
+            ipData = data.ips;
+            renderIPTable(data.ips);
+            renderIPSelection(data.ips);
+        }
+    } catch(e) {
+        console.error('Failed to load IPs:', e);
+    }
+}
+
+// Load stats
+async function loadStats() {
+    try {
+        const r = await fetch('/hub/api/ip-reputation/stats');
+        const data = await r.json();
+        if (data.success) {
+            document.getElementById('stat-total-ips').textContent = data.total_ips || 0;
+            document.getElementById('stat-clean-ips').textContent = data.clean_ips || 0;
+            document.getElementById('stat-blacklisted').textContent = data.blacklisted || 0;
+            document.getElementById('stat-warmup-sent').textContent = data.warmup_sent_24h || 0;
+            document.getElementById('stat-open-rate').textContent = (data.open_rate || 0) + '%';
+        }
+    } catch(e) {
+        console.error('Failed to load stats:', e);
+    }
+}
+
+// Render IP table
+function renderIPTable(ips) {
+    const tbody = document.getElementById('ip-table-body');
+    if (!ips || ips.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No IPs found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = ips.map(ip => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3">
+                <span class="font-mono text-sm">${ip.ip_address}</span>
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600">${ip.hostname || '-'}</td>
+            <td class="px-4 py-3">
+                ${ip.blacklisted 
+                    ? '<span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs"><i class="fas fa-exclamation-triangle mr-1"></i>Blacklisted</span>'
+                    : '<span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs"><i class="fas fa-check mr-1"></i>Clean</span>'
+                }
+            </td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">Day ${ip.warmup_day || 0}</span>
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-600">
+                <div>${ip.per_minute_limit || 100}/min</div>
+                <div>${ip.hourly_limit || 1000}/hr</div>
+                <div>${ip.daily_limit || 50000}/day</div>
+            </td>
+            <td class="px-4 py-3 text-xs">
+                <div class="text-gray-600">Sent: ${ip.warmup_sent || 0}</div>
+                <div class="text-green-600">Opened: ${ip.warmup_opened || 0}</div>
+            </td>
+            <td class="px-4 py-3">
+                <div class="flex gap-1">
+                    <button onclick="openRateLimitModal('${ip.ip_address}', ${ip.per_minute_limit || 100}, ${ip.hourly_limit || 1000}, ${ip.daily_limit || 50000})" 
+                            class="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs hover:bg-blue-100" title="Rate Limits">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </button>
+                    <button onclick="checkBlacklist('${ip.ip_address}')" 
+                            class="px-2 py-1 bg-gray-50 text-gray-600 rounded text-xs hover:bg-gray-100" title="Check Blacklist">
+                        <i class="fas fa-shield-alt"></i>
+                    </button>
+                    <button onclick="warmupSingleIP('${ip.ip_address}')" 
+                            class="px-2 py-1 bg-orange-50 text-orange-600 rounded text-xs hover:bg-orange-100" title="Warm Up">
+                        <i class="fas fa-fire"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Render IP selection for warmup
+function renderIPSelection(ips) {
+    const container = document.getElementById('warmup-ip-selection');
+    container.innerHTML = ips.map(ip => `
+        <label class="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+            <input type="checkbox" class="warmup-ip-checkbox" value="${ip.ip_address}" checked>
+            <span class="text-sm">${ip.ip_address}</span>
+            <span class="text-xs text-gray-400">${ip.hostname || ''}</span>
+        </label>
+    `).join('');
+}
+
+// Load warmup emails
+async function loadWarmupEmails() {
+    try {
+        const r = await fetch('/hub/api/ip-reputation/warmup-emails');
+        const data = await r.json();
+        if (data.success) {
+            renderWarmupEmails(data.emails);
+        }
+    } catch(e) {
+        console.error('Failed to load warmup emails:', e);
+    }
+}
+
+// Render warmup emails
+function renderWarmupEmails(emails) {
+    const container = document.getElementById('warmup-emails-container');
+    if (!emails || emails.length === 0) {
+        container.innerHTML = '<div class="text-gray-400 text-sm">No warmup emails configured</div>';
+        return;
+    }
+    
+    container.innerHTML = emails.map(e => `
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-full text-sm">
+            <span>${e.email}</span>
+            <button onclick="removeWarmupEmail(${e.id})" class="text-red-500 hover:text-red-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+// Load warmup history
+async function loadWarmupHistory() {
+    try {
+        const r = await fetch('/hub/api/ip-reputation/warmup-history');
+        const data = await r.json();
+        if (data.success) {
+            renderWarmupHistory(data.history);
+        }
+    } catch(e) {
+        console.error('Failed to load history:', e);
+    }
+}
+
+// Render warmup history
+function renderWarmupHistory(history) {
+    const container = document.getElementById('warmup-history');
+    if (!history || history.length === 0) {
+        container.innerHTML = '<div class="p-4 text-center text-gray-400">No warmup history yet</div>';
+        return;
+    }
+    
+    container.innerHTML = '<table class="w-full text-sm"><tbody>' + history.map(h => `
+        <tr class="border-b border-gray-50">
+            <td class="px-4 py-2 font-mono text-xs">${h.ip_address}</td>
+            <td class="px-4 py-2">${h.email}</td>
+            <td class="px-4 py-2 text-xs text-gray-500">${new Date(h.sent_at).toLocaleString()}</td>
+            <td class="px-4 py-2">
+                ${h.opened 
+                    ? '<span class="text-green-600"><i class="fas fa-envelope-open mr-1"></i>Opened</span>'
+                    : '<span class="text-gray-400"><i class="fas fa-envelope mr-1"></i>Sent</span>'
+                }
+            </td>
+        </tr>
+    `).join('') + '</tbody></table>';
+}
+
+// Select all IPs
+function selectAllIPs() {
+    document.querySelectorAll('.warmup-ip-checkbox').forEach(cb => cb.checked = true);
+}
+
+function selectNoneIPs() {
+    document.querySelectorAll('.warmup-ip-checkbox').forEach(cb => cb.checked = false);
+}
+
+// Modal controls
+function openWarmupModal() {
+    document.getElementById('warmup-modal').style.display = 'flex';
+}
+
+function closeWarmupModal() {
+    document.getElementById('warmup-modal').style.display = 'none';
+}
+
+function openRateLimitModal(ip, perMin, hourly, daily) {
+    currentRateLimitIP = ip;
+    document.getElementById('rate-limit-ip').textContent = ip;
+    document.getElementById('rate-per-minute').value = perMin;
+    document.getElementById('rate-hourly').value = hourly;
+    document.getElementById('rate-daily').value = daily;
+    document.getElementById('rate-limit-modal').style.display = 'flex';
+}
+
+function closeRateLimitModal() {
+    document.getElementById('rate-limit-modal').style.display = 'none';
+}
+
+function openAddEmailModal() {
+    document.getElementById('add-email-modal').style.display = 'flex';
+}
+
+function closeAddEmailModal() {
+    document.getElementById('add-email-modal').style.display = 'none';
+}
+
+function closeProgressModal() {
+    document.getElementById('progress-modal').style.display = 'none';
+}
+
+// Save rate limits
+async function saveRateLimits() {
+    try {
+        const r = await fetch('/hub/api/ip-reputation/rate-limits', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ip_address: currentRateLimitIP,
+                per_minute_limit: parseInt(document.getElementById('rate-per-minute').value),
+                hourly_limit: parseInt(document.getElementById('rate-hourly').value),
+                daily_limit: parseInt(document.getElementById('rate-daily').value)
+            })
+        });
+        const data = await r.json();
+        if (data.success) {
+            closeRateLimitModal();
+            loadIPs();
+            alert('Rate limits saved!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Add warmup email
+async function addWarmupEmail() {
+    const email = document.getElementById('new-warmup-email').value;
+    if (!email) {
+        alert('Please enter an email');
+        return;
+    }
+    
+    try {
+        const r = await fetch('/hub/api/ip-reputation/warmup-emails', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email: email})
+        });
+        const data = await r.json();
+        if (data.success) {
+            document.getElementById('new-warmup-email').value = '';
+            closeAddEmailModal();
+            loadWarmupEmails();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Remove warmup email
+async function removeWarmupEmail(id) {
+    if (!confirm('Remove this email?')) return;
+    
+    try {
+        const r = await fetch('/hub/api/ip-reputation/warmup-emails/' + id, {
+            method: 'DELETE'
+        });
+        const data = await r.json();
+        if (data.success) {
+            loadWarmupEmails();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Check single IP blacklist
+async function checkBlacklist(ip) {
+    try {
+        const r = await fetch('/hub/api/ip-reputation/check-blacklist?ip=' + ip);
+        const data = await r.json();
+        if (data.success) {
+            if (data.blacklisted) {
+                alert(`⚠️ ${ip} is BLACKLISTED!\n\nListed on: ${data.lists.join(', ')}\n\nVisit: https://www.spamhaus.org/query/ip/${ip}`);
+            } else {
+                alert(`✅ ${ip} is CLEAN - not on any blacklists`);
+            }
+            loadIPs();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Check all blacklists
+async function checkAllBlacklists() {
+    alert('Checking all IPs... This may take a moment.');
+    try {
+        const r = await fetch('/hub/api/ip-reputation/check-all-blacklists');
+        const data = await r.json();
+        if (data.success) {
+            let msg = `Checked ${data.total} IPs:\n\n`;
+            msg += `✅ Clean: ${data.clean}\n`;
+            msg += `⚠️ Blacklisted: ${data.blacklisted}\n`;
+            if (data.blacklisted_ips && data.blacklisted_ips.length > 0) {
+                msg += `\nBlacklisted IPs:\n${data.blacklisted_ips.join('\n')}`;
+            }
+            alert(msg);
+            loadIPs();
+            loadStats();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Start warmup
+async function startWarmup() {
+    const selectedIPs = Array.from(document.querySelectorAll('.warmup-ip-checkbox:checked')).map(cb => cb.value);
+    const count = parseInt(document.getElementById('warmup-count').value) || 1;
+    const delay = parseInt(document.getElementById('warmup-delay').value) || 5;
+    
+    if (selectedIPs.length === 0) {
+        alert('Please select at least one IP');
+        return;
+    }
+    
+    closeWarmupModal();
+    
+    // Show progress modal
+    document.getElementById('progress-modal').style.display = 'flex';
+    document.getElementById('warmup-close-btn').disabled = true;
+    document.getElementById('warmup-progress-bar').style.width = '0%';
+    document.getElementById('warmup-progress-text').textContent = 'Sending warmup emails...';
+    document.getElementById('warmup-progress-log').innerHTML = '<div class="text-gray-500">Starting...</div>';
+    
+    try {
+        const r = await fetch('/hub/api/ip-reputation/warmup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                ips: selectedIPs,
+                count: count,
+                delay: delay
+            })
+        });
+        
+        // Check if response is JSON
+        const contentType = r.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await r.text();
+            console.error('Non-JSON response:', text);
+            document.getElementById('warmup-progress-text').textContent = 'Error: Server returned non-JSON response';
+            document.getElementById('warmup-progress-log').innerHTML = '<div class="text-red-600">Session may have expired. Please refresh the page and try again.</div>';
+            document.getElementById('warmup-close-btn').disabled = false;
+            return;
+        }
+        
+        const data = await r.json();
+        
+        if (data.success) {
+            document.getElementById('warmup-progress-bar').style.width = '100%';
+            document.getElementById('warmup-progress-text').textContent = `Complete! Sent ${data.total_sent} emails`;
+            document.getElementById('warmup-progress-log').innerHTML = data.log.map(l => 
+                `<div class="${l.success ? 'text-green-600' : 'text-red-600'}">${l.message}</div>`
+            ).join('');
+        } else {
+            document.getElementById('warmup-progress-text').textContent = 'Error: ' + (data.error || 'Unknown error');
+            document.getElementById('warmup-progress-log').innerHTML = '<div class="text-red-600">' + (data.error || 'Unknown error') + '</div>';
+        }
+    } catch(e) {
+        console.error('Warmup error:', e);
+        document.getElementById('warmup-progress-text').textContent = 'Error: ' + e.message;
+        document.getElementById('warmup-progress-log').innerHTML = '<div class="text-red-600">' + e.message + '</div>';
+    }
+    
+    document.getElementById('warmup-close-btn').disabled = false;
+    loadWarmupHistory();
+    loadStats();
+}
+
+// Warmup single IP
+async function warmupSingleIP(ip) {
+    if (!confirm(`Send warmup emails from ${ip}?`)) return;
+    
+    document.getElementById('progress-modal').style.display = 'flex';
+    document.getElementById('warmup-close-btn').disabled = true;
+    document.getElementById('warmup-progress-bar').style.width = '0%';
+    document.getElementById('warmup-progress-text').textContent = 'Sending...';
+    document.getElementById('warmup-progress-log').innerHTML = '<div class="text-gray-500">Starting...</div>';
+    
+    try {
+        const r = await fetch('/hub/api/ip-reputation/warmup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                ips: [ip],
+                count: 1,
+                delay: 2
+            })
+        });
+        
+        const contentType = r.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            document.getElementById('warmup-progress-text').textContent = 'Error: Session expired';
+            document.getElementById('warmup-progress-log').innerHTML = '<div class="text-red-600">Please refresh and try again</div>';
+            document.getElementById('warmup-close-btn').disabled = false;
+            return;
+        }
+        
+        const data = await r.json();
+        
+        if (data.success) {
+            document.getElementById('warmup-progress-bar').style.width = '100%';
+            document.getElementById('warmup-progress-text').textContent = `Complete! Sent ${data.total_sent} emails`;
+            document.getElementById('warmup-progress-log').innerHTML = data.log.map(l => 
+                `<div class="${l.success ? 'text-green-600' : 'text-red-600'}">${l.message}</div>`
+            ).join('');
+        } else {
+            document.getElementById('warmup-progress-text').textContent = 'Error: ' + (data.error || 'Unknown');
+            document.getElementById('warmup-progress-log').innerHTML = '<div class="text-red-600">' + (data.error || 'Unknown error') + '</div>';
+        }
+    } catch(e) {
+        document.getElementById('warmup-progress-text').textContent = 'Error: ' + e.message;
+        document.getElementById('warmup-progress-log').innerHTML = '<div class="text-red-600">' + e.message + '</div>';
+    }
+    
+    document.getElementById('warmup-close-btn').disabled = false;
+    loadWarmupHistory();
+    loadStats();
+}
+
+// Initial load
+loadData();
+
+// Auto refresh every 60 seconds
+setInterval(loadStats, 60000);
+</script>
+{% endblock %}

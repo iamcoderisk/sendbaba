@@ -1,0 +1,593 @@
+{% extends "hub/base.html" %}
+
+{% block title %}IP Management - SendBaba Hub{% endblock %}
+
+{% block content %}
+<style>
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; }
+    .toast {
+        padding: 14px 20px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: slideIn 0.3s ease;
+        min-width: 280px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .toast.success { background: #10b981; color: white; }
+    .toast.error { background: #ef4444; color: white; }
+    .toast.warning { background: #f59e0b; color: white; }
+    .toast.info { background: #3b82f6; color: white; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    
+    .blacklist-badge {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .blacklist-clean { background: #d1fae5; color: #059669; }
+    .blacklist-listed { background: #fee2e2; color: #dc2626; }
+    .blacklist-unknown { background: #f3f4f6; color: #6b7280; }
+    
+    .checking-spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #f3f4f6;
+        border-top-color: #f87137;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">IP Management</h1>
+            <p class="text-gray-500">Manage sending IPs, warmup status, and blacklist monitoring</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="checkAllBlacklists()" class="px-4 py-2 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition-colors">
+                <i class="fas fa-shield-alt mr-2"></i>Check All Blacklists
+            </button>
+            <button onclick="activateWarmedOnly()" class="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors">
+                <i class="fas fa-fire mr-2"></i>Use Warmed Only
+            </button>
+            <button onclick="activateAll()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors">
+                <i class="fas fa-globe mr-2"></i>Use All IPs
+            </button>
+            <button onclick="openAddModal()" class="px-4 py-2 bg-[#f86d31] text-white rounded-xl hover:bg-[#e55a20] transition-colors">
+                <i class="fas fa-plus mr-2"></i>Add IP
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Active IPs</p>
+                    <p id="stat-active" class="text-2xl font-bold text-green-600">-</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-600"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Warmed IPs</p>
+                    <p id="stat-warmed" class="text-2xl font-bold text-orange-600">-</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-fire text-orange-600"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Cold IPs</p>
+                    <p id="stat-cold" class="text-2xl font-bold text-blue-600">-</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-snowflake text-blue-600"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Blacklisted</p>
+                    <p id="stat-blacklisted" class="text-2xl font-bold text-red-600">-</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-ban text-red-600"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Daily Capacity</p>
+                    <p id="stat-capacity" class="text-2xl font-bold text-purple-600">-</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-tachometer-alt text-purple-600"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Sent Today</p>
+                    <p id="stat-sent" class="text-2xl font-bold text-gray-600">-</p>
+                </div>
+                <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-paper-plane text-gray-600"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-cog text-gray-500 mr-2"></i>Sending Settings
+        </h2>
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="font-medium text-gray-800">Use Warmed IPs Only</p>
+                <p class="text-sm text-gray-500">Only send through IPs with 100K+ daily limit</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="setting-warmed-only" class="sr-only peer" onchange="updateSettings()">
+                <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#f86d31]"></div>
+            </label>
+        </div>
+    </div>
+
+    <!-- Blacklist Summary -->
+    <div id="blacklist-summary" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hidden">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-shield-alt text-yellow-500 mr-2"></i>Blacklist Status
+        </h2>
+        <div id="blacklist-results" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+
+    <!-- IP List -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">
+                <i class="fas fa-server text-blue-500 mr-2"></i>IP Pool
+            </h2>
+            <div class="flex items-center space-x-3">
+                <button onclick="refreshIPs()" class="text-sm text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                </button>
+                <button onclick="resetDailyCounts()" class="text-sm text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-redo mr-1"></i>Reset Daily Counts
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hostname</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Warmup Day</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Daily Limit</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sent Today</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Blacklist</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ip-table-body" class="divide-y divide-gray-100">
+                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit IP Modal -->
+<div id="ip-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="modal-title" class="text-xl font-bold text-gray-800">Add IP</h3>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <form id="ip-form" class="space-y-4">
+            <input type="hidden" id="edit-ip-id">
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">IP Address</label>
+                <input type="text" id="ip-address" required
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f86d31]"
+                    placeholder="192.168.1.1">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hostname</label>
+                <input type="text" id="ip-hostname"
+                    class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f86d31]"
+                    placeholder="mail1.sendbaba.com">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Warmup Day</label>
+                    <input type="number" id="ip-warmup-day" value="1" min="1" max="60"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f86d31]">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Daily Limit</label>
+                    <input type="number" id="ip-daily-limit" value="2000" min="100"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f86d31]">
+                </div>
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" id="ip-active" class="w-4 h-4 text-[#f86d31] rounded">
+                <label for="ip-active" class="ml-2 text-sm text-gray-700">Active (use for sending)</label>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4">
+                <button type="button" onclick="closeModal()"
+                    class="px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+                <button type="submit"
+                    class="px-6 py-2 bg-[#f86d31] text-white rounded-xl hover:bg-[#e55a20]">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Blacklist cache
+let blacklistCache = {};
+let checkingBlacklists = false;
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const icons = { success: 'check', error: 'times', warning: 'exclamation-triangle', info: 'info-circle' };
+    toast.innerHTML = `<i class="fas fa-${icons[type] || 'info'}"></i> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+async function loadIPs() {
+    const response = await fetch('/hub/ip-management/api/ips');
+    const data = await response.json();
+
+    const tbody = document.getElementById('ip-table-body');
+
+    if (data.ips.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No IPs configured</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = data.ips.map(ip => {
+        const bl = blacklistCache[ip.ip_address];
+        const blStatus = bl ? (bl.is_listed ? 'listed' : 'clean') : 'unknown';
+        const blBadge = bl ? 
+            (bl.is_listed ? 
+                `<span class="blacklist-badge blacklist-listed" title="${bl.listings?.join(', ') || 'Listed'}"><i class="fas fa-exclamation-triangle mr-1"></i>${bl.listings?.length || 1} Lists</span>` : 
+                `<span class="blacklist-badge blacklist-clean"><i class="fas fa-check mr-1"></i>Clean</span>`) :
+            `<span class="blacklist-badge blacklist-unknown"><i class="fas fa-question mr-1"></i>Unknown</span>`;
+        
+        return `
+        <tr class="hover:bg-gray-50 ${ip.is_active ? '' : 'opacity-60'} ${bl?.is_listed ? 'bg-red-50' : ''}">
+            <td class="px-4 py-3">
+                <button onclick="toggleIP(${ip.id})" class="focus:outline-none">
+                    ${ip.is_active
+                        ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="fas fa-check mr-1"></i>Active</span>'
+                        : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><i class="fas fa-pause mr-1"></i>Inactive</span>'
+                    }
+                </button>
+            </td>
+            <td class="px-4 py-3">
+                <span class="font-mono text-sm ${bl?.is_listed ? 'text-red-600 font-bold' : ''}">${ip.ip_address}</span>
+                ${ip.daily_limit >= 100000 ? '<span class="ml-2 text-orange-500"><i class="fas fa-fire"></i></span>' : '<span class="ml-2 text-blue-400"><i class="fas fa-snowflake"></i></span>'}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600">${ip.hostname || '-'}</td>
+            <td class="px-4 py-3">
+                <span class="text-sm ${ip.warmup_day >= 30 ? 'text-green-600 font-medium' : 'text-gray-600'}">
+                    Day ${ip.warmup_day}
+                </span>
+            </td>
+            <td class="px-4 py-3">
+                <span class="text-sm font-medium ${ip.daily_limit >= 100000 ? 'text-green-600' : 'text-gray-600'}">
+                    ${(ip.daily_limit / 1000).toFixed(0)}K
+                </span>
+            </td>
+            <td class="px-4 py-3">
+                <div class="flex items-center">
+                    <div class="w-24 bg-gray-200 rounded-full h-2 mr-2">
+                        <div class="bg-[#f86d31] h-2 rounded-full" style="width: ${Math.min((ip.sent_today / ip.daily_limit) * 100, 100)}%"></div>
+                    </div>
+                    <span class="text-xs text-gray-500">${ip.sent_today.toLocaleString()}</span>
+                </div>
+            </td>
+            <td class="px-4 py-3">
+                <div class="flex items-center space-x-2">
+                    ${blBadge}
+                    <button onclick="checkSingleBlacklist('${ip.ip_address}')" class="text-gray-400 hover:text-yellow-600" title="Check blacklist">
+                        <i class="fas fa-sync-alt text-xs"></i>
+                    </button>
+                </div>
+            </td>
+            <td class="px-4 py-3">
+                <button onclick="editIP(${ip.id}, '${ip.ip_address}', '${ip.hostname || ''}', ${ip.warmup_day}, ${ip.daily_limit}, ${ip.is_active})"
+                    class="text-blue-500 hover:text-blue-700 mr-2" title="Edit"><i class="fas fa-edit"></i></button>
+                <button onclick="deleteIP(${ip.id})" class="text-red-500 hover:text-red-700" title="Delete"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `}).join('');
+    
+    updateBlacklistStats();
+}
+
+function updateBlacklistStats() {
+    const blacklisted = Object.values(blacklistCache).filter(b => b.is_listed).length;
+    document.getElementById('stat-blacklisted').textContent = blacklisted;
+}
+
+async function loadStats() {
+    const response = await fetch('/hub/ip-management/api/stats');
+    const data = await response.json();
+
+    document.getElementById('stat-active').textContent = data.active_ips;
+    document.getElementById('stat-warmed').textContent = data.warmed_count;
+    document.getElementById('stat-cold').textContent = data.cold_count;
+    document.getElementById('stat-capacity').textContent = (data.total_capacity / 1000).toFixed(0) + 'K';
+    document.getElementById('stat-sent').textContent = data.total_sent_today.toLocaleString();
+}
+
+async function loadSettings() {
+    const response = await fetch('/hub/ip-management/api/settings');
+    const data = await response.json();
+
+    document.getElementById('setting-warmed-only').checked = data.use_warmed_ips_only === 'true';
+}
+
+async function updateSettings() {
+    const warmedOnly = document.getElementById('setting-warmed-only').checked;
+
+    await fetch('/hub/ip-management/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({use_warmed_ips_only: warmedOnly ? 'true' : 'false'})
+    });
+
+    showToast('Settings updated');
+}
+
+async function toggleIP(id) {
+    await fetch(`/hub/ip-management/api/ip/${id}/toggle`, {method: 'POST'});
+    loadIPs();
+    loadStats();
+}
+
+async function activateWarmedOnly() {
+    if (!confirm('This will deactivate all cold IPs and only use warmed IPs (100K+ daily limit). Continue?')) return;
+
+    await fetch('/hub/ip-management/api/activate-warmed', {method: 'POST'});
+    document.getElementById('setting-warmed-only').checked = true;
+    await updateSettings();
+    loadIPs();
+    loadStats();
+    showToast('Now using warmed IPs only', 'success');
+}
+
+async function activateAll() {
+    if (!confirm('This will activate ALL IPs including cold ones. Continue?')) return;
+
+    await fetch('/hub/ip-management/api/activate-all', {method: 'POST'});
+    document.getElementById('setting-warmed-only').checked = false;
+    await updateSettings();
+    loadIPs();
+    loadStats();
+    showToast('All IPs activated', 'success');
+}
+
+async function resetDailyCounts() {
+    if (!confirm('Reset sent counts for all IPs to 0?')) return;
+
+    await fetch('/hub/ip-management/api/reset-daily-counts', {method: 'POST'});
+    loadIPs();
+    loadStats();
+    showToast('Daily counts reset', 'success');
+}
+
+function refreshIPs() {
+    loadIPs();
+    loadStats();
+    showToast('Refreshed', 'info');
+}
+
+// Blacklist checking
+async function checkSingleBlacklist(ip) {
+    showToast(`Checking ${ip}...`, 'info');
+    
+    try {
+        const response = await fetch('/hub/ip-management/api/check-blacklist', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ip_address: ip})
+        });
+        const result = await response.json();
+        
+        blacklistCache[ip] = result;
+        loadIPs();
+        
+        if (result.is_listed) {
+            showToast(`${ip} is LISTED on: ${result.listings.join(', ')}`, 'error');
+        } else {
+            showToast(`${ip} is CLEAN`, 'success');
+        }
+    } catch (e) {
+        showToast('Blacklist check failed', 'error');
+    }
+}
+
+async function checkAllBlacklists() {
+    if (checkingBlacklists) return;
+    checkingBlacklists = true;
+    
+    showToast('Checking all IPs for blacklists...', 'info');
+    
+    try {
+        const response = await fetch('/hub/ip-management/api/check-all-blacklists', {method: 'POST'});
+        const result = await response.json();
+        
+        // Update cache
+        result.results.forEach(r => {
+            blacklistCache[r.ip] = r;
+        });
+        
+        // Show summary
+        const listed = result.results.filter(r => r.is_listed);
+        const clean = result.results.filter(r => !r.is_listed);
+        
+        document.getElementById('blacklist-summary').classList.remove('hidden');
+        document.getElementById('blacklist-results').innerHTML = `
+            <div class="bg-green-50 rounded-xl p-4 border border-green-200">
+                <div class="text-2xl font-bold text-green-600">${clean.length}</div>
+                <div class="text-sm text-green-700">Clean IPs</div>
+            </div>
+            <div class="bg-red-50 rounded-xl p-4 border border-red-200">
+                <div class="text-2xl font-bold text-red-600">${listed.length}</div>
+                <div class="text-sm text-red-700">Blacklisted IPs</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div class="text-2xl font-bold text-gray-600">${result.results.length}</div>
+                <div class="text-sm text-gray-700">Total Checked</div>
+            </div>
+            ${listed.length > 0 ? `
+            <div class="col-span-3 mt-4">
+                <h4 class="font-semibold text-red-700 mb-2">Blacklisted IPs:</h4>
+                <div class="space-y-2">
+                    ${listed.map(l => `
+                        <div class="flex items-center justify-between bg-red-100 rounded-lg px-4 py-2">
+                            <span class="font-mono font-semibold text-red-800">${l.ip}</span>
+                            <span class="text-red-600 text-sm">${l.listings.join(', ')}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        `;
+        
+        loadIPs();
+        
+        if (listed.length > 0) {
+            showToast(`${listed.length} IPs are BLACKLISTED!`, 'error');
+        } else {
+            showToast('All IPs are clean!', 'success');
+        }
+    } catch (e) {
+        showToast('Blacklist check failed', 'error');
+    } finally {
+        checkingBlacklists = false;
+    }
+}
+
+function openAddModal() {
+    document.getElementById('modal-title').textContent = 'Add IP';
+    document.getElementById('edit-ip-id').value = '';
+    document.getElementById('ip-address').value = '';
+    document.getElementById('ip-hostname').value = '';
+    document.getElementById('ip-warmup-day').value = '1';
+    document.getElementById('ip-daily-limit').value = '2000';
+    document.getElementById('ip-active').checked = false;
+    document.getElementById('ip-modal').classList.remove('hidden');
+}
+
+function editIP(id, ip, hostname, warmupDay, dailyLimit, isActive) {
+    document.getElementById('modal-title').textContent = 'Edit IP';
+    document.getElementById('edit-ip-id').value = id;
+    document.getElementById('ip-address').value = ip;
+    document.getElementById('ip-hostname').value = hostname;
+    document.getElementById('ip-warmup-day').value = warmupDay;
+    document.getElementById('ip-daily-limit').value = dailyLimit;
+    document.getElementById('ip-active').checked = isActive;
+    document.getElementById('ip-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('ip-modal').classList.add('hidden');
+}
+
+document.getElementById('ip-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById('edit-ip-id').value;
+    const data = {
+        ip_address: document.getElementById('ip-address').value,
+        hostname: document.getElementById('ip-hostname').value,
+        warmup_day: parseInt(document.getElementById('ip-warmup-day').value),
+        daily_limit: parseInt(document.getElementById('ip-daily-limit').value),
+        is_active: document.getElementById('ip-active').checked
+    };
+
+    if (id) {
+        await fetch(`/hub/ip-management/api/ip/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+    } else {
+        await fetch('/hub/ip-management/api/ip', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+    }
+
+    closeModal();
+    loadIPs();
+    loadStats();
+    showToast('IP saved', 'success');
+});
+
+async function deleteIP(id) {
+    if (!confirm('Delete this IP?')) return;
+
+    await fetch(`/hub/ip-management/api/ip/${id}`, {method: 'DELETE'});
+    loadIPs();
+    loadStats();
+    showToast('IP deleted', 'success');
+}
+
+// Initial load
+loadIPs();
+loadStats();
+loadSettings();
+
+// Refresh every 30 seconds
+setInterval(() => {
+    loadIPs();
+    loadStats();
+}, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,481 @@
+{% extends "hub/base.html" %}
+
+{% block title %}Speed Control{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
+        <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-gray-800">⚡ Speed Control</h1>
+            <p class="text-gray-500 text-sm mt-1">Control email sending speed - 100k emails in 10 minutes</p>
+        </div>
+        <div class="flex items-center space-x-3 mt-4 lg:mt-0">
+            <span class="px-4 py-2 bg-green-100 text-green-700 rounded-full font-semibold" id="live-eps">-- eps</span>
+            <span class="px-4 py-2 bg-orange-100 text-orange-700 rounded-full font-semibold" id="live-profile">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Current Speed</p>
+                    <p class="text-2xl font-bold text-blue-600" id="stat-current-eps">--</p>
+                    <p class="text-xs text-gray-400">emails/sec</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-tachometer-alt text-blue-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Target Speed</p>
+                    <p class="text-2xl font-bold text-green-600" id="stat-target-eps">--</p>
+                    <p class="text-xs text-gray-400">emails/sec</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-bullseye text-green-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">This Minute</p>
+                    <p class="text-2xl font-bold text-purple-600" id="stat-this-minute">--</p>
+                    <p class="text-xs text-gray-400">emails sent</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-envelope text-purple-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Multiplier</p>
+                    <p class="text-2xl font-bold text-orange-600" id="stat-multiplier">--</p>
+                    <p class="text-xs text-gray-400">speed boost</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-rocket text-orange-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Speed Profiles -->
+    <div class="bg-white rounded-2xl p-6 card-shadow mb-6">
+        <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+            Speed Profiles - Click to Apply
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <button class="speed-btn p-4 rounded-xl border-2 border-gray-200 hover:border-gray-400 transition-all text-center" data-profile="conservative">
+                <div class="text-3xl mb-2">🐢</div>
+                <div class="font-bold text-gray-700">Conservative</div>
+                <div class="text-xs text-gray-500">100k in 4 hours</div>
+                <div class="mt-2 text-xs px-2 py-1 bg-gray-100 rounded-full">7 eps</div>
+            </button>
+            <button class="speed-btn p-4 rounded-xl border-2 border-blue-200 hover:border-blue-400 transition-all text-center bg-blue-50" data-profile="balanced">
+                <div class="text-3xl mb-2">⚖️</div>
+                <div class="font-bold text-blue-700">Balanced</div>
+                <div class="text-xs text-blue-500">100k in 1 hour</div>
+                <div class="mt-2 text-xs px-2 py-1 bg-blue-100 rounded-full text-blue-700">28 eps</div>
+            </button>
+            <button class="speed-btn p-4 rounded-xl border-2 border-orange-200 hover:border-orange-400 transition-all text-center bg-orange-50" data-profile="aggressive">
+                <div class="text-3xl mb-2">🔥</div>
+                <div class="font-bold text-orange-700">Aggressive</div>
+                <div class="text-xs text-orange-500">100k in 20 min</div>
+                <div class="mt-2 text-xs px-2 py-1 bg-orange-100 rounded-full text-orange-700">85 eps</div>
+            </button>
+            <button class="speed-btn p-4 rounded-xl border-2 border-yellow-400 hover:border-yellow-500 transition-all text-center bg-gradient-to-br from-yellow-50 to-orange-50" data-profile="turbo">
+                <div class="text-3xl mb-2">🚀</div>
+                <div class="font-bold text-yellow-700">TURBO</div>
+                <div class="text-xs text-yellow-600">100k in 10 min</div>
+                <div class="mt-2 text-xs px-2 py-1 bg-yellow-200 rounded-full text-yellow-800 font-bold">167 eps</div>
+            </button>
+            <button class="speed-btn p-4 rounded-xl border-2 border-purple-300 hover:border-purple-500 transition-all text-center bg-gradient-to-br from-purple-50 to-indigo-50" data-profile="ultra">
+                <div class="text-3xl mb-2">⚡</div>
+                <div class="font-bold text-purple-700">ULTRA</div>
+                <div class="text-xs text-purple-500">100k in 7 min</div>
+                <div class="mt-2 text-xs px-2 py-1 bg-purple-200 rounded-full text-purple-800 font-bold">240 eps</div>
+            </button>
+            <button class="speed-btn p-4 rounded-xl border-2 border-red-300 hover:border-red-500 transition-all text-center bg-gradient-to-br from-red-50 to-pink-50" data-profile="insane">
+                <div class="text-3xl mb-2">💀</div>
+                <div class="font-bold text-red-700">INSANE</div>
+                <div class="text-xs text-red-500">100k in 5 min</div>
+                <div class="mt-2 text-xs px-2 py-1 bg-red-200 rounded-full text-red-800 font-bold">350 eps</div>
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Custom Multiplier -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-sliders-h text-blue-500 mr-2"></i>
+                Custom Multiplier
+            </h3>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-600 mb-2">
+                    Multiplier: <span class="font-bold text-xl text-orange-600" id="mult-display">15</span>x
+                </label>
+                <input type="range" id="mult-slider" min="1" max="50" value="15" 
+                       class="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-gray-50 rounded-xl p-3 text-center">
+                    <p class="text-xs text-gray-500">Target Speed</p>
+                    <p class="text-xl font-bold text-blue-600"><span id="mult-eps">167</span> eps</p>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-3 text-center">
+                    <p class="text-xs text-gray-500">Time for 100k</p>
+                    <p class="text-xl font-bold text-green-600">~<span id="mult-time">10</span> min</p>
+                </div>
+            </div>
+            <button id="apply-mult-btn" class="w-full py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-bold hover:opacity-90 transition-all">
+                <i class="fas fa-check mr-2"></i>Apply Multiplier
+            </button>
+        </div>
+
+        <!-- Worker Configuration -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fas fa-cogs text-gray-500 mr-2"></i>
+                Worker Configuration
+            </h3>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-2">Threads per Chunk</label>
+                    <input type="number" id="worker-threads" value="150" 
+                           class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400">
+                    <p class="text-xs text-gray-400 mt-1">Concurrent sends</p>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-2">Chunk Size</label>
+                    <input type="number" id="worker-chunk" value="2500" 
+                           class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400">
+                    <p class="text-xs text-gray-400 mt-1">Contacts per task</p>
+                </div>
+            </div>
+            <button id="save-workers-btn" class="w-full py-3 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-700 transition-all">
+                <i class="fas fa-save mr-2"></i>Save Worker Config
+            </button>
+        </div>
+    </div>
+
+    <!-- Rate Limits -->
+    <div class="bg-white rounded-2xl p-6 card-shadow mb-6">
+        <h3 class="font-bold text-gray-800 mb-4 flex items-center">
+            <i class="fas fa-shield-alt text-green-500 mr-2"></i>
+            Domain Rate Limits <span class="text-gray-400 font-normal text-sm ml-2">(emails per minute)</span>
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="limits-container">
+            <!-- Filled by JS -->
+        </div>
+        <button id="save-limits-btn" class="mt-4 px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all">
+            <i class="fas fa-save mr-2"></i>Save Rate Limits
+        </button>
+    </div>
+
+    <!-- Sending IPs - Dynamic from Database -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800 flex items-center">
+                <i class="fas fa-server text-blue-500 mr-2"></i>
+                Sending IPs
+            </h3>
+            <button onclick="loadIPs()" class="text-sm text-blue-600 hover:text-blue-800">
+                <i class="fas fa-sync-alt mr-1"></i>Refresh
+            </button>
+        </div>
+        
+        <!-- IP Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" id="ip-stats">
+            <div class="bg-green-50 rounded-xl p-3 text-center">
+                <p class="text-2xl font-bold text-green-600" id="ip-warmed-count">--</p>
+                <p class="text-xs text-gray-500">Warmed IPs</p>
+            </div>
+            <div class="bg-yellow-50 rounded-xl p-3 text-center">
+                <p class="text-2xl font-bold text-yellow-600" id="ip-warming-count">--</p>
+                <p class="text-xs text-gray-500">Warming IPs</p>
+            </div>
+            <div class="bg-blue-50 rounded-xl p-3 text-center">
+                <p class="text-2xl font-bold text-blue-600" id="ip-capacity">--</p>
+                <p class="text-xs text-gray-500">Daily Capacity</p>
+            </div>
+            <div class="bg-purple-50 rounded-xl p-3 text-center">
+                <p class="text-2xl font-bold text-purple-600" id="ip-remaining">--</p>
+                <p class="text-xs text-gray-500">Remaining Today</p>
+            </div>
+        </div>
+
+        <!-- Warmed IPs -->
+        <div class="mb-4">
+            <h4 class="text-sm font-semibold text-gray-600 mb-2 flex items-center">
+                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                Warmed IPs (Ready for high volume)
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2" id="warmed-ips-container">
+                <div class="text-center text-gray-400 py-4 col-span-6">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Warming IPs -->
+        <div id="warming-section" class="hidden">
+            <h4 class="text-sm font-semibold text-gray-600 mb-2 flex items-center">
+                <span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
+                Warming IPs (Limited volume)
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2" id="warming-ips-container">
+            </div>
+        </div>
+
+        <!-- Capacity Calculator -->
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <p class="text-sm text-gray-500">Max Concurrent</p>
+                    <p class="text-xl font-bold text-blue-600" id="max-concurrent">--</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">100k Time (Turbo)</p>
+                    <p class="text-xl font-bold text-orange-600" id="capacity-time">~10 min</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Max Daily Volume</p>
+                    <p class="text-xl font-bold text-green-600" id="max-daily">--</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/hub/api/speed';
+
+async function loadStatus() {
+    try {
+        const r = await fetch(`${API}/status`);
+        const d = await r.json();
+        
+        if (!d.success) return;
+        
+        // Update stats
+        document.getElementById('stat-current-eps').textContent = d.current_eps;
+        document.getElementById('stat-target-eps').textContent = d.target_eps;
+        document.getElementById('stat-this-minute').textContent = d.this_minute.toLocaleString();
+        document.getElementById('stat-multiplier').textContent = d.multiplier + 'x';
+        
+        // Update header badges
+        document.getElementById('live-eps').textContent = d.current_eps + ' eps';
+        document.getElementById('live-profile').textContent = d.profile_name;
+        
+        // Update capacity
+        document.getElementById('capacity-time').textContent = '~' + Math.round(100000 / d.target_eps / 60) + ' min';
+        
+        // Update slider
+        document.getElementById('mult-slider').value = d.multiplier;
+        document.getElementById('mult-display').textContent = d.multiplier;
+        document.getElementById('mult-eps').textContent = d.target_eps;
+        document.getElementById('mult-time').textContent = Math.round(100000 / d.target_eps / 60);
+        
+        // Update workers
+        document.getElementById('worker-threads').value = d.threads;
+        document.getElementById('worker-chunk').value = d.chunk_size;
+        
+        // Highlight active profile
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            if (btn.dataset.profile === d.profile) {
+                btn.classList.add('ring-4', 'ring-green-400', 'ring-opacity-50');
+                btn.style.transform = 'scale(1.02)';
+            } else {
+                btn.classList.remove('ring-4', 'ring-green-400', 'ring-opacity-50');
+                btn.style.transform = '';
+            }
+        });
+        
+        // Update limits
+        const limitsDiv = document.getElementById('limits-container');
+        limitsDiv.innerHTML = '';
+        const domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'aol.com', 'icloud.com', 'default'];
+        domains.forEach(domain => {
+            const limit = d.limits[domain] || 0;
+            limitsDiv.innerHTML += `
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">${domain}</label>
+                    <input type="number" class="limit-input w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-orange-400" 
+                           data-domain="${domain}" value="${limit}">
+                </div>`;
+        });
+    } catch(e) { console.error(e); }
+}
+
+async function loadIPs() {
+    try {
+        const r = await fetch(`${API}/ips`);
+        const d = await r.json();
+        
+        if (!d.success) return;
+        
+        // Update stats
+        document.getElementById('ip-warmed-count').textContent = d.stats.warmed_count;
+        document.getElementById('ip-warming-count').textContent = d.stats.warming_count;
+        document.getElementById('ip-capacity').textContent = (d.stats.warmed_capacity / 1000).toFixed(0) + 'k';
+        document.getElementById('ip-remaining').textContent = ((d.stats.warmed_capacity - d.stats.total_sent_today) / 1000).toFixed(0) + 'k';
+        document.getElementById('max-concurrent').textContent = d.stats.warmed_count * 150;
+        document.getElementById('max-daily').textContent = (d.stats.total_capacity / 1000000).toFixed(1) + 'M';
+        
+        // Render warmed IPs
+        const warmedContainer = document.getElementById('warmed-ips-container');
+        if (d.warmed_ips.length === 0) {
+            warmedContainer.innerHTML = '<div class="text-center text-gray-400 py-4 col-span-6">No warmed IPs</div>';
+        } else {
+            warmedContainer.innerHTML = d.warmed_ips.map(ip => `
+                <div class="bg-green-50 rounded-xl p-3 text-center border border-green-200">
+                    <i class="fas fa-check-circle text-green-500 mb-1"></i>
+                    <p class="text-xs font-mono text-gray-700">${ip.ip_address}</p>
+                    <p class="text-xs text-gray-500">${ip.hostname || ''}</p>
+                    <p class="text-xs text-green-600 mt-1">${(ip.daily_limit/1000).toFixed(0)}k/day</p>
+                </div>
+            `).join('');
+        }
+        
+        // Render warming IPs
+        const warmingSection = document.getElementById('warming-section');
+        const warmingContainer = document.getElementById('warming-ips-container');
+        if (d.warming_ips.length > 0) {
+            warmingSection.classList.remove('hidden');
+            warmingContainer.innerHTML = d.warming_ips.map(ip => `
+                <div class="bg-yellow-50 rounded-xl p-3 text-center border border-yellow-200">
+                    <i class="fas fa-fire text-yellow-500 mb-1"></i>
+                    <p class="text-xs font-mono text-gray-700">${ip.ip_address}</p>
+                    <p class="text-xs text-gray-500">${ip.hostname || ''}</p>
+                    <p class="text-xs text-yellow-600 mt-1">Day ${ip.warmup_day} - ${ip.daily_limit}/day</p>
+                </div>
+            `).join('');
+        } else {
+            warmingSection.classList.add('hidden');
+        }
+    } catch(e) { console.error(e); }
+}
+
+// Profile buttons
+document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const originalContent = this.innerHTML;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin text-2xl"></i><div class="mt-2">Applying...</div>';
+        this.disabled = true;
+        
+        try {
+            const r = await fetch(`${API}/set`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({profile: this.dataset.profile})
+            });
+            const d = await r.json();
+            if (d.success) {
+                showToast(`✅ Switched to ${d.profile.toUpperCase()} - ${d.eps} eps`, 'success');
+                loadStatus();
+            }
+        } catch(e) { console.error(e); }
+        
+        setTimeout(() => {
+            this.innerHTML = originalContent;
+            this.disabled = false;
+        }, 500);
+    });
+});
+
+// Multiplier slider
+document.getElementById('mult-slider').addEventListener('input', function() {
+    const mult = this.value;
+    const eps = Math.round(28 * mult);
+    const time = Math.round(100000 / eps / 60);
+    document.getElementById('mult-display').textContent = mult;
+    document.getElementById('mult-eps').textContent = eps;
+    document.getElementById('mult-time').textContent = time;
+});
+
+// Apply multiplier
+document.getElementById('apply-mult-btn').addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Applying...';
+    
+    const mult = document.getElementById('mult-slider').value;
+    await fetch(`${API}/multiplier`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({multiplier: parseFloat(mult)})
+    });
+    
+    this.innerHTML = '<i class="fas fa-check mr-2"></i>Applied!';
+    showToast(`✅ Multiplier set to ${mult}x`, 'success');
+    loadStatus();
+    
+    setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-check mr-2"></i>Apply Multiplier';
+        this.disabled = false;
+    }, 1000);
+});
+
+// Save workers
+document.getElementById('save-workers-btn').addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+    
+    await fetch(`${API}/workers`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            threads: parseInt(document.getElementById('worker-threads').value),
+            chunk_size: parseInt(document.getElementById('worker-chunk').value)
+        })
+    });
+    
+    this.innerHTML = '<i class="fas fa-check mr-2"></i>Saved!';
+    showToast('✅ Worker config saved', 'success');
+    
+    setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-save mr-2"></i>Save Worker Config';
+        this.disabled = false;
+    }, 1000);
+});
+
+// Save limits
+document.getElementById('save-limits-btn').addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+    
+    const limits = {};
+    document.querySelectorAll('.limit-input').forEach(inp => {
+        limits[inp.dataset.domain] = parseInt(inp.value);
+    });
+    
+    await fetch(`${API}/limits`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({limits})
+    });
+    
+    this.innerHTML = '<i class="fas fa-check mr-2"></i>Saved!';
+    showToast('✅ Rate limits saved', 'success');
+    
+    setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-save mr-2"></i>Save Rate Limits';
+        this.disabled = false;
+    }, 1000);
+});
+
+// Initial load and refresh
+loadStatus();
+loadIPs();
+setInterval(loadStatus, 3000);
+setInterval(loadIPs, 30000); // Refresh IPs every 30 seconds
+</script>
+{% endblock %}

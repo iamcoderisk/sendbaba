@@ -88,3 +88,13 @@ Click==8.1.7
 
 # WSGI Server
 uWSGI==2.0.22
+flask-socketio==5.3.6
+python-socketio==5.10.0
+flask-socketio==5.3.6
+python-socketio==5.10.0
+gevent==24.2.1
+gevent-websocket==0.10.1
+flask-socketio==5.3.6
+python-socketio==5.10.0
+gevent==24.2.1
+gevent-websocket==0.10.1

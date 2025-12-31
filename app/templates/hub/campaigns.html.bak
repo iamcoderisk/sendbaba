@@ -1,0 +1,214 @@
+{% extends "hub/base.html" %}
+{% block title %}Campaign Management - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center flex-wrap gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Campaign Management</h1>
+        <p class="text-gray-500 text-sm mt-1">View and manage all user campaigns</p>
+    </div>
+    <button onclick="showClearDraftsModal()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+        <i class="fas fa-trash-alt"></i> Clear Drafts
+    </button>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-5 gap-4 mb-6">
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-gray-900">{{ stats.total }}</div>
+        <div class="text-sm text-gray-500">Total</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-yellow-600">{{ stats.draft }}</div>
+        <div class="text-sm text-gray-500">Drafts</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-blue-600">{{ stats.sending + stats.queued }}</div>
+        <div class="text-sm text-gray-500">In Progress</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-green-600">{{ stats.completed }}</div>
+        <div class="text-sm text-gray-500">Completed</div>
+    </div>
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="text-2xl font-bold text-red-600">{{ stats.cancelled + stats.failed }}</div>
+        <div class="text-sm text-gray-500">Failed/Cancelled</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="flex gap-3 mb-4 items-center flex-wrap">
+    <select id="statusFilter" onchange="applyFilters()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+        <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+        <option value="queued" {% if status_filter == 'queued' %}selected{% endif %}>Queued</option>
+        <option value="sending" {% if status_filter == 'sending' %}selected{% endif %}>Sending</option>
+        <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+        <option value="paused" {% if status_filter == 'paused' %}selected{% endif %}>Paused</option>
+        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+    </select>
+    <select id="userFilter" onchange="applyFilters()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+        <option value="">All Users</option>
+        {% for u in users %}
+        <option value="{{ u.organization_id }}" {% if user_filter == u.organization_id %}selected{% endif %}>{{ u.email }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" id="searchInput" placeholder="Search campaigns..." class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 w-56">
+</div>
+
+<!-- Bulk Actions -->
+<div id="bulkActions" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 flex items-center gap-4">
+    <span class="text-sm font-medium"><span id="selectedCount">0</span> selected</span>
+    <button onclick="deleteBulk()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2"><i class="fas fa-trash"></i> Delete Selected</button>
+    <button onclick="clearSelection()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium">Cancel</button>
+</div>
+
+<!-- Table -->
+<div class="bg-white rounded-xl card-shadow overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+                <th class="w-10 px-4 py-3"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="w-4 h-4"></th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Campaign</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">User</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Recipients</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Sent</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Updated</th>
+                <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="campaignsBody">
+            {% for c in campaigns %}
+            <tr class="border-b border-gray-100 hover:bg-gray-50" data-id="{{ c.id }}" data-name="{{ c.name|lower if c.name else '' }}">
+                <td class="px-4 py-3"><input type="checkbox" class="row-check w-4 h-4" value="{{ c.id }}" onchange="updateBulkActions()"></td>
+                <td class="px-4 py-3">
+                    <div class="font-medium text-gray-900">{{ c.name or 'Untitled' }}</div>
+                    {% if c.subject %}<div class="text-xs text-gray-500 mt-0.5">{{ c.subject[:40] }}{% if c.subject|length > 40 %}...{% endif %}</div>{% endif %}
+                </td>
+                <td class="px-4 py-3">
+                    <div class="text-sm text-gray-900">{{ c.user_email or 'Unknown' }}</div>
+                    {% if c.org_name %}<div class="text-xs text-gray-500">{{ c.org_name }}</div>{% endif %}
+                </td>
+                <td class="px-4 py-3">
+                    <span class="px-2.5 py-1 rounded-full text-xs font-medium 
+                        {% if c.status == 'draft' %}bg-yellow-100 text-yellow-700
+                        {% elif c.status == 'queued' %}bg-blue-100 text-blue-700
+                        {% elif c.status == 'sending' %}bg-green-100 text-green-700
+                        {% elif c.status == 'completed' %}bg-green-100 text-green-700
+                        {% elif c.status == 'paused' %}bg-gray-100 text-gray-700
+                        {% else %}bg-red-100 text-red-700{% endif %}">{{ c.status|title }}</span>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-900">{{ '{:,}'.format(c.total_recipients) }}</td>
+                <td class="px-4 py-3 text-sm text-gray-900">{{ '{:,}'.format(c.emails_sent) }}</td>
+                <td class="px-4 py-3 text-sm text-gray-500">{{ c.updated_at.strftime('%b %d, %H:%M') if c.updated_at else '-' }}</td>
+                <td class="px-4 py-3">
+                    <button onclick="deleteCampaign('{{ c.id }}', '{{ c.name|e if c.name else 'Untitled' }}')" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100" title="Delete"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Clear Drafts Modal -->
+<div id="clearDraftsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <h3 class="text-lg font-bold text-gray-900 mb-2"><i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>Clear Drafts</h3>
+        <p class="text-gray-600 text-sm mb-4">This will permanently delete draft campaigns. This cannot be undone.</p>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Select scope:</label>
+            <select id="clearDraftsScope" class="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm">
+                <option value="all">All drafts (all users)</option>
+                {% for u in users %}
+                <option value="{{ u.organization_id }}">{{ u.email }} only</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex gap-3 justify-end">
+            <button onclick="closeClearDraftsModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium">Cancel</button>
+            <button onclick="clearDrafts()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium"><i class="fas fa-trash mr-1"></i>Clear Drafts</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function applyFilters() {
+    const status = document.getElementById('statusFilter').value;
+    const user = document.getElementById('userFilter').value;
+    let url = '/hub/campaigns?status=' + status;
+    if (user) url += '&user_id=' + user;
+    window.location.href = url;
+}
+
+document.getElementById('searchInput').addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    document.querySelectorAll('#campaignsBody tr').forEach(row => {
+        const name = row.dataset.name || '';
+        row.style.display = name.includes(search) ? '' : 'none';
+    });
+});
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selected = document.querySelectorAll('.row-check:checked').length;
+    document.getElementById('selectedCount').textContent = selected;
+    document.getElementById('bulkActions').classList.toggle('hidden', selected === 0);
+}
+
+function clearSelection() {
+    document.getElementById('selectAll').checked = false;
+    document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
+    updateBulkActions();
+}
+
+async function deleteCampaign(id, name) {
+    if (!confirm(`Delete campaign "${name}"?`)) return;
+    try {
+        const r = await fetch('/hub/api/campaigns/delete', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({campaign_id: id})
+        });
+        if (r.ok) location.reload();
+        else alert('Error deleting campaign');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+async function deleteBulk() {
+    const ids = [...document.querySelectorAll('.row-check:checked')].map(cb => cb.value);
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} campaigns? This cannot be undone.`)) return;
+    try {
+        const r = await fetch('/hub/api/campaigns/delete-bulk', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({campaign_ids: ids})
+        });
+        if (r.ok) location.reload();
+        else alert('Error deleting campaigns');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+function showClearDraftsModal() { document.getElementById('clearDraftsModal').classList.remove('hidden'); document.getElementById('clearDraftsModal').classList.add('flex'); }
+function closeClearDraftsModal() { document.getElementById('clearDraftsModal').classList.add('hidden'); document.getElementById('clearDraftsModal').classList.remove('flex'); }
+
+async function clearDrafts() {
+    const scope = document.getElementById('clearDraftsScope').value;
+    const params = scope === 'all' ? {} : {organization_id: scope};
+    if (!confirm('Are you sure? This will permanently delete all matching drafts.')) return;
+    try {
+        const r = await fetch('/hub/api/campaigns/clear-drafts', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(params)
+        });
+        const data = await r.json();
+        if (r.ok) { alert(`${data.deleted} drafts deleted`); location.reload(); }
+        else alert('Error: ' + data.error);
+    } catch(e) { alert('Error: ' + e); }
+}
+</script>
+{% endblock %}

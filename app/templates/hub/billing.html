@@ -1,0 +1,339 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'billing' %}
+
+{% block title %}Billing Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Billing Dashboard</h1>
+            <p class="text-gray-500">Revenue tracking, subscriptions, and invoices</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <select id="billing-period" class="px-4 py-2 bg-white border border-gray-200 rounded-xl">
+                <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
+                <option value="year">This Year</option>
+            </select>
+            <button onclick="generateInvoices()" class="px-4 py-2 gradient-primary text-white rounded-xl card-shadow">
+                <i class="fas fa-file-invoice mr-2"></i>Generate Invoices
+            </button>
+        </div>
+    </div>
+
+    <!-- Revenue Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-success rounded-xl flex items-center justify-center">
+                    <i class="fas fa-dollar-sign text-white text-xl"></i>
+                </div>
+                <span class="text-green-500 text-sm font-medium"><i class="fas fa-arrow-up"></i> 12%</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">$<span id="mrr">0</span></p>
+            <p class="text-sm text-gray-500">Monthly Recurring Revenue</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center">
+                    <i class="fas fa-chart-line text-white text-xl"></i>
+                </div>
+                <span class="text-green-500 text-sm font-medium"><i class="fas fa-arrow-up"></i> 8%</span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">$<span id="arr">0</span></p>
+            <p class="text-sm text-gray-500">Annual Recurring Revenue</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-info rounded-xl flex items-center justify-center">
+                    <i class="fas fa-users text-white text-xl"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="paying-customers">0</p>
+            <p class="text-sm text-gray-500">Paying Customers</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-warning rounded-xl flex items-center justify-center">
+                    <i class="fas fa-user-plus text-white text-xl"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-gray-800">$<span id="arpu">0</span></p>
+            <p class="text-sm text-gray-500">Avg Revenue Per User</p>
+        </div>
+    </div>
+
+    <!-- Revenue Chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">Revenue Overview</h3>
+                <div class="flex space-x-2">
+                    <button class="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg">Revenue</button>
+                    <button class="px-3 py-1 text-sm text-gray-500 hover:bg-gray-50 rounded-lg">Customers</button>
+                </div>
+            </div>
+            <div id="revenue-chart" style="height: 300px;"></div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Plan Distribution</h3>
+            <div id="plan-chart" style="height: 250px;"></div>
+            <div class="mt-4 space-y-2">
+                <div class="flex items-center justify-between text-sm">
+                    <span class="flex items-center"><span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>Free</span>
+                    <span class="font-bold" id="free-count">0</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                    <span class="flex items-center"><span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span>Starter</span>
+                    <span class="font-bold" id="starter-count">0</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                    <span class="flex items-center"><span class="w-3 h-3 bg-purple-500 rounded-full mr-2"></span>Pro</span>
+                    <span class="font-bold" id="pro-count">0</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                    <span class="flex items-center"><span class="w-3 h-3 bg-orange-500 rounded-full mr-2"></span>Enterprise</span>
+                    <span class="font-bold" id="enterprise-count">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Usage-Based Revenue -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <h3 class="font-bold text-gray-800 mb-4">Usage-Based Revenue Calculator</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-2">Total Emails Sent</p>
+                <p class="text-2xl font-bold text-gray-800" id="total-emails">0</p>
+                <p class="text-xs text-gray-400">This billing period</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-2">Price per 1000</p>
+                <p class="text-2xl font-bold text-gray-800">$0.10</p>
+                <p class="text-xs text-gray-400">Volume pricing</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-2">Usage Revenue</p>
+                <p class="text-2xl font-bold text-green-600">$<span id="usage-revenue">0</span></p>
+                <p class="text-xs text-gray-400">Calculated</p>
+            </div>
+            <div class="bg-blue-50 rounded-xl p-4">
+                <p class="text-sm text-blue-600 mb-2">Projected Monthly</p>
+                <p class="text-2xl font-bold text-blue-600">$<span id="projected-revenue">0</span></p>
+                <p class="text-xs text-blue-400">At current rate</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">Recent Transactions</h3>
+            <a href="#" class="text-sm text-blue-600 hover:text-blue-700">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">Transaction ID</th>
+                        <th class="pb-3 font-medium">Customer</th>
+                        <th class="pb-3 font-medium">Plan</th>
+                        <th class="pb-3 font-medium">Amount</th>
+                        <th class="pb-3 font-medium">Date</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="transactions-table" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Subscription Management -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Subscription Health</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">Active Subscriptions</span>
+                    <span class="font-bold text-green-600" id="active-subs">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">Trial Users</span>
+                    <span class="font-bold text-blue-600" id="trial-users">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">Churned (30 days)</span>
+                    <span class="font-bold text-red-600" id="churned">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">Churn Rate</span>
+                    <span class="font-bold text-gray-800"><span id="churn-rate">0</span>%</span>
+                </div>
+                <div class="pt-4 border-t">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-500">Net Revenue Retention</span>
+                        <span class="font-bold text-green-600">108%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: 108%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Payment Status</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-3 bg-green-50 rounded-xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-check text-green-500"></i>
+                        </div>
+                        <span class="font-medium">Successful</span>
+                    </div>
+                    <span class="font-bold text-green-600" id="successful-payments">0</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-clock text-yellow-500"></i>
+                        </div>
+                        <span class="font-medium">Pending</span>
+                    </div>
+                    <span class="font-bold text-yellow-600" id="pending-payments">0</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-times text-red-500"></i>
+                        </div>
+                        <span class="font-medium">Failed</span>
+                    </div>
+                    <span class="font-bold text-red-600" id="failed-payments">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let revenueChart, planChart;
+
+function initCharts() {
+    revenueChart = new ApexCharts(document.querySelector("#revenue-chart"), {
+        chart: { type: 'area', height: 300, toolbar: { show: false } },
+        series: [
+            { name: 'Revenue', data: [4500, 5200, 4800, 5800, 6200, 5900, 6800, 7200, 6900, 7500, 8000, 8500] }
+        ],
+        colors: ['#10b981'],
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
+        stroke: { curve: 'smooth', width: 3 },
+        xaxis: { categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] },
+        yaxis: { labels: { formatter: v => '$' + formatNumber(v) } },
+        grid: { borderColor: '#f1f5f9' },
+        tooltip: { y: { formatter: v => '$' + formatNumber(v) } }
+    });
+    revenueChart.render();
+
+    planChart = new ApexCharts(document.querySelector("#plan-chart"), {
+        chart: { type: 'donut', height: 250 },
+        series: [45, 25, 20, 10],
+        labels: ['Free', 'Starter', 'Pro', 'Enterprise'],
+        colors: ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b'],
+        plotOptions: { pie: { donut: { size: '70%' } } },
+        legend: { show: false },
+        dataLabels: { enabled: false }
+    });
+    planChart.render();
+}
+
+async function fetchBillingData() {
+    try {
+        const res = await fetch('/hub/api/billing/stats');
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('mrr').textContent = formatNumber(data.mrr);
+            document.getElementById('arr').textContent = formatNumber(data.arr);
+            document.getElementById('paying-customers').textContent = data.paying_customers;
+            document.getElementById('arpu').textContent = data.arpu;
+            
+            document.getElementById('free-count').textContent = data.plans.free;
+            document.getElementById('starter-count').textContent = data.plans.starter;
+            document.getElementById('pro-count').textContent = data.plans.pro;
+            document.getElementById('enterprise-count').textContent = data.plans.enterprise;
+            
+            document.getElementById('total-emails').textContent = formatNumber(data.total_emails);
+            document.getElementById('usage-revenue').textContent = formatNumber(data.usage_revenue);
+            document.getElementById('projected-revenue').textContent = formatNumber(data.projected_revenue);
+            
+            document.getElementById('active-subs').textContent = data.active_subs;
+            document.getElementById('trial-users').textContent = data.trial_users;
+            document.getElementById('churned').textContent = data.churned;
+            document.getElementById('churn-rate').textContent = data.churn_rate;
+            
+            document.getElementById('successful-payments').textContent = data.successful_payments;
+            document.getElementById('pending-payments').textContent = data.pending_payments;
+            document.getElementById('failed-payments').textContent = data.failed_payments;
+            
+            renderTransactions(data.transactions);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderTransactions(transactions) {
+    const tbody = document.getElementById('transactions-table');
+    tbody.innerHTML = transactions.map(t => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50">
+            <td class="py-3 font-mono text-xs">${t.id}</td>
+            <td class="py-3">${t.customer}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                    t.plan === 'Enterprise' ? 'bg-orange-100 text-orange-700' :
+                    t.plan === 'Pro' ? 'bg-purple-100 text-purple-700' :
+                    t.plan === 'Starter' ? 'bg-green-100 text-green-700' :
+                    'bg-blue-100 text-blue-700'
+                }">${t.plan}</span>
+            </td>
+            <td class="py-3 font-bold">$${t.amount}</td>
+            <td class="py-3 text-gray-500">${t.date}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                    t.status === 'completed' ? 'bg-green-100 text-green-700' :
+                    t.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                }">${t.status}</span>
+            </td>
+            <td class="py-3">
+                <button onclick="viewInvoice('${t.id}')" class="text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-file-invoice"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function viewInvoice(id) {
+    showToast('Opening invoice...', 'info');
+}
+
+function generateInvoices() {
+    showToast('Generating invoices...', 'info');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    fetchBillingData();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,987 @@
+{% extends "hub/base.html" %}
+
+{% block title %}IP Pool Management - SendBaba Hub{% endblock %}
+
+{% block content %}
+<style>
+    .pool-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: 1px solid #e5e7eb;
+        transition: all 0.3s ease;
+    }
+    .pool-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+    }
+    .pool-premium { border-left: 4px solid #10b981; }
+    .pool-standard { border-left: 4px solid #3b82f6; }
+    .pool-warmup { border-left: 4px solid #f59e0b; }
+    .pool-quarantine { border-left: 4px solid #ef4444; }
+    
+    .stat-box {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
+    .stat-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .stat-label {
+        font-size: 13px;
+        color: #64748b;
+        margin-top: 4px;
+    }
+    
+    .ip-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .ip-table th {
+        background: #f8fafc;
+        padding: 14px 16px;
+        text-align: left;
+        font-weight: 600;
+        color: #475569;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .ip-table td {
+        padding: 16px;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    .ip-table tr:hover {
+        background: #f8fafc;
+    }
+    
+    .status-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .status-warmed { background: #d1fae5; color: #059669; }
+    .status-warming { background: #fef3c7; color: #d97706; }
+    .status-new { background: #e0e7ff; color: #4f46e5; }
+    .status-paused { background: #fee2e2; color: #dc2626; }
+    .status-blacklisted { background: #1f2937; color: #f87171; }
+    
+    .pool-badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .pool-badge.premium { background: #d1fae5; color: #059669; }
+    .pool-badge.standard { background: #dbeafe; color: #2563eb; }
+    .pool-badge.warmup { background: #fef3c7; color: #d97706; }
+    .pool-badge.quarantine { background: #fee2e2; color: #dc2626; }
+    
+    .progress-bar {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+    .progress-fill.green { background: linear-gradient(90deg, #10b981, #059669); }
+    .progress-fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .progress-fill.red { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    
+    .warmup-timeline {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 8px;
+    }
+    .warmup-day {
+        width: 8px;
+        height: 24px;
+        border-radius: 2px;
+        background: #e5e7eb;
+    }
+    .warmup-day.completed { background: #10b981; }
+    .warmup-day.current { background: #f59e0b; }
+    
+    .action-btn {
+        padding: 8px 14px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .action-btn.primary {
+        background: linear-gradient(135deg, #f87137 0%, #e85d2a 100%);
+        color: white;
+    }
+    .action-btn.success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+    }
+    .action-btn.warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+    .action-btn.danger {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+    }
+    .action-btn.secondary {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.active {
+        display: flex;
+    }
+    .modal-box {
+        background: white;
+        border-radius: 20px;
+        max-width: 600px;
+        width: 100%;
+        max-height: 90vh;
+        overflow: hidden;
+        animation: modalIn 0.3s ease;
+    }
+    @keyframes modalIn {
+        from { transform: scale(0.9); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+        background: linear-gradient(135deg, #f87137 0%, #e85d2a 100%);
+        color: white;
+        padding: 24px;
+    }
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        max-height: calc(90vh - 180px);
+    }
+    .modal-footer {
+        padding: 16px 24px;
+        background: #f8fafc;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    .form-input, .form-select {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        font-size: 15px;
+        transition: all 0.2s;
+    }
+    .form-input:focus, .form-select:focus {
+        outline: none;
+        border-color: #f87137;
+        box-shadow: 0 0 0 4px rgba(248, 113, 55, 0.1);
+    }
+    
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 99999;
+    }
+    .toast {
+        padding: 16px 20px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideIn 0.3s ease;
+        min-width: 300px;
+    }
+    .toast.success { background: #10b981; color: white; }
+    .toast.error { background: #ef4444; color: white; }
+    .toast.warning { background: #f59e0b; color: white; }
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .tab-container {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 0;
+    }
+    .tab-btn {
+        padding: 12px 24px;
+        border: none;
+        background: none;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+    .tab-btn:hover {
+        color: #f87137;
+    }
+    .tab-btn.active {
+        color: #f87137;
+        border-bottom-color: #f87137;
+    }
+    .tab-content {
+        display: none;
+    }
+    .tab-content.active {
+        display: block;
+    }
+    
+    .warmup-schedule-table {
+        width: 100%;
+        font-size: 13px;
+    }
+    .warmup-schedule-table th,
+    .warmup-schedule-table td {
+        padding: 10px 12px;
+        text-align: center;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .warmup-schedule-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: #475569;
+    }
+</style>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Page Header -->
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">IP Pool Management</h1>
+        <p class="text-gray-600 mt-1">SendGrid-style IP warmup and reputation management</p>
+    </div>
+    <div class="flex gap-3">
+        <button onclick="checkAllBlacklists()" class="action-btn secondary">
+            <i class="fas fa-shield-alt"></i> Check Blacklists
+        </button>
+        <button onclick="openAddIPModal()" class="action-btn primary">
+            <i class="fas fa-plus"></i> Add New IP
+        </button>
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
+    <div class="stat-box">
+        <div class="stat-value" id="statTotalIPs">-</div>
+        <div class="stat-label">Total IPs</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value text-green-600" id="statActiveIPs">-</div>
+        <div class="stat-label">Active</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value text-yellow-600" id="statWarmingIPs">-</div>
+        <div class="stat-label">Warming</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value text-red-600" id="statBlacklistedIPs">-</div>
+        <div class="stat-label">Blacklisted</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value text-blue-600" id="statDailyCapacity">-</div>
+        <div class="stat-label">Daily Capacity</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value text-purple-600" id="statSentToday">-</div>
+        <div class="stat-label">Sent Today</div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-container">
+    <button class="tab-btn active" onclick="switchTab('ips')">
+        <i class="fas fa-server mr-2"></i>IP Addresses
+    </button>
+    <button class="tab-btn" onclick="switchTab('pools')">
+        <i class="fas fa-layer-group mr-2"></i>Pools
+    </button>
+    <button class="tab-btn" onclick="switchTab('warmup')">
+        <i class="fas fa-fire mr-2"></i>Warmup Schedule
+    </button>
+    <button class="tab-btn" onclick="switchTab('content')">
+        <i class="fas fa-filter mr-2"></i>Content Filters
+    </button>
+</div>
+
+<!-- IP Addresses Tab -->
+<div id="tab-ips" class="tab-content active">
+    <div class="pool-card">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900">Sending IP Addresses</h2>
+            <div class="flex gap-2">
+                <button onclick="resetDailyCounters()" class="action-btn secondary">
+                    <i class="fas fa-redo"></i> Reset Daily Counters
+                </button>
+                <button onclick="progressAllWarmup()" class="action-btn warning">
+                    <i class="fas fa-arrow-up"></i> Progress Warmup
+                </button>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="ip-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Hostname</th>
+                        <th>Pool</th>
+                        <th>Status</th>
+                        <th>Warmup Day</th>
+                        <th>Daily Limit</th>
+                        <th>Sent Today</th>
+                        <th>Usage</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ipTableBody">
+                    <tr>
+                        <td colspan="9" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-spinner fa-spin mr-2"></i> Loading IPs...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pools Tab -->
+<div id="tab-pools" class="tab-content">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="poolsContainer">
+        <!-- Pools will be loaded here -->
+    </div>
+</div>
+
+<!-- Warmup Schedule Tab -->
+<div id="tab-warmup" class="tab-content">
+    <div class="pool-card">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">IP Warmup Schedule</h2>
+        <p class="text-gray-600 mb-6">Industry-standard 6-week warmup progression from 50 emails/day to 100,000 emails/day</p>
+        
+        <div class="overflow-x-auto">
+            <table class="warmup-schedule-table">
+                <thead>
+                    <tr>
+                        <th>Day</th>
+                        <th>Daily Limit</th>
+                        <th>Hourly Limit</th>
+                        <th>Description</th>
+                        <th>Cumulative</th>
+                    </tr>
+                </thead>
+                <tbody id="warmupScheduleBody">
+                    <!-- Schedule will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Content Filters Tab -->
+<div id="tab-content" class="tab-content">
+    <div class="pool-card">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900">Content Filter Rules</h2>
+            <button onclick="openAddRuleModal()" class="action-btn primary">
+                <i class="fas fa-plus"></i> Add Rule
+            </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="ip-table">
+                <thead>
+                    <tr>
+                        <th>Rule Name</th>
+                        <th>Type</th>
+                        <th>Pattern</th>
+                        <th>Action</th>
+                        <th>Score Impact</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="contentRulesBody">
+                    <!-- Rules will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add IP Modal -->
+<div id="addIPModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2 class="text-xl font-bold">Add New IP Address</h2>
+            <p class="opacity-90 text-sm mt-1">Add a new IP to the sending pool</p>
+        </div>
+        <div class="modal-body">
+            <form id="addIPForm">
+                <div class="form-group">
+                    <label class="form-label">IP Address *</label>
+                    <input type="text" name="ip_address" class="form-input" placeholder="192.168.1.1" required pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Hostname</label>
+                    <input type="text" name="hostname" class="form-input" placeholder="mail1.sendbaba.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Initial Pool</label>
+                    <select name="pool_name" class="form-select">
+                        <option value="warmup">Warmup (Recommended for new IPs)</option>
+                        <option value="standard">Standard</option>
+                        <option value="premium">Premium</option>
+                        <option value="quarantine">Quarantine</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="start_warmup" checked> Start warmup immediately
+                    </label>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeModal('addIPModal')" class="action-btn secondary">Cancel</button>
+            <button onclick="addIP()" class="action-btn primary">Add IP</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit IP Modal -->
+<div id="editIPModal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2 class="text-xl font-bold">Edit IP Settings</h2>
+            <p class="opacity-90 text-sm mt-1" id="editIPAddress">-</p>
+        </div>
+        <div class="modal-body">
+            <form id="editIPForm">
+                <input type="hidden" name="ip_id" id="editIPId">
+                <div class="form-group">
+                    <label class="form-label">Hostname</label>
+                    <input type="text" name="hostname" id="editHostname" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Pool</label>
+                    <select name="pool_id" id="editPoolId" class="form-select">
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Warmup Status</label>
+                    <select name="warmup_status" id="editWarmupStatus" class="form-select">
+                        <option value="new">New</option>
+                        <option value="warming">Warming</option>
+                        <option value="warmed">Warmed</option>
+                        <option value="paused">Paused</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Daily Limit</label>
+                        <input type="number" name="daily_limit" id="editDailyLimit" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Hourly Limit</label>
+                        <input type="number" name="hourly_limit" id="editHourlyLimit" class="form-input">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" name="is_active" id="editIsActive"> Active
+                    </label>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closeModal('editIPModal')" class="action-btn secondary">Cancel</button>
+            <button onclick="saveIPChanges()" class="action-btn primary">Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let pools = [];
+let ips = [];
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    loadOverview();
+    loadIPs();
+    loadPools();
+    loadWarmupSchedule();
+    loadContentRules();
+});
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'exclamation'}"></i> ${message}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+function openAddIPModal() {
+    document.getElementById('addIPModal').classList.add('active');
+}
+
+async function loadOverview() {
+    try {
+        const res = await fetch('/hub/ip-pools/api/overview');
+        const data = await res.json();
+        
+        document.getElementById('statTotalIPs').textContent = data.overview.total_ips || 0;
+        document.getElementById('statActiveIPs').textContent = data.overview.active_ips || 0;
+        document.getElementById('statWarmingIPs').textContent = data.overview.warming_ips || 0;
+        document.getElementById('statBlacklistedIPs').textContent = data.overview.blacklisted_ips || 0;
+        document.getElementById('statDailyCapacity').textContent = formatNumber(data.overview.total_daily_capacity || 0);
+        document.getElementById('statSentToday').textContent = formatNumber(data.overview.total_sent_today || 0);
+    } catch (e) {
+        console.error('Failed to load overview:', e);
+    }
+}
+
+async function loadIPs() {
+    try {
+        const res = await fetch('/hub/ip-pools/api/ips');
+        const data = await res.json();
+        ips = data.ips || [];
+        renderIPTable();
+    } catch (e) {
+        console.error('Failed to load IPs:', e);
+    }
+}
+
+function renderIPTable() {
+    const tbody = document.getElementById('ipTableBody');
+    
+    if (ips.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-500">No IPs configured</td></tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = ips.map(ip => {
+        const usagePercent = ip.daily_limit > 0 ? Math.round((ip.sent_today / ip.daily_limit) * 100) : 0;
+        const progressClass = usagePercent > 90 ? 'red' : usagePercent > 70 ? 'yellow' : 'green';
+        
+        return `
+            <tr class="${ip.is_blacklisted ? 'bg-red-50' : ''}">
+                <td>
+                    <div class="font-mono font-semibold ${ip.is_blacklisted ? 'text-red-600' : 'text-gray-900'}">${ip.ip_address}</div>
+                    ${ip.is_blacklisted ? '<span class="text-xs text-red-500"><i class="fas fa-exclamation-triangle"></i> Blacklisted</span>' : ''}
+                </td>
+                <td class="text-gray-600">${ip.hostname || '-'}</td>
+                <td><span class="pool-badge ${ip.pool_name || 'standard'}">${ip.pool_name || 'Unassigned'}</span></td>
+                <td><span class="status-badge status-${ip.warmup_status}">${ip.warmup_status}</span></td>
+                <td>
+                    <div class="flex items-center gap-2">
+                        <span class="font-semibold">${ip.warmup_day || 0}</span>
+                        <span class="text-gray-400">/ 45</span>
+                    </div>
+                    <div class="warmup-timeline">
+                        ${Array.from({length: 10}, (_, i) => {
+                            const day = (i + 1) * 5;
+                            const status = ip.warmup_day >= day ? 'completed' : ip.warmup_day >= day - 5 ? 'current' : '';
+                            return `<div class="warmup-day ${status}" title="Day ${day}"></div>`;
+                        }).join('')}
+                    </div>
+                </td>
+                <td class="font-semibold">${formatNumber(ip.daily_limit)}</td>
+                <td>${formatNumber(ip.sent_today)}</td>
+                <td style="min-width: 120px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill ${progressClass}" style="width: ${usagePercent}%"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">${usagePercent}%</div>
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        ${ip.warmup_status === 'new' ? `
+                            <button onclick="startWarmup(${ip.id})" class="action-btn success" title="Start Warmup">
+                                <i class="fas fa-fire"></i>
+                            </button>
+                        ` : ''}
+                        <button onclick="editIP(${ip.id})" class="action-btn secondary" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="checkBlacklist(${ip.id})" class="action-btn secondary" title="Check Blacklist">
+                            <i class="fas fa-shield-alt"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function loadPools() {
+    try {
+        const res = await fetch('/hub/ip-pools/api/pools');
+        const data = await res.json();
+        pools = data.pools || [];
+        renderPools();
+    } catch (e) {
+        console.error('Failed to load pools:', e);
+    }
+}
+
+function renderPools() {
+    const container = document.getElementById('poolsContainer');
+    const poolStats = {
+        premium: { color: 'green', icon: 'crown' },
+        standard: { color: 'blue', icon: 'check-circle' },
+        warmup: { color: 'yellow', icon: 'fire' },
+        quarantine: { color: 'red', icon: 'exclamation-triangle' },
+        dedicated: { color: 'purple', icon: 'star' }
+    };
+    
+    container.innerHTML = pools.map(pool => {
+        const stats = poolStats[pool.name] || { color: 'gray', icon: 'server' };
+        const poolIPs = ips.filter(ip => ip.pool_name === pool.name);
+        const activeIPs = poolIPs.filter(ip => ip.is_active && !ip.is_blacklisted);
+        
+        return `
+            <div class="pool-card pool-${pool.name}">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl bg-${stats.color}-100 flex items-center justify-center">
+                        <i class="fas fa-${stats.icon} text-${stats.color}-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-gray-900 capitalize">${pool.name}</h3>
+                        <p class="text-sm text-gray-500">${pool.pool_type}</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Total IPs</span>
+                        <span class="font-semibold">${poolIPs.length}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Active</span>
+                        <span class="font-semibold text-green-600">${activeIPs.length}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Daily Capacity</span>
+                        <span class="font-semibold">${formatNumber(activeIPs.reduce((sum, ip) => sum + ip.daily_limit, 0))}</span>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-4">${pool.description || ''}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadWarmupSchedule() {
+    try {
+        const res = await fetch('/hub/ip-pools/api/warmup-schedule');
+        const data = await res.json();
+        
+        let cumulative = 0;
+        document.getElementById('warmupScheduleBody').innerHTML = data.schedule.map(day => {
+            cumulative += day.daily_limit;
+            return `
+                <tr>
+                    <td class="font-semibold">Day ${day.day_number}</td>
+                    <td>${formatNumber(day.daily_limit)}</td>
+                    <td>${formatNumber(day.hourly_limit)}</td>
+                    <td class="text-gray-600">${day.description || ''}</td>
+                    <td class="text-gray-500">${formatNumber(cumulative)}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load warmup schedule:', e);
+    }
+}
+
+async function loadContentRules() {
+    try {
+        const res = await fetch('/hub/ip-pools/api/content-rules');
+        const data = await res.json();
+        
+        document.getElementById('contentRulesBody').innerHTML = (data.rules || []).map(rule => `
+            <tr>
+                <td class="font-semibold">${rule.rule_name}</td>
+                <td><span class="pool-badge standard">${rule.rule_type}</span></td>
+                <td class="font-mono text-sm text-gray-600" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${rule.pattern}</td>
+                <td><span class="status-badge status-${rule.action === 'reject' ? 'blacklisted' : rule.action === 'flag' ? 'warming' : 'new'}">${rule.action}</span></td>
+                <td class="font-semibold text-red-600">-${rule.score_impact}</td>
+                <td><span class="status-badge ${rule.is_active ? 'status-warmed' : 'status-paused'}">${rule.is_active ? 'Active' : 'Disabled'}</span></td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load content rules:', e);
+    }
+}
+
+async function addIP() {
+    const form = document.getElementById('addIPForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const res = await fetch('/hub/ip-pools/api/ip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            showToast('IP added successfully');
+            closeModal('addIPModal');
+            form.reset();
+            loadIPs();
+            loadOverview();
+            
+            // Start warmup if checked
+            if (data.start_warmup) {
+                // Will be handled by backend
+            }
+        } else {
+            showToast(result.error || 'Failed to add IP', 'error');
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
+}
+
+function editIP(ipId) {
+    const ip = ips.find(i => i.id === ipId);
+    if (!ip) return;
+    
+    document.getElementById('editIPId').value = ip.id;
+    document.getElementById('editIPAddress').textContent = ip.ip_address;
+    document.getElementById('editHostname').value = ip.hostname || '';
+    document.getElementById('editWarmupStatus').value = ip.warmup_status;
+    document.getElementById('editDailyLimit').value = ip.daily_limit;
+    document.getElementById('editHourlyLimit').value = ip.hourly_limit;
+    document.getElementById('editIsActive').checked = ip.is_active;
+    
+    // Populate pool select
+    const poolSelect = document.getElementById('editPoolId');
+    poolSelect.innerHTML = pools.map(p => 
+        `<option value="${p.id}" ${ip.pool_id === p.id ? 'selected' : ''}>${p.name}</option>`
+    ).join('');
+    
+    document.getElementById('editIPModal').classList.add('active');
+}
+
+async function saveIPChanges() {
+    const form = document.getElementById('editIPForm');
+    const formData = new FormData(form);
+    const ipId = formData.get('ip_id');
+    
+    const data = {
+        hostname: formData.get('hostname'),
+        pool_id: parseInt(formData.get('pool_id')),
+        warmup_status: formData.get('warmup_status'),
+        daily_limit: parseInt(formData.get('daily_limit')),
+        hourly_limit: parseInt(formData.get('hourly_limit')),
+        is_active: formData.get('is_active') === 'on'
+    };
+    
+    try {
+        const res = await fetch(`/hub/ip-pools/api/ip/${ipId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            showToast('IP updated successfully');
+            closeModal('editIPModal');
+            loadIPs();
+            loadOverview();
+        } else {
+            showToast(result.error || 'Failed to update IP', 'error');
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
+}
+
+async function startWarmup(ipId) {
+    try {
+        const res = await fetch(`/hub/ip-pools/api/ip/${ipId}/start-warmup`, { method: 'POST' });
+        const result = await res.json();
+        
+        if (result.success) {
+            showToast('Warmup started!');
+            loadIPs();
+        } else {
+            showToast(result.error || 'Failed to start warmup', 'error');
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
+}
+
+async function checkBlacklist(ipId) {
+    showToast('Checking blacklists...', 'warning');
+    
+    try {
+        const res = await fetch(`/hub/ip-pools/api/ip/${ipId}/check-blacklist`, { method: 'POST' });
+        const result = await res.json();
+        
+        if (result.success) {
+            if (result.result.is_listed) {
+                showToast(`Listed on: ${result.result.listings.join(', ')}`, 'error');
+            } else {
+                showToast('Not on any blacklists!', 'success');
+            }
+            loadIPs();
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
+}
+
+async function checkAllBlacklists() {
+    showToast('Checking all IPs...', 'warning');
+    
+    try {
+        const res = await fetch('/hub/ip-pools/api/check-all-blacklists', { method: 'POST' });
+        const result = await res.json();
+        
+        if (result.success) {
+            const listed = result.results.filter(r => r.is_listed);
+            if (listed.length > 0) {
+                showToast(`${listed.length} IPs are blacklisted!`, 'error');
+            } else {
+                showToast('All IPs are clean!', 'success');
+            }
+            loadIPs();
+            loadOverview();
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
+}
+
+async function progressAllWarmup() {
+    try {
+        const res = await fetch('/hub/ip-pools/api/progress-warmup', { method: 'POST' });
+        const result = await res.json();
+        
+        if (result.success) {
+            showToast('Warmup progressed for all IPs');
+            loadIPs();
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
+}
+
+async function resetDailyCounters() {
+    try {
+        const res = await fetch('/hub/ip-pools/api/reset-counters', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'daily' })
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+            showToast('Daily counters reset');
+            loadIPs();
+            loadOverview();
+        }
+    } catch (e) {
+        showToast('Network error', 'error');
+    }
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+// Close modals on click outside
+document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('active');
+    });
+});
+
+// Close modals on escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+    }
+});
+</script>
+{% endblock %}

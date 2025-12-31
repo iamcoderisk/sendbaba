@@ -1,133 +1,497 @@
 {% extends "hub/base.html" %}
-{% set active_page = 'servers' %}
-
-{% block title %}Servers{% endblock %}
+{% block title %}Server Management - SendBaba Hub{% endblock %}
 
 {% block content %}
-<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-    <div>
-        <h1 class="text-xl lg:text-2xl font-bold text-gray-800">Server Infrastructure</h1>
-        <p class="text-gray-500 text-sm">Monitor all email sending servers</p>
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Server & Worker Management</h1>
+            <p class="text-gray-500">Manage worker nodes and scale your email infrastructure</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="refreshStatus()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">
+                <i class="fas fa-sync mr-2"></i>Refresh
+            </button>
+            <button onclick="openAddServerModal()" class="px-4 py-2 bg-[#f86d31] text-white rounded-xl hover:bg-[#e55a20]">
+                <i class="fas fa-plus mr-2"></i>Add Server
+            </button>
+        </div>
     </div>
-    <button onclick="loadServers()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
-        <i class="fas fa-sync-alt mr-2"></i>Refresh
-    </button>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-5 gap-4">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-servers" class="text-2xl font-bold text-blue-600">-</div>
+            <div class="text-sm text-gray-500">Servers Online</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-workers" class="text-2xl font-bold text-green-600">-</div>
+            <div class="text-sm text-gray-500">Total Workers</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-ip-capacity" class="text-2xl font-bold text-purple-600">-</div>
+            <div class="text-sm text-gray-500">IP Limit (daily)</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-worker-speed" class="text-2xl font-bold text-orange-600">-</div>
+            <div class="text-sm text-gray-500">Worker Speed/min</div>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div id="stat-status" class="text-2xl font-bold text-green-600">Healthy</div>
+            <div class="text-sm text-gray-500">System Status</div>
+        </div>
+    </div>
+
+    <!-- Capacity Explanation -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-100">
+        <div class="flex items-center gap-4">
+            <i class="fas fa-info-circle text-blue-500 text-xl"></i>
+            <div class="text-sm text-gray-700">
+                <strong>Capacity Note:</strong> Your daily email limit is determined by <strong>IP warmup limits</strong> (currently ~636K/day), not worker speed. 
+                Workers can process faster than IPs allow. Scale IPs via <a href="/hub/ip-warmup" class="text-[#f86d31] underline">IP Warmup</a>.
+            </div>
+        </div>
+    </div>
+
+    <!-- Servers Grid -->
+    <div id="servers-container" class="space-y-4">
+        <div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center text-gray-500">
+            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+            <p>Loading servers...</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-bolt text-yellow-500 mr-2"></i>Quick Actions</h2>
+        <div class="grid grid-cols-4 gap-4">
+            <button onclick="pm2Action('local', 'restart', 'all')" class="p-4 bg-blue-50 rounded-xl text-center hover:bg-blue-100 transition-colors">
+                <i class="fas fa-redo text-blue-600 text-xl mb-2"></i>
+                <div class="text-sm font-medium text-gray-800">Restart All</div>
+                <div class="text-xs text-gray-500">All PM2 services</div>
+            </button>
+            <button onclick="pm2Action('local', 'restart', 'celery-worker')" class="p-4 bg-green-50 rounded-xl text-center hover:bg-green-100 transition-colors">
+                <i class="fas fa-cogs text-green-600 text-xl mb-2"></i>
+                <div class="text-sm font-medium text-gray-800">Restart Workers</div>
+                <div class="text-xs text-gray-500">Celery workers</div>
+            </button>
+            <button onclick="pm2Action('local', 'restart', 'sendbaba-web')" class="p-4 bg-purple-50 rounded-xl text-center hover:bg-purple-100 transition-colors">
+                <i class="fas fa-globe text-purple-600 text-xl mb-2"></i>
+                <div class="text-sm font-medium text-gray-800">Restart Web</div>
+                <div class="text-xs text-gray-500">Web application</div>
+            </button>
+            <button onclick="openScaleModal('local', 170)" class="p-4 bg-orange-50 rounded-xl text-center hover:bg-orange-100 transition-colors">
+                <i class="fas fa-expand-arrows-alt text-[#f86d31] text-xl mb-2"></i>
+                <div class="text-sm font-medium text-gray-800">Scale Workers</div>
+                <div class="text-xs text-gray-500">Adjust concurrency</div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Logs Panel -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800"><i class="fas fa-terminal text-gray-500 mr-2"></i>Live Logs</h2>
+            <div class="flex gap-2">
+                <select id="log-service" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm">
+                    <option value="celery-worker">Celery Worker</option>
+                    <option value="sendbaba-web">Web App</option>
+                    <option value="sendbaba-smtp">SMTP Server</option>
+                    <option value="celery-beat">Celery Beat</option>
+                </select>
+                <button onclick="fetchLogs()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
+                    <i class="fas fa-sync mr-1"></i>Fetch
+                </button>
+            </div>
+        </div>
+        <div id="logs-container" class="bg-gray-900 p-4 h-64 overflow-auto font-mono text-xs text-green-400">
+            <div class="text-gray-500">Click "Fetch" to load logs...</div>
+        </div>
+    </div>
 </div>
 
-<!-- Stats -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6">
-    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
-        <div class="flex items-center justify-between">
+<!-- Add Server Modal -->
+<div id="add-server-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-lg w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-server text-blue-500 mr-2"></i>Add Worker Server</h3>
+        
+        <div class="space-y-4">
             <div>
-                <p class="text-gray-500 text-xs lg:text-sm">Total Servers</p>
-                <p id="total-servers" class="text-xl lg:text-3xl font-bold text-gray-800">11</p>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Server Name</label>
+                <input type="text" id="add-name" class="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="worker-2">
             </div>
-            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-server text-blue-600"></i>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Hostname / IP *</label>
+                    <input type="text" id="add-hostname" class="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="192.168.1.100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">SSH Port</label>
+                    <input type="number" id="add-port" class="w-full px-3 py-2 border border-gray-200 rounded-lg" value="22">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">SSH User</label>
+                    <input type="text" id="add-user" class="w-full px-3 py-2 border border-gray-200 rounded-lg" value="root">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">SSH Password</label>
+                    <input type="password" id="add-password" class="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Worker Count</label>
+                <input type="number" id="add-workers" class="w-full px-3 py-2 border border-gray-200 rounded-lg" value="50" min="1" max="200">
             </div>
         </div>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-xs lg:text-sm">Online</p>
-                <p id="online-servers" class="text-xl lg:text-3xl font-bold text-green-600">--</p>
-            </div>
-            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-check-circle text-green-600"></i>
-            </div>
-        </div>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-xs lg:text-sm">Capacity</p>
-                <p id="total-capacity" class="text-xl lg:text-3xl font-bold text-purple-600">--</p>
-            </div>
-            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-chart-line text-purple-600"></i>
-            </div>
-        </div>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-gray-500 text-xs lg:text-sm">Sent Today</p>
-                <p id="total-sent" class="text-xl lg:text-3xl font-bold text-orange-600">--</p>
-            </div>
-            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                <i class="fas fa-paper-plane text-orange-600"></i>
-            </div>
+        
+        <div class="flex gap-3 mt-6">
+            <button onclick="testConnection()" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200">
+                <i class="fas fa-plug mr-1"></i>Test
+            </button>
+            <div class="flex-1"></div>
+            <button onclick="closeAddServerModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Cancel</button>
+            <button onclick="addServer()" class="px-4 py-2 bg-[#f86d31] text-white rounded-xl hover:bg-[#e55a20]">Add Server</button>
         </div>
     </div>
 </div>
 
-<!-- Servers Grid -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6" id="servers-grid">
-    <!-- Servers populated by JS -->
+<!-- Scale Modal -->
+<div id="scale-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-expand-arrows-alt text-green-500 mr-2"></i>Scale Workers</h3>
+        <p class="text-sm text-gray-500 mb-4">Server: <span id="scale-server-name" class="font-medium"></span></p>
+        
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Number of Workers</label>
+            <input type="range" id="scale-count" min="10" max="200" value="170" class="w-full" oninput="document.getElementById('scale-value').textContent = this.value">
+            <div class="flex justify-between text-sm text-gray-500 mt-1">
+                <span>10</span>
+                <span class="font-bold text-lg text-[#f86d31]" id="scale-value">170</span>
+                <span>200</span>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 p-3 rounded-lg mt-4 text-sm text-yellow-800">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            Scaling will restart the worker process. Active tasks will be requeued.
+        </div>
+        
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeScaleModal()" class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Cancel</button>
+            <button onclick="scaleWorkers()" class="flex-1 px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600">Scale</button>
+        </div>
+    </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
+<!-- Output Modal -->
+<div id="output-modal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl max-w-2xl w-full mx-4 p-6">
+        <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-terminal text-gray-500 mr-2"></i>Command Output</h3>
+        <pre id="output-content" class="bg-gray-900 text-green-400 p-4 rounded-lg text-xs font-mono max-h-96 overflow-auto"></pre>
+        <div class="flex justify-end mt-4">
+            <button onclick="closeOutputModal()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">Close</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    async function loadServers() {
-        try {
-            const res = await fetch('/hub/api/servers');
-            const data = await res.json();
-            
-            if (data.success) {
-                document.getElementById('online-servers').textContent = data.total_workers;
-                document.getElementById('total-capacity').textContent = formatNumber(data.total_capacity);
-                document.getElementById('total-sent').textContent = formatNumber(data.total_sent);
-                
-                const grid = document.getElementById('servers-grid');
-                grid.innerHTML = data.servers.map(s => `
-                    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-10 h-10 ${s.status === 'online' ? 'bg-green-100' : 'bg-red-100'} rounded-full flex items-center justify-center">
-                                    <i class="fas fa-server ${s.status === 'online' ? 'text-green-600' : 'text-red-600'}"></i>
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="font-bold text-sm lg:text-base truncate">${s.hostname}</p>
-                                    <p class="text-xs text-gray-500 font-mono">${s.ip}</p>
-                                </div>
-                            </div>
-                            <span class="w-3 h-3 rounded-full flex-shrink-0 ${s.status === 'online' ? 'bg-green-500' : 'bg-red-500'}"></span>
-                        </div>
-                        
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-500">Status</span>
-                                <span class="font-medium ${s.status === 'online' ? 'text-green-600' : 'text-red-600'}">${s.status.toUpperCase()}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-500">Warmup</span>
-                                <span class="px-2 py-0.5 rounded text-xs ${s.is_warmed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
-                                    ${s.is_warmed ? 'Warmed' : 'Day ' + s.warmup_day}
-                                </span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-500">Threads</span>
-                                <span class="font-medium">${s.concurrency || 0}</span>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs mb-1">
-                                    <span class="text-gray-500">Usage</span>
-                                    <span>${formatNumber(s.sent_today)} / ${formatNumber(s.daily_limit)}</span>
-                                </div>
-                                <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-blue-600 h-2 rounded-full" style="width: ${s.usage_pct || 0}%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        } catch (e) { console.error(e); }
-    }
+let currentScaleServer = null;
+let ipDailyCapacity = 636000;
 
-    loadServers();
-    setInterval(loadServers, 30000);
+// Fetch IP capacity
+async function fetchIPCapacity() {
+    try {
+        const r = await fetch('/hub/api/ip-warmup/status');
+        if (r.ok) {
+            const data = await r.json();
+            if (data.success && data.ips) {
+                ipDailyCapacity = data.ips.reduce((sum, ip) => sum + (ip.daily_limit || 0), 0);
+            }
+        }
+    } catch(e) {
+        console.error('Failed to fetch IP capacity:', e);
+    }
+}
+
+// Refresh server status
+async function refreshStatus() {
+    await fetchIPCapacity();
+    
+    try {
+        const r = await fetch('/hub/api/servers/status');
+        if (!r.ok) {
+            console.error('Server status request failed:', r.status);
+            return;
+        }
+        const data = await r.json();
+        
+        if (data.success) {
+            const servers = data.servers;
+            const onlineServers = servers.filter(s => s.status === 'online').length;
+            
+            document.getElementById('stat-servers').textContent = onlineServers;
+            document.getElementById('stat-workers').textContent = data.total_workers;
+            document.getElementById('stat-ip-capacity').textContent = ipDailyCapacity.toLocaleString();
+            document.getElementById('stat-worker-speed').textContent = (data.total_workers * 100).toLocaleString();
+            
+            renderServers(servers);
+        }
+    } catch(e) {
+        console.error('Failed to refresh:', e);
+    }
+}
+
+function renderServers(servers) {
+    const container = document.getElementById('servers-container');
+    
+    if (!servers || servers.length === 0) {
+        container.innerHTML = '<div class="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 text-center text-gray-500">No servers configured</div>';
+        return;
+    }
+    
+    container.innerHTML = servers.map(s => `
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 rounded-full ${s.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}"></div>
+                    <div>
+                        <span class="font-semibold text-gray-800">${s.name || 'Server'}</span>
+                        ${s.is_primary ? '<span class="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">Primary</span>' : ''}
+                    </div>
+                    <span class="text-sm text-gray-500">${s.hostname || ''}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                        <i class="fas fa-cogs mr-1"></i>${s.workers || 0} workers
+                    </span>
+                    ${!s.is_primary ? `<button onclick="removeServer(${s.id})" class="p-2 text-red-500 hover:bg-red-50 rounded-lg"><i class="fas fa-trash"></i></button>` : ''}
+                </div>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap gap-2 mb-4">
+                    ${(s.services || []).map(svc => `
+                        <span class="px-2 py-1 text-xs rounded-full ${svc.status === 'online' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                            ${svc.name}: ${svc.status}
+                        </span>
+                    `).join('')}
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="pm2Action('${s.id}', 'restart', 'all')" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100">
+                        <i class="fas fa-redo mr-1"></i>Restart All
+                    </button>
+                    <button onclick="pm2Action('${s.id}', 'restart', 'celery-worker')" class="px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100">
+                        <i class="fas fa-cogs mr-1"></i>Restart Workers
+                    </button>
+                    <button onclick="openScaleModal('${s.id}', ${s.workers || 50})" class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm hover:bg-orange-100">
+                        <i class="fas fa-expand-arrows-alt mr-1"></i>Scale
+                    </button>
+                    <button onclick="pm2Action('${s.id}', 'logs', 'celery-worker')" class="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-sm hover:bg-gray-100">
+                        <i class="fas fa-file-alt mr-1"></i>Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// PM2 Actions
+async function pm2Action(serverId, action, service) {
+    try {
+        const r = await fetch('/hub/api/servers/pm2-action', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({server_id: serverId, action: action, service: service})
+        });
+        
+        if (!r.ok) {
+            const text = await r.text();
+            alert('Error: ' + text);
+            return;
+        }
+        
+        const data = await r.json();
+        
+        if (data.success) {
+            document.getElementById('output-content').textContent = data.output || 'Command executed successfully';
+            document.getElementById('output-modal').style.display = 'flex';
+            setTimeout(refreshStatus, 2000);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Scale Workers
+function openScaleModal(serverId, currentCount) {
+    currentScaleServer = serverId;
+    document.getElementById('scale-server-name').textContent = serverId === 'local' ? 'Main Server' : serverId;
+    document.getElementById('scale-count').value = currentCount;
+    document.getElementById('scale-value').textContent = currentCount;
+    document.getElementById('scale-modal').style.display = 'flex';
+}
+
+function closeScaleModal() {
+    document.getElementById('scale-modal').style.display = 'none';
+}
+
+async function scaleWorkers() {
+    const count = document.getElementById('scale-count').value;
+    
+    try {
+        const r = await fetch('/hub/api/servers/scale-workers', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({server_id: currentScaleServer, worker_count: parseInt(count)})
+        });
+        
+        closeScaleModal();
+        
+        if (!r.ok) {
+            alert('Error: Request failed');
+            return;
+        }
+        
+        const data = await r.json();
+        
+        if (data.success) {
+            document.getElementById('output-content').textContent = data.output || data.message;
+            document.getElementById('output-modal').style.display = 'flex';
+            setTimeout(refreshStatus, 3000);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Add Server Modal
+function openAddServerModal() {
+    document.getElementById('add-server-modal').style.display = 'flex';
+}
+
+function closeAddServerModal() {
+    document.getElementById('add-server-modal').style.display = 'none';
+}
+
+async function testConnection() {
+    const data = {
+        hostname: document.getElementById('add-hostname').value,
+        ssh_port: parseInt(document.getElementById('add-port').value) || 22,
+        ssh_user: document.getElementById('add-user').value || 'root',
+        ssh_password: document.getElementById('add-password').value
+    };
+    
+    try {
+        const r = await fetch('/hub/api/servers/test', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await r.json();
+        
+        if (result.success) {
+            alert('✅ Connection successful!\n\n' + (result.output || ''));
+        } else {
+            alert('❌ Connection failed:\n' + (result.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function addServer() {
+    const data = {
+        name: document.getElementById('add-name').value,
+        hostname: document.getElementById('add-hostname').value,
+        ssh_port: parseInt(document.getElementById('add-port').value) || 22,
+        ssh_user: document.getElementById('add-user').value || 'root',
+        ssh_password: document.getElementById('add-password').value,
+        worker_count: parseInt(document.getElementById('add-workers').value) || 50
+    };
+    
+    if (!data.hostname) {
+        alert('Hostname/IP is required');
+        return;
+    }
+    
+    try {
+        const r = await fetch('/hub/api/servers/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await r.json();
+        
+        if (result.success) {
+            closeAddServerModal();
+            refreshStatus();
+            alert('Server added successfully!');
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function removeServer(serverId) {
+    if (!confirm('Remove this server?')) return;
+    
+    try {
+        const r = await fetch('/hub/api/servers/remove', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({server_id: serverId})
+        });
+        const result = await r.json();
+        
+        if (result.success) {
+            refreshStatus();
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+        }
+    } catch(e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+// Output Modal
+function closeOutputModal() {
+    document.getElementById('output-modal').style.display = 'none';
+}
+
+// Fetch Logs
+async function fetchLogs() {
+    const service = document.getElementById('log-service').value;
+    
+    try {
+        const r = await fetch('/hub/api/servers/pm2-action', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({server_id: 'local', action: 'logs', service: service})
+        });
+        const data = await r.json();
+        
+        if (data.success) {
+            document.getElementById('logs-container').textContent = data.output || 'No logs available';
+        } else {
+            document.getElementById('logs-container').textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+    } catch(e) {
+        document.getElementById('logs-container').textContent = 'Error: ' + e.message;
+    }
+}
+
+// Initial load
+refreshStatus();
+
+// Auto-refresh every 30 seconds
+setInterval(refreshStatus, 30000);
 </script>
 {% endblock %}

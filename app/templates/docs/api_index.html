@@ -1,0 +1,19 @@
+{% extends 'univ.html' %}
+{% block title %}API Documentation - SendBaba{% endblock %}
+{% block content %}
+<section class="pt-32 pb-20 px-4 bg-gradient-to-br from-orange-500 to-red-600 text-white">
+    <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-5xl font-bold mb-6">API Documentation</h1>
+        <p class="text-xl text-white/90">Complete reference for the SendBaba API</p>
+    </div>
+</section>
+<section class="py-20 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl border p-8">
+            <h2 class="text-2xl font-bold mb-6">Getting Started</h2>
+            <p class="text-gray-600 mb-6">Base URL: <code class="bg-gray-100 px-2 py-1 rounded">https://api.sendbaba.com/v1</code></p>
+            <a href="/docs/openapi.json" class="text-orange-500 hover:underline">View OpenAPI Specification →</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -3,93 +3,323 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SendBaba Hub - {% block title %}Dashboard{% endblock %}</title>
+    <title>{% block title %}Admin Hub{% endblock %} - SendBaba</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
-        .sidebar-open { transform: translateX(0); }
-        .sidebar-closed { transform: translateX(-100%); }
-        @media (min-width: 1024px) {
-            .sidebar-closed { transform: translateX(0); }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Glass Morphism */
+        .glass { 
+            background: rgba(255, 255, 255, 0.8); 
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        
+        /* Card Shadows */
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                        0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                        0 10px 40px -10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-shadow-lg {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+                        0 8px 10px -6px rgba(0, 0, 0, 0.1),
+                        0 20px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-shadow-hover {
+            transition: all 0.3s ease;
+        }
+        .card-shadow-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15),
+                        0 10px 20px -5px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Gradient Backgrounds */
+        .gradient-sendbaba { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .gradient-danger { background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }
+        .gradient-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .gradient-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .gradient-dark { background: linear-gradient(135deg, #232526 0%, #414345 100%); }
+        
+        /* Pulse Animation */
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+        }
+        
+        /* Slide In Animation */
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Number Counter Animation */
+        .count-up {
+            transition: all 0.5s ease-out;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            transition: all 0.3s ease;
+        }
+        .sidebar.collapsed {
+            width: 80px;
+        }
+        .sidebar.collapsed .nav-text {
+            display: none;
+        }
+        .sidebar.collapsed .nav-icon {
+            margin-right: 0;
+        }
+        
+        /* Mobile Menu */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 50;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+        
+        /* Status Indicators */
+        .status-online { color: #10b981; }
+        .status-offline { color: #ef4444; }
+        .status-warning { color: #f59e0b; }
+        
+        /* Data Table */
+        .data-table th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            z-index: 10;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 100;
+        }
+        
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: skeleton 1.5s infinite;
+        }
+        @keyframes skeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Progress Bar */
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* Ring Chart */
+        .ring-chart {
+            position: relative;
+        }
+        .ring-chart::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+            height: 70%;
+            background: white;
+            border-radius: 50%;
         }
     </style>
 </head>
-<body class="bg-gray-100">
-    <!-- Mobile Header -->
-    <header class="lg:hidden fixed top-0 left-0 right-0 bg-gray-900 text-white z-40 px-4 py-3 flex items-center justify-between">
-        <button onclick="toggleSidebar()" class="text-white p-2">
-            <i class="fas fa-bars text-xl"></i>
-        </button>
-        <div class="flex items-center space-x-2">
-            <span class="text-xl">📧</span>
-            <span class="font-bold">SendBaba Hub</span>
-        </div>
-        <a href="/hub/logout" class="p-2">
-            <i class="fas fa-sign-out-alt"></i>
-        </a>
-    </header>
-
-    <!-- Overlay for mobile -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
-
+<body class="bg-gray-50 min-h-screen">
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
+    
     <!-- Sidebar -->
-    <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-gray-900 text-white z-50 transition-transform duration-300 sidebar-closed lg:sidebar-open">
-        <div class="p-6 border-b border-gray-800">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <span class="text-3xl">📧</span>
-                    <div>
-                        <h1 class="font-bold text-lg">SendBaba</h1>
-                        <p class="text-xs text-gray-400">Admin Hub</p>
-                    </div>
+    <aside id="sidebar" class="sidebar fixed left-0 top-0 h-full w-64 bg-white card-shadow-lg z-50 flex flex-col">
+        <!-- Logo -->
+        <div class="p-4 border-b border-gray-100">
+            <div class="flex items-center space-x-3">
+                <div class="w-32 h-12 rounded-xl flex items-center justify-center overflow-hidden">
+                    <img src="/static/images/logo.png" alt="SendBaba" class="w-full h-full object-contain">
                 </div>
-                <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div class="nav-text hidden">
+                </div>
             </div>
         </div>
         
-        <nav class="p-4 space-y-2">
-            <a href="/hub/" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'dashboard' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
-                <i class="fas fa-home w-5"></i>
-                <span>Dashboard</span>
+        <!-- Navigation -->
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+            <a href="/hub/" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'dashboard' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-chart-pie nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Dashboard</span>
             </a>
-            <a href="/hub/users" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'users' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
-                <i class="fas fa-users w-5"></i>
-                <span>Users</span>
+            <a href="/hub/analytics" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'analytics' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-chart-line nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Real-Time Analytics</span>
+                <span class="nav-text ml-auto w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
             </a>
-            <a href="/hub/organizations" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'organizations' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
-                <i class="fas fa-building w-5"></i>
-                <span>Organizations</span>
+            <a href="/hub/monitor" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'monitor' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-desktop nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Real-Time Monitor</span>
+                <span class="nav-text ml-auto w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
             </a>
-            <a href="/hub/orders" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'orders' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
-                <i class="fas fa-shopping-cart w-5"></i>
-                <span>Orders</span>
-                <span id="pending-badge" class="ml-auto bg-red-500 text-xs px-2 py-1 rounded-full hidden">0</span>
+            <a href="/hub/ip-management" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'ip_management' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-network-wired nav-icon w-5 mr-3"></i>
+                <span class="nav-text">IP Management</span>
             </a>
-            <a href="/hub/servers" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'servers' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
-                <i class="fas fa-server w-5"></i>
-                <span>Servers</span>
+            <a href="/hub/servers" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'servers' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-server nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Server Health</span>
             </a>
-            <a href="/hub/admins" class="nav-link flex items-center space-x-3 px-4 py-3 rounded-lg {% if active_page == 'admins' %}bg-blue-600 text-white{% else %}hover:bg-gray-800 text-gray-300{% endif %}">
-                <i class="fas fa-user-shield w-5"></i>
-                <span>Admins</span>
+            <a href="/hub/ip-reputation" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'ip-reputation' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-shield-alt nav-icon w-5 mr-3"></i>
+                <span class="nav-text">IP Reputation</span>
+            </a>
+            <a href="/hub/staff-emails" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'staff_emails' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-user-friends nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Staff Emails</span>
+            </a>
+            <a href="/hub/mail-users" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'mail_users' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-inbox nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Mail Users</span>
+            </a>
+            <a href="/hub/deliverability" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'deliverability' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-inbox nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Deliverability</span>
+            </a>
+            <a href="/hub/queue" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'queue' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-layer-group nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Email Queue</span>
+            </a>
+            <a href="/hub/speed-control" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'speed_control' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-tachometer-alt nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Speed Control</span>
+                <span class="nav-text ml-auto bg-yellow-500 text-white text-xs px-2 py-0.5 rounded-full">NEW</span>
+            </a>
+            
+            <div class="pt-4 pb-2">
+                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider nav-text">Management</p>
+            </div>
+            
+            <a href="/hub/users" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'users' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-users nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Users</span>
+            </a>
+            <a href="/hub/organizations" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'organizations' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-building nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Organizations</span>
+            </a>
+            <a href="/hub/campaigns" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'campaigns' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-bullhorn nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Campaigns</span>
+            </a>
+            <a href="/hub/templates" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'templates' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-file-code nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Email Templates</span>
+            </a>
+            <a href="/hub/plans" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'plans' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-tags nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Pricing Plans</span>
+            </a>
+            <a href="/hub/sales" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'sales' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-chart-line nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Sales CRM</span>
+                <span class="nav-text ml-auto bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">NEW</span>
+            </a>
+            <a href="/hub/billing" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'billing' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-credit-card nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Billing</span>
+            </a>
+            
+            <div class="pt-4 pb-2">
+                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider nav-text">System</p>
+            </div>
+            
+            <a href="/hub/alerts" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'alerts' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-bell nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Alerts</span>
+                <span class="nav-text ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full" id="alert-count">0</span>
+            </a>
+            <a href="/hub/audit-log" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'audit-log' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-history nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Audit Log</span>
+            </a>
+            <a href="/hub/security" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'security' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-lock nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Security</span>
+            </a>
+            <a href="/hub/admins" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'admins' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-user-shield nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Admins</span>
+            </a>
+            <a href="/hub/system-admin" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'system_admin' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-tools nav-icon w-5 mr-3"></i>
+                <span class="nav-text">System Admin</span>
+                <span class="nav-text ml-auto bg-purple-500 text-white text-xs px-2 py-0.5 rounded-full">NEW</span>
+            </a>
+            <a href="/hub/settings" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'settings' %}bg-orange-50 text-[#f86d31]{% endif %}">
+                <i class="fas fa-cog nav-icon w-5 mr-3"></i>
+                <span class="nav-text">Settings</span>
             </a>
         </nav>
         
-        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm">
-                        {{ admin.hub_admin_name[0] if admin.hub_admin_name else 'A' }}
-                    </div>
-                    <div class="text-sm">
-                        <p class="font-medium truncate max-w-[120px]">{{ admin.hub_admin_name or 'Admin' }}</p>
-                        <p class="text-xs text-gray-400">{{ admin.hub_admin_role }}</p>
-                    </div>
+        <!-- User Profile -->
+        <div class="p-4 border-t border-gray-100">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                    {{ session.hub_admin_name[0] if session.hub_admin_name else 'A' }}
                 </div>
-                <a href="/hub/logout" class="text-gray-400 hover:text-white">
+                <div class="nav-text flex-1 min-w-0">
+                    <p class="font-medium text-gray-800 truncate">{{ session.hub_admin_name or 'Admin' }}</p>
+                    <p class="text-xs text-gray-500 truncate">{{ session.hub_admin_role or 'admin' }}</p>
+                </div>
+                <a href="/hub/logout" class="nav-text p-2 text-gray-400 hover:text-red-500 transition-colors">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
             </div>
@@ -97,43 +327,178 @@
     </aside>
     
     <!-- Main Content -->
-    <main class="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
-        <div class="p-4 lg:p-8">
+    <main class="lg:ml-64 min-h-screen">
+        <!-- Top Bar -->
+        <header class="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100">
+            <div class="flex items-center justify-between px-4 lg:px-6 py-4">
+                <!-- Mobile Menu Toggle -->
+                <button onclick="toggleSidebar()" class="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                
+                <!-- Search -->
+                <div class="hidden md:flex items-center flex-1 max-w-md mx-4">
+                    <div class="relative w-full">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" placeholder="Search users, campaigns, emails..." 
+                               class="w-full pl-10 pr-4 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-[#f86d31] focus:bg-white transition-all">
+                    </div>
+                </div>
+                
+                <!-- Right Actions -->
+                <div class="flex items-center space-x-2">
+                    <!-- Live Stats -->
+                    <div class="hidden lg:flex items-center space-x-4 mr-4 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
+                            <span class="text-gray-600"><span id="live-sending" class="font-bold text-green-600">0</span>/sec</span>
+                        </div>
+                        <div class="text-gray-300">|</div>
+                        <div class="text-gray-600">
+                            <span id="live-queue" class="font-bold text-[#f86d31]">0</span> queued
+                        </div>
+                    </div>
+                    
+                    <!-- Notifications -->
+                    <button class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    </button>
+                    
+                    <!-- Quick Actions -->
+                    <button onclick="openQuickActions()" class="hidden md:flex items-center space-x-2 px-4 py-2 gradient-sendbaba text-white rounded-xl hover:opacity-90 transition-opacity card-shadow">
+                        <i class="fas fa-bolt"></i>
+                        <span>Quick Actions</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Page Content -->
+        <div class="p-4 lg:p-6">
             {% block content %}{% endblock %}
         </div>
     </main>
-
+    
+    <!-- Quick Actions Modal -->
+    <div id="quick-actions-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50" onclick="closeQuickActions()"></div>
+        <div class="absolute top-20 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white rounded-2xl card-shadow-lg p-6 slide-in">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="pauseAllSending()" class="flex items-center space-x-3 p-4 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">
+                    <i class="fas fa-pause-circle text-red-500 text-xl"></i>
+                    <span class="text-red-700 font-medium">Pause All Sending</span>
+                </button>
+                <button onclick="resumeAllSending()" class="flex items-center space-x-3 p-4 bg-green-50 hover:bg-green-100 rounded-xl transition-colors">
+                    <i class="fas fa-play-circle text-green-500 text-xl"></i>
+                    <span class="text-green-700 font-medium">Resume Sending</span>
+                </button>
+                <button onclick="clearQueue()" class="flex items-center space-x-3 p-4 bg-yellow-50 hover:bg-yellow-100 rounded-xl transition-colors">
+                    <i class="fas fa-trash text-yellow-500 text-xl"></i>
+                    <span class="text-yellow-700 font-medium">Clear Queue</span>
+                </button>
+                <button onclick="restartWorkers()" class="flex items-center space-x-3 p-4 bg-orange-50 hover:bg-orange-100 rounded-xl transition-colors">
+                    <i class="fas fa-sync text-[#f86d31] text-xl"></i>
+                    <span class="text-[#f86d31] font-medium">Restart Workers</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+    
     <script>
+        // Sidebar Toggle
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            
-            if (sidebar.classList.contains('sidebar-closed')) {
-                sidebar.classList.remove('sidebar-closed');
-                sidebar.classList.add('sidebar-open');
-                overlay.classList.remove('hidden');
-            } else {
-                sidebar.classList.remove('sidebar-open');
-                sidebar.classList.add('sidebar-closed');
-                overlay.classList.add('hidden');
-            }
+            const overlay = document.getElementById('mobile-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('hidden');
         }
-
-        // Close sidebar when clicking nav links on mobile
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth < 1024) {
-                    toggleSidebar();
-                }
-            });
-        });
-
+        
+        // Quick Actions Modal
+        function openQuickActions() {
+            document.getElementById('quick-actions-modal').classList.remove('hidden');
+        }
+        function closeQuickActions() {
+            document.getElementById('quick-actions-modal').classList.add('hidden');
+        }
+        
+        // Toast Notifications
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-orange-500'
+            };
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-6 py-3 rounded-xl card-shadow slide-in flex items-center space-x-2`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+        
+        // Number Formatting
         function formatNumber(num) {
-            if (num >= 1000000) return (num/1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num/1000).toFixed(1) + 'K';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
             return num?.toLocaleString() || '0';
         }
+        
+        // Live Stats Update
+        async function updateLiveStats() {
+            try {
+                const res = await fetch('/hub/api/live-stats');
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('live-sending').textContent = data.sending_rate || 0;
+                    document.getElementById('live-queue').textContent = formatNumber(data.queue_size || 0);
+                }
+            } catch (e) {}
+        }
+        
+        // Quick Actions
+        async function pauseAllSending() {
+            if (confirm('Are you sure you want to pause all email sending?')) {
+                const res = await fetch('/hub/api/system/pause', { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message || 'Sending paused', data.success ? 'success' : 'error');
+                closeQuickActions();
+            }
+        }
+        
+        async function resumeAllSending() {
+            const res = await fetch('/hub/api/system/resume', { method: 'POST' });
+            const data = await res.json();
+            showToast(data.message || 'Sending resumed', data.success ? 'success' : 'error');
+            closeQuickActions();
+        }
+        
+        async function clearQueue() {
+            if (confirm('Are you sure you want to clear the email queue? This cannot be undone.')) {
+                const res = await fetch('/hub/api/queue/clear', { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message || 'Queue cleared', data.success ? 'success' : 'error');
+                closeQuickActions();
+            }
+        }
+        
+        async function restartWorkers() {
+            const res = await fetch('/hub/api/workers/restart', { method: 'POST' });
+            const data = await res.json();
+            showToast(data.message || 'Workers restarting...', data.success ? 'success' : 'error');
+            closeQuickActions();
+        }
+        
+        // Initialize
+        setInterval(updateLiveStats, 3000);
+        updateLiveStats();
     </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

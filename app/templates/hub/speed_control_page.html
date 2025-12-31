@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Speed Control - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">⚡ Speed Control</h4>
+            <p class="text-muted mb-0">Control email sending speed for campaigns</p>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="badge bg-success fs-6 me-2" id="live-eps">-- eps</span>
+            <span class="badge bg-primary fs-6" id="live-profile">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="h2 mb-0 text-primary" id="stat-eps">--</div>
+                    <small class="text-muted">Current EPS</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="h2 mb-0 text-success" id="stat-target">--</div>
+                    <small class="text-muted">Target EPS</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="h2 mb-0 text-info" id="stat-minute">--</div>
+                    <small class="text-muted">This Minute</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="h2 mb-0 text-warning" id="stat-mult">--</div>
+                    <small class="text-muted">Multiplier</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Speed Profiles -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-rocket text-warning"></i> Speed Profiles</h5>
+            <small class="text-muted">Click to instantly change sending speed</small>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-2 mb-2">
+                    <button class="btn btn-outline-secondary w-100 py-3 speed-btn" data-profile="conservative">
+                        <div class="fs-4">🐢</div>
+                        <strong>Conservative</strong><br>
+                        <small>100k in 4 hours</small><br>
+                        <span class="badge bg-secondary">7 eps</span>
+                    </button>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <button class="btn btn-outline-info w-100 py-3 speed-btn" data-profile="balanced">
+                        <div class="fs-4">⚖️</div>
+                        <strong>Balanced</strong><br>
+                        <small>100k in 1 hour</small><br>
+                        <span class="badge bg-info">28 eps</span>
+                    </button>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <button class="btn btn-outline-warning w-100 py-3 speed-btn" data-profile="aggressive">
+                        <div class="fs-4">🔥</div>
+                        <strong>Aggressive</strong><br>
+                        <small>100k in 20 min</small><br>
+                        <span class="badge bg-warning text-dark">85 eps</span>
+                    </button>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <button class="btn btn-warning w-100 py-3 speed-btn" data-profile="turbo">
+                        <div class="fs-4">🚀</div>
+                        <strong>TURBO</strong><br>
+                        <small>100k in 10 min</small><br>
+                        <span class="badge bg-dark">167 eps</span>
+                    </button>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <button class="btn btn-primary w-100 py-3 speed-btn" data-profile="ultra">
+                        <div class="fs-4">⚡</div>
+                        <strong>ULTRA</strong><br>
+                        <small>100k in 7 min</small><br>
+                        <span class="badge bg-primary">240 eps</span>
+                    </button>
+                </div>
+                <div class="col-md-2 mb-2">
+                    <button class="btn btn-danger w-100 py-3 speed-btn" data-profile="insane">
+                        <div class="fs-4">💀</div>
+                        <strong>INSANE</strong><br>
+                        <small>100k in 5 min</small><br>
+                        <span class="badge bg-danger">350 eps</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Custom Multiplier -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-sliders-h text-info"></i> Custom Multiplier</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Multiplier: <strong id="mult-value">15</strong>x</label>
+                        <input type="range" class="form-range" min="1" max="50" value="15" id="mult-slider">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="p-2 bg-light rounded text-center">
+                                <small class="text-muted">Target Speed</small><br>
+                                <strong id="mult-eps">167</strong> eps
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 bg-light rounded text-center">
+                                <small class="text-muted">Time for 100k</small><br>
+                                <strong id="mult-time">~10</strong> min
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100" id="apply-mult-btn">
+                        <i class="fas fa-check"></i> Apply Multiplier
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Worker Configuration -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs text-secondary"></i> Worker Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Threads per Chunk</label>
+                            <input type="number" class="form-control" id="worker-threads" value="150">
+                            <small class="text-muted">Concurrent sends</small>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Chunk Size</label>
+                            <input type="number" class="form-control" id="worker-chunk" value="2500">
+                            <small class="text-muted">Contacts per task</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary w-100" id="save-workers-btn">
+                        <i class="fas fa-save"></i> Save Worker Config
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Limits -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-shield-alt text-success"></i> Domain Rate Limits</h5>
+            <small class="text-muted">Emails per minute per domain</small>
+        </div>
+        <div class="card-body">
+            <div class="row" id="limits-container">
+                <!-- Filled by JS -->
+            </div>
+            <button class="btn btn-success mt-3" id="save-limits-btn">
+                <i class="fas fa-save"></i> Save Rate Limits
+            </button>
+        </div>
+    </div>
+
+    <!-- Warmed IPs Info -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-server text-primary"></i> Warmed IPs</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="fas fa-check-circle text-success"></i> 75.119.153.106</li>
+                        <li><i class="fas fa-check-circle text-success"></i> 161.97.170.33</li>
+                        <li><i class="fas fa-check-circle text-success"></i> 75.119.151.72</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="fas fa-check-circle text-success"></i> 173.212.213.239</li>
+                        <li><i class="fas fa-check-circle text-success"></i> 173.212.214.23</li>
+                        <li><i class="fas fa-check-circle text-success"></i> 173.212.213.184</li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="row text-center">
+                <div class="col-4">
+                    <strong class="text-primary">6</strong><br>
+                    <small class="text-muted">Total IPs</small>
+                </div>
+                <div class="col-4">
+                    <strong class="text-success">900</strong><br>
+                    <small class="text-muted">Max Concurrent</small>
+                </div>
+                <div class="col-4">
+                    <strong class="text-warning" id="capacity-time">~10 min</strong><br>
+                    <small class="text-muted">100k Capacity</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/hub/api/speed';
+
+async function loadStatus() {
+    try {
+        const r = await fetch(`${API}/status`);
+        const d = await r.json();
+        
+        // Update stats
+        document.getElementById('stat-eps').textContent = d.current_eps;
+        document.getElementById('stat-target').textContent = d.target_eps;
+        document.getElementById('stat-minute').textContent = d.this_minute.toLocaleString();
+        document.getElementById('stat-mult').textContent = d.multiplier + 'x';
+        
+        // Update header badges
+        document.getElementById('live-eps').textContent = d.current_eps + ' eps';
+        document.getElementById('live-profile').textContent = d.profile_name;
+        
+        // Update slider
+        document.getElementById('mult-slider').value = d.multiplier;
+        document.getElementById('mult-value').textContent = d.multiplier;
+        document.getElementById('mult-eps').textContent = d.target_eps;
+        document.getElementById('mult-time').textContent = '~' + Math.round(100000 / d.target_eps / 60);
+        document.getElementById('capacity-time').textContent = '~' + Math.round(100000 / d.target_eps / 60) + ' min';
+        
+        // Update workers
+        document.getElementById('worker-threads').value = d.threads;
+        document.getElementById('worker-chunk').value = d.chunk_size;
+        
+        // Highlight active profile
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            if (btn.dataset.profile === d.profile) {
+                btn.classList.add('active');
+                btn.style.border = '3px solid #28a745';
+                btn.style.boxShadow = '0 0 10px rgba(40,167,69,0.5)';
+            } else {
+                btn.classList.remove('active');
+                btn.style.border = '';
+                btn.style.boxShadow = '';
+            }
+        });
+        
+        // Update limits
+        const limitsDiv = document.getElementById('limits-container');
+        limitsDiv.innerHTML = '';
+        const domains = ['gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'aol.com', 'icloud.com', 'default'];
+        domains.forEach(domain => {
+            const limit = d.limits[domain] || 0;
+            limitsDiv.innerHTML += `
+                <div class="col-md-4 col-lg-3 mb-2">
+                    <label class="form-label small">${domain}</label>
+                    <input type="number" class="form-control form-control-sm limit-input" data-domain="${domain}" value="${limit}">
+                </div>`;
+        });
+    } catch(e) { console.error(e); }
+}
+
+// Profile buttons
+document.querySelectorAll('.speed-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Applying...';
+        
+        try {
+            const r = await fetch(`${API}/set`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({profile: this.dataset.profile})
+            });
+            const d = await r.json();
+            if (d.success) {
+                loadStatus();
+            }
+        } catch(e) { console.error(e); }
+        
+        // Restore button text after a moment
+        setTimeout(() => {
+            const profiles = {
+                'conservative': '🐢<br>Conservative',
+                'balanced': '⚖️<br>Balanced',
+                'aggressive': '🔥<br>Aggressive',
+                'turbo': '🚀<br>TURBO',
+                'ultra': '⚡<br>ULTRA',
+                'insane': '💀<br>INSANE'
+            };
+            this.innerHTML = `<div class="fs-4">${profiles[this.dataset.profile].split('<br>')[0]}</div><strong>${profiles[this.dataset.profile].split('<br>')[1]}</strong>`;
+            this.disabled = false;
+        }, 500);
+    });
+});
+
+// Multiplier slider
+document.getElementById('mult-slider').addEventListener('input', function() {
+    const mult = this.value;
+    const eps = Math.round(28 * mult);
+    const time = Math.round(100000 / eps / 60);
+    document.getElementById('mult-value').textContent = mult;
+    document.getElementById('mult-eps').textContent = eps;
+    document.getElementById('mult-time').textContent = '~' + time;
+});
+
+// Apply multiplier
+document.getElementById('apply-mult-btn').addEventListener('click', async function() {
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Applying...';
+    
+    await fetch(`${API}/multiplier`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({multiplier: parseFloat(document.getElementById('mult-slider').value)})
+    });
+    
+    this.innerHTML = '<i class="fas fa-check"></i> Applied!';
+    loadStatus();
+    
+    setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-check"></i> Apply Multiplier';
+        this.disabled = false;
+    }, 1000);
+});
+
+// Save workers
+document.getElementById('save-workers-btn').addEventListener('click', async function() {
+    this.disabled = true;
+    await fetch(`${API}/workers`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            threads: parseInt(document.getElementById('worker-threads').value),
+            chunk_size: parseInt(document.getElementById('worker-chunk').value)
+        })
+    });
+    this.innerHTML = '<i class="fas fa-check"></i> Saved!';
+    setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-save"></i> Save Worker Config';
+        this.disabled = false;
+    }, 1000);
+});
+
+// Save limits
+document.getElementById('save-limits-btn').addEventListener('click', async function() {
+    this.disabled = true;
+    const limits = {};
+    document.querySelectorAll('.limit-input').forEach(inp => {
+        limits[inp.dataset.domain] = parseInt(inp.value);
+    });
+    await fetch(`${API}/limits`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({limits})
+    });
+    this.innerHTML = '<i class="fas fa-check"></i> Saved!';
+    setTimeout(() => {
+        this.innerHTML = '<i class="fas fa-save"></i> Save Rate Limits';
+        this.disabled = false;
+    }, 1000);
+});
+
+// Initial load and auto-refresh
+loadStatus();
+setInterval(loadStatus, 3000);
+</script>
+{% endblock %}

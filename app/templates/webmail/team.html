@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team & Domains - SendBaba Mail</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #f5f5f5; 
+            min-height: 100vh; 
+        }
+        body.dark-mode { background: #1a1a2e; color: #e5e5e5; }
+        
+        .page { max-width: 900px; margin: 0 auto; padding: 20px; }
+        @media (min-width: 769px) { 
+            .page { margin-left: calc(64px + 40px); padding: 32px 40px; } 
+        }
+        
+        .page-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 16px; 
+            margin-bottom: 32px; 
+        }
+        
+        .back-btn { 
+            width: 44px; 
+            height: 44px; 
+            border: none; 
+            background: white; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            color: #6b7280; 
+            font-size: 18px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-decoration: none;
+        }
+        body.dark-mode .back-btn { background: #252540; color: #888; }
+        .back-btn:hover { background: #f3f4f6; color: #f86d31; }
+        
+        .page-title { 
+            font-size: 28px; 
+            font-weight: 700; 
+            color: #1f2937; 
+        }
+        body.dark-mode .page-title { color: #e5e5e5; }
+        
+        /* Tabs */
+        .tabs { 
+            display: flex; 
+            gap: 8px; 
+            margin-bottom: 24px; 
+            background: white; 
+            padding: 6px; 
+            border-radius: 12px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+        }
+        body.dark-mode .tabs { background: #16162a; }
+        
+        .tab { 
+            flex: 1; 
+            padding: 12px; 
+            border: none; 
+            background: transparent; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: 500; 
+            color: #6b7280; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .tab.active { 
+            background: linear-gradient(135deg, #f86d31, #e55a1f); 
+            color: white; 
+        }
+        .tab:hover:not(.active) { background: #f3f4f6; }
+        body.dark-mode .tab:hover:not(.active) { background: #252540; }
+        body.dark-mode .tab { color: #9ca3af; }
+        
+        /* Cards */
+        .card { 
+            background: white; 
+            border-radius: 16px; 
+            padding: 24px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); 
+        }
+        body.dark-mode .card { background: #16162a; }
+        
+        .card-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 20px; 
+            flex-wrap: wrap; 
+            gap: 12px; 
+        }
+        
+        .card-title { 
+            font-size: 18px; 
+            font-weight: 600; 
+            color: #1f2937; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        body.dark-mode .card-title { color: #e5e5e5; }
+        .card-title i { color: #f86d31; }
+        
+        /* Buttons */
+        .btn { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 14px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            transition: all 0.2s; 
+        }
+        .btn-primary { 
+            background: linear-gradient(135deg, #f86d31, #e55a1f); 
+            color: white; 
+        }
+        .btn-primary:hover { 
+            box-shadow: 0 4px 15px rgba(248,109,49,0.3); 
+            transform: translateY(-1px); 
+        }
+        .btn-primary:disabled { 
+            opacity: 0.6; 
+            cursor: not-allowed; 
+            transform: none; 
+        }
+        .btn-secondary { background: #f3f4f6; color: #374151; }
+        body.dark-mode .btn-secondary { background: #252540; color: #e5e5e5; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        
+        /* Empty State */
+        .empty-state { 
+            text-align: center; 
+            padding: 60px 20px; 
+            color: #9ca3af; 
+        }
+        .empty-state i { 
+            font-size: 64px; 
+            opacity: 0.3; 
+            margin-bottom: 16px; 
+            display: block; 
+        }
+        .empty-state h3 { 
+            font-size: 18px; 
+            color: #374151; 
+            margin-bottom: 8px; 
+        }
+        body.dark-mode .empty-state h3 { color: #e5e5e5; }
+        .empty-state p { margin-bottom: 20px; }
+        
+        /* List Items */
+        .list-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 16px; 
+            padding: 16px; 
+            background: #f8fafc; 
+            border-radius: 12px; 
+            border: 1px solid #e5e7eb; 
+            margin-bottom: 12px;
+        }
+        body.dark-mode .list-item { background: #252540; border-color: #3d3d5a; }
+        
+        .list-icon { 
+            width: 48px; 
+            height: 48px; 
+            background: linear-gradient(135deg, #f86d31, #e55a1f); 
+            border-radius: 12px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: white; 
+            font-size: 20px; 
+            flex-shrink: 0; 
+        }
+        .list-icon.blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .list-icon.green { background: linear-gradient(135deg, #10b981, #059669); }
+        .list-icon.purple { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        
+        .list-info { flex: 1; min-width: 0; }
+        
+        .list-title { 
+            font-size: 16px; 
+            font-weight: 600; 
+            color: #1f2937; 
+            word-break: break-all; 
+        }
+        body.dark-mode .list-title { color: #e5e5e5; }
+        
+        .list-meta { 
+            font-size: 12px; 
+            color: #6b7280; 
+            margin-top: 4px; 
+            display: flex; 
+            gap: 12px; 
+            flex-wrap: wrap; 
+        }
+        
+        .list-actions { 
+            display: flex; 
+            gap: 8px; 
+            flex-wrap: wrap; 
+        }
+        
+        /* Status Badges */
+        .badge { 
+            padding: 4px 10px; 
+            border-radius: 20px; 
+            font-size: 11px; 
+            font-weight: 600; 
+            white-space: nowrap; 
+        }
+        .badge-success { background: #d1fae5; color: #059669; }
+        .badge-warning { background: #fef3c7; color: #d97706; }
+        .badge-danger { background: #fee2e2; color: #dc2626; }
+        
+        /* Alert */
+        .alert { 
+            padding: 12px 16px; 
+            border-radius: 10px; 
+            margin-bottom: 16px; 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 10px; 
+            font-size: 14px; 
+        }
+        .alert i { margin-top: 2px; flex-shrink: 0; }
+        .alert-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        body.dark-mode .alert-info { background: #1e3a5f; border-color: #1d4ed8; }
+        .alert-warning { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+        .alert-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        
+        /* Modal */
+        .modal-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.5); 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 1000; 
+            padding: 20px; 
+        }
+        .modal-overlay.show { display: flex; }
+        
+        .modal { 
+            background: white; 
+            border-radius: 20px; 
+            width: 100%; 
+            max-width: 500px; 
+            max-height: 90vh; 
+            overflow-y: auto; 
+            animation: modalSlide 0.3s ease; 
+        }
+        body.dark-mode .modal { background: #16162a; }
+        
+        @keyframes modalSlide { 
+            from { transform: translateY(20px); opacity: 0; } 
+            to { transform: translateY(0); opacity: 1; } 
+        }
+        
+        .modal-header { 
+            padding: 20px; 
+            border-bottom: 1px solid #e5e7eb; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        body.dark-mode .modal-header { border-color: #3d3d5a; }
+        
+        .modal-title { 
+            font-size: 18px; 
+            font-weight: 600; 
+            color: #1f2937; 
+        }
+        body.dark-mode .modal-title { color: #e5e5e5; }
+        
+        .modal-close { 
+            width: 36px; 
+            height: 36px; 
+            border: none; 
+            background: #f3f4f6; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        body.dark-mode .modal-close { background: #252540; color: #9ca3af; }
+        
+        .modal-body { padding: 20px; }
+        
+        .modal-footer { 
+            padding: 16px 20px; 
+            border-top: 1px solid #e5e7eb; 
+            display: flex; 
+            gap: 12px; 
+            justify-content: flex-end; 
+        }
+        body.dark-mode .modal-footer { border-color: #3d3d5a; }
+        
+        /* Forms */
+        .form-group { margin-bottom: 20px; }
+        
+        .form-label { 
+            display: block; 
+            font-size: 14px; 
+            font-weight: 500; 
+            color: #374151; 
+            margin-bottom: 8px; 
+        }
+        body.dark-mode .form-label { color: #e5e5e5; }
+        
+        .form-input, .form-select { 
+            width: 100%; 
+            padding: 12px 16px; 
+            border: 1px solid #e5e7eb; 
+            border-radius: 10px; 
+            font-size: 14px; 
+            background: white; 
+            color: #1f2937; 
+        }
+        body.dark-mode .form-input, body.dark-mode .form-select { 
+            background: #252540; 
+            border-color: #3d3d5a; 
+            color: #e5e5e5; 
+        }
+        .form-input:focus, .form-select:focus { 
+            outline: none; 
+            border-color: #f86d31; 
+            box-shadow: 0 0 0 3px rgba(248,109,49,0.1); 
+        }
+        
+        .form-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
+        
+        .input-group { display: flex; align-items: stretch; }
+        .input-group .form-input { 
+            border-radius: 10px 0 0 10px; 
+            flex: 1; 
+            border-right: none;
+        }
+        .input-group-append { 
+            background: #f3f4f6; 
+            border: 1px solid #e5e7eb; 
+            padding: 12px 16px; 
+            border-radius: 0 10px 10px 0; 
+            font-size: 14px; 
+            color: #374151; 
+            display: flex; 
+            align-items: center;
+            min-width: 140px;
+        }
+        body.dark-mode .input-group-append { 
+            background: #3d3d5a; 
+            border-color: #3d3d5a; 
+            color: #e5e5e5; 
+        }
+        
+        /* DNS Records */
+        .dns-record { 
+            background: #f8fafc; 
+            border: 1px solid #e5e7eb; 
+            border-radius: 10px; 
+            padding: 16px; 
+            margin-bottom: 12px; 
+        }
+        body.dark-mode .dns-record { background: #252540; border-color: #3d3d5a; }
+        
+        .dns-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 12px; 
+            flex-wrap: wrap; 
+            gap: 8px; 
+        }
+        
+        .dns-type { 
+            font-weight: 600; 
+            color: #1f2937; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+        }
+        body.dark-mode .dns-type { color: #e5e5e5; }
+        .dns-type i { color: #f86d31; }
+        
+        .dns-row { 
+            display: grid; 
+            grid-template-columns: 80px 1fr; 
+            gap: 8px; 
+            font-size: 13px; 
+            margin-bottom: 8px; 
+            align-items: start; 
+        }
+        @media (max-width: 500px) { 
+            .dns-row { grid-template-columns: 1fr; } 
+        }
+        
+        .dns-label { color: #6b7280; font-weight: 500; }
+        
+        .dns-value { 
+            background: #1f2937; 
+            color: #10b981; 
+            padding: 8px 12px; 
+            border-radius: 6px; 
+            font-family: monospace; 
+            font-size: 12px; 
+            word-break: break-all; 
+            position: relative; 
+            padding-right: 40px; 
+        }
+        body.dark-mode .dns-value { background: #0f0f1a; }
+        
+        .copy-btn { 
+            position: absolute; 
+            right: 8px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            background: none; 
+            border: none; 
+            color: #6b7280; 
+            cursor: pointer; 
+            padding: 4px; 
+        }
+        .copy-btn:hover { color: #f86d31; }
+        
+        /* Credentials Box */
+        .credentials-box { 
+            background: #f0fdf4; 
+            border: 2px solid #22c55e; 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-top: 16px; 
+        }
+        body.dark-mode .credentials-box { background: #14532d; }
+        
+        .credentials-title { 
+            font-weight: 600; 
+            color: #15803d; 
+            margin-bottom: 16px; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            font-size: 16px;
+        }
+        body.dark-mode .credentials-title { color: #86efac; }
+        
+        .credential-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 10px 0; 
+            border-bottom: 1px dashed #bbf7d0; 
+        }
+        .credential-row:last-child { border-bottom: none; }
+        
+        .credential-label { font-size: 13px; color: #166534; }
+        body.dark-mode .credential-label { color: #86efac; }
+        
+        .credential-value { 
+            font-family: monospace; 
+            font-weight: 600; 
+            color: #15803d; 
+            background: #dcfce7;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        body.dark-mode .credential-value { color: #4ade80; background: #166534; }
+        
+        /* Toast */
+        .toast { 
+            position: fixed; 
+            bottom: 24px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: #1f2937; 
+            color: white; 
+            padding: 12px 24px; 
+            border-radius: 10px; 
+            font-size: 14px; 
+            z-index: 2000; 
+            display: none;
+            max-width: 90%;
+            text-align: center;
+        }
+        .toast.show { display: block; animation: toastIn 0.3s ease; }
+        .toast.success { background: #059669; }
+        .toast.error { background: #dc2626; }
+        @keyframes toastIn { 
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; } 
+            to { transform: translateX(-50%) translateY(0); opacity: 1; } 
+        }
+        
+        /* Tab Content */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Loading Spinner */
+        .spinner { 
+            width: 20px; 
+            height: 20px; 
+            border: 2px solid rgba(255,255,255,0.3); 
+            border-top-color: white; 
+            border-radius: 50%; 
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            flex-direction: column;
+            gap: 16px;
+            color: white;
+        }
+        .loading-overlay.show { display: flex; }
+        .loading-overlay .spinner {
+            width: 40px;
+            height: 40px;
+            border-width: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="page-header">
+            <a href="/settings" class="back-btn">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="page-title">Team & Domains</h1>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="domains"><i class="fas fa-globe"></i> Domains</button>
+            <button class="tab" data-tab="mailboxes"><i class="fas fa-envelope"></i> Mailboxes</button>
+            <button class="tab" data-tab="members"><i class="fas fa-users"></i> Team</button>
+        </div>
+        
+        <!-- Domains Tab -->
+        <div id="domains-tab" class="tab-content active">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-at"></i> Custom Domains</div>
+                    <button class="btn btn-primary" id="add-domain-btn"><i class="fas fa-plus"></i> Add Domain</button>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Add your own domain to send and receive emails at you@yourbusiness.com</span>
+                </div>
+                
+                <div id="domains-list"></div>
+            </div>
+        </div>
+        
+        <!-- Mailboxes Tab -->
+        <div id="mailboxes-tab" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-inbox"></i> Email Mailboxes</div>
+                    <button class="btn btn-primary" id="create-mailbox-btn"><i class="fas fa-plus"></i> Create Mailbox</button>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Create mailboxes for your verified domains. Credentials will be sent to the recovery email.</span>
+                </div>
+                
+                <div id="mailboxes-list"></div>
+            </div>
+        </div>
+        
+        <!-- Team Tab -->
+        <div id="members-tab" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-users"></i> Team Members</div>
+                    <button class="btn btn-primary" id="invite-member-btn"><i class="fas fa-user-plus"></i> Invite</button>
+                </div>
+                
+                <div id="members-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Domain Modal -->
+    <div class="modal-overlay" id="add-domain-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Add Custom Domain</div>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Domain Name</label>
+                    <input type="text" class="form-input" id="domain-name-input" placeholder="yourbusiness.com">
+                    <div class="form-hint">Enter your domain without www or http</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="submit-domain-btn"><i class="fas fa-plus"></i> Add Domain</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DNS Modal -->
+    <div class="modal-overlay" id="dns-modal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">DNS Configuration</div>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" id="dns-modal-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Close</button>
+                <button class="btn btn-primary" id="verify-dns-btn"><i class="fas fa-check"></i> Verify DNS</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Mailbox Modal -->
+    <div class="modal-overlay" id="create-mailbox-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Create Email Mailbox</div>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="mailbox-form-container">
+                    <div id="no-domains-alert" class="alert alert-warning" style="display: none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>You need at least one verified domain. <a href="#" id="go-to-domains">Add a domain first</a>.</span>
+                    </div>
+                    
+                    <div id="mailbox-form">
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <div class="input-group">
+                                <input type="text" class="form-input" id="mailbox-username" placeholder="support">
+                                <select class="input-group-append" id="mailbox-domain-select"></select>
+                            </div>
+                            <div class="form-hint">Choose a username for your mailbox</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Display Name</label>
+                            <input type="text" class="form-input" id="mailbox-display-name" placeholder="Support Team">
+                            <div class="form-hint">Name shown when sending emails</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Recovery Email <span style="color:#ef4444;">*</span></label>
+                            <input type="email" class="form-input" id="mailbox-recovery-email" placeholder="your@personal-email.com">
+                            <div class="form-hint">Login credentials will be sent to this email</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="mailbox-success" style="display: none;"></div>
+            </div>
+            <div class="modal-footer" id="mailbox-form-footer">
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="submit-mailbox-btn"><i class="fas fa-plus"></i> Create Mailbox</button>
+            </div>
+            <div class="modal-footer" id="mailbox-success-footer" style="display: none;">
+                <button class="btn btn-secondary" id="create-another-btn">Create Another</button>
+                <button class="btn btn-primary" id="login-now-btn"><i class="fas fa-sign-in-alt"></i> Login Now</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Invite Member Modal -->
+    <div class="modal-overlay" id="invite-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Invite Team Member</div>
+                <button class="modal-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-input" id="invite-email" placeholder="colleague@example.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <select class="form-select" id="invite-role">
+                        <option value="member">Member</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="submit-invite-btn"><i class="fas fa-paper-plane"></i> Send Invite</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Loading...</div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+    (function() {
+        'use strict';
+        
+        // State
+        let domains = [];
+        let mailboxes = [];
+        let currentDomainId = null;
+        let createdCredentials = null;
+        
+        // Dark mode
+        if (localStorage.getItem('dark-mode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+        
+        // Toast
+        function showToast(message, type) {
+            type = type || 'success';
+            var toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(function() { 
+                toast.classList.remove('show'); 
+            }, 3000);
+        }
+        
+        // Loading
+        function showLoading(text) {
+            document.getElementById('loading-text').textContent = text || 'Loading...';
+            document.getElementById('loading-overlay').classList.add('show');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('show');
+        }
+        
+        // Modal handling
+        function openModal(id) {
+            document.getElementById(id).classList.add('show');
+        }
+        
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+        
+        function closeAllModals() {
+            document.querySelectorAll('.modal-overlay').forEach(function(m) {
+                m.classList.remove('show');
+            });
+        }
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var tabName = this.getAttribute('data-tab');
+                
+                document.querySelectorAll('.tab').forEach(function(t) { 
+                    t.classList.remove('active'); 
+                });
+                document.querySelectorAll('.tab-content').forEach(function(c) { 
+                    c.classList.remove('active'); 
+                });
+                
+                this.classList.add('active');
+                document.getElementById(tabName + '-tab').classList.add('active');
+                
+                if (tabName === 'mailboxes') loadMailboxes();
+                if (tabName === 'members') loadMembers();
+            });
+        });
+        
+        // Close modals on overlay click or cancel button
+        document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) closeAllModals();
+            });
+        });
+        
+        document.querySelectorAll('.modal-close, .modal-cancel').forEach(function(btn) {
+            btn.addEventListener('click', closeAllModals);
+        });
+        
+        // Copy to clipboard
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(function() {
+                if (btn) {
+                    var icon = btn.querySelector('i');
+                    var oldClass = icon.className;
+                    icon.className = 'fas fa-check';
+                    setTimeout(function() { 
+                        icon.className = oldClass; 
+                    }, 2000);
+                }
+                showToast('Copied to clipboard');
+            }).catch(function() {
+                showToast('Failed to copy', 'error');
+            });
+        }
+        
+        // Make copyToClipboard global for onclick handlers
+        window.copyToClipboard = copyToClipboard;
+        
+        // =====================
+        // DOMAINS
+        // =====================
+        
+        function loadDomains() {
+            fetch('/api/team/domains')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        domains = data.domains || [];
+                        renderDomains();
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Error loading domains:', err);
+                });
+        }
+        
+        function renderDomains() {
+            var container = document.getElementById('domains-list');
+            
+            if (!domains.length) {
+                container.innerHTML = '<div class="empty-state">' +
+                    '<i class="fas fa-globe"></i>' +
+                    '<h3>No Custom Domains</h3>' +
+                    '<p>Add your domain to use branded email addresses</p>' +
+                    '</div>';
+                return;
+            }
+            
+            var html = '';
+            domains.forEach(function(d) {
+                var statusClass = d.dns_verified ? 'badge-success' : 'badge-warning';
+                var statusText = d.dns_verified ? '<i class="fas fa-check"></i> Verified' : '<i class="fas fa-clock"></i> Pending';
+                var createdDate = new Date(d.created_at).toLocaleDateString();
+                
+                html += '<div class="list-item">' +
+                    '<div class="list-icon"><i class="fas fa-globe"></i></div>' +
+                    '<div class="list-info">' +
+                        '<div class="list-title">' + d.domain_name + '</div>' +
+                        '<div class="list-meta">' +
+                            '<span><i class="fas fa-envelope"></i> *@' + d.domain_name + '</span>' +
+                            '<span><i class="fas fa-calendar"></i> ' + createdDate + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<span class="badge ' + statusClass + '">' + statusText + '</span>' +
+                    '<div class="list-actions">' +
+                        '<button class="btn btn-secondary btn-sm" onclick="showDNS(\'' + d.id + '\')"><i class="fas fa-cog"></i> DNS</button>' +
+                        '<button class="btn btn-danger btn-sm" onclick="deleteDomain(\'' + d.id + '\')"><i class="fas fa-trash"></i></button>' +
+                    '</div>' +
+                '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Add Domain
+        document.getElementById('add-domain-btn').addEventListener('click', function() {
+            document.getElementById('domain-name-input').value = '';
+            openModal('add-domain-modal');
+            document.getElementById('domain-name-input').focus();
+        });
+        
+        document.getElementById('submit-domain-btn').addEventListener('click', function() {
+            var domain = document.getElementById('domain-name-input').value.trim().toLowerCase();
+            
+            if (!domain || domain.indexOf('.') === -1) {
+                showToast('Please enter a valid domain', 'error');
+                return;
+            }
+            
+            var btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Adding...';
+            
+            fetch('/api/team/domains', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ domain: domain })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Domain added! Configure DNS records.');
+                    closeAllModals();
+                    loadDomains();
+                    setTimeout(function() {
+                        showDNS(data.domain_id);
+                    }, 500);
+                } else {
+                    showToast(data.error || 'Failed to add domain', 'error');
+                }
+            })
+            .catch(function() {
+                showToast('Error adding domain', 'error');
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus"></i> Add Domain';
+            });
+        });
+        
+        // Show DNS
+        window.showDNS = function(domainId) {
+            var domain = domains.find(function(d) { return d.id === domainId; });
+            if (!domain) return;
+            
+            currentDomainId = domainId;
+            
+            var mxStatus = domain.mx_valid ? '<span style="color:#059669;">✓ Valid</span>' : '<span style="color:#dc2626;">✗ Not configured</span>';
+            var spfStatus = domain.spf_valid ? '<span style="color:#059669;">✓ Valid</span>' : '<span style="color:#6b7280;">○ Optional</span>';
+            var verifiedStatus = domain.dns_verified ? '<span style="color:#059669; font-weight:600;">✓ Domain Verified</span>' : '<span style="color:#d97706;">⏳ Pending Verification</span>';
+            
+            var html = '<div style="text-align:center; margin-bottom:20px; padding:16px; background:' + (domain.dns_verified ? '#d1fae5' : '#fef3c7') + '; border-radius:10px;">' +
+                verifiedStatus +
+            '</div>' +
+            
+            '<div class="alert alert-info">' +
+                '<i class="fas fa-info-circle"></i>' +
+                '<span><strong>Simple Setup:</strong> Just add the MX record below. SPF is optional but recommended for sending.</span>' +
+            '</div>' +
+            
+            '<div class="dns-record">' +
+                '<div class="dns-header">' +
+                    '<div class="dns-type"><i class="fas fa-exchange-alt"></i> MX Record (Required)</div>' +
+                    mxStatus +
+                '</div>' +
+                '<div class="dns-row">' +
+                    '<span class="dns-label">Type</span>' +
+                    '<div class="dns-value">MX<button class="copy-btn" onclick="copyToClipboard(\'MX\', this)"><i class="fas fa-copy"></i></button></div>' +
+                '</div>' +
+                '<div class="dns-row">' +
+                    '<span class="dns-label">Host</span>' +
+                    '<div class="dns-value">@<button class="copy-btn" onclick="copyToClipboard(\'@\', this)"><i class="fas fa-copy"></i></button></div>' +
+                '</div>' +
+                '<div class="dns-row">' +
+                    '<span class="dns-label">Value</span>' +
+                    '<div class="dns-value">mail.sendbaba.com<button class="copy-btn" onclick="copyToClipboard(\'mail.sendbaba.com\', this)"><i class="fas fa-copy"></i></button></div>' +
+                '</div>' +
+                '<div class="dns-row">' +
+                    '<span class="dns-label">Priority</span>' +
+                    '<div class="dns-value">10<button class="copy-btn" onclick="copyToClipboard(\'10\', this)"><i class="fas fa-copy"></i></button></div>' +
+                '</div>' +
+            '</div>' +
+            
+            '<div class="dns-record">' +
+                '<div class="dns-header">' +
+                    '<div class="dns-type"><i class="fas fa-paper-plane"></i> SPF Record (Optional - for sending)</div>' +
+                    spfStatus +
+                '</div>' +
+                '<div class="dns-row">' +
+                    '<span class="dns-label">Type</span>' +
+                    '<div class="dns-value">TXT<button class="copy-btn" onclick="copyToClipboard(\'TXT\', this)"><i class="fas fa-copy"></i></button></div>' +
+                '</div>' +
+                '<div class="dns-row">' +
+                    '<span class="dns-label">Host</span>' +
+                    '<div class="dns-value">@<button class="copy-btn" onclick="copyToClipboard(\'@\', this)"><i class="fas fa-copy"></i></button></div>' +
+                '</div>' +
+                '<div class="dns-row">' +
+                    '<span class="dns-label">Value</span>' +
+                    '<div class="dns-value">v=spf1 include:sendbaba.com ~all<button class="copy-btn" onclick="copyToClipboard(\'v=spf1 include:sendbaba.com ~all\', this)"><i class="fas fa-copy"></i></button></div>' +
+                '</div>' +
+            '</div>';
+            
+            document.getElementById('dns-modal-body').innerHTML = html;
+            openModal('dns-modal');
+        };
+        
+        // Verify DNS
+        document.getElementById('verify-dns-btn').addEventListener('click', function() {
+            if (!currentDomainId) return;
+            
+            var btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Verifying...';
+            
+            fetch('/api/team/domains/' + currentDomainId + '/verify', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success && data.verified) {
+                        showToast('Domain verified successfully!');
+                        closeAllModals();
+                        loadDomains();
+                    } else {
+                        showToast(data.message || 'DNS not configured yet. Wait a few minutes for propagation.', 'error');
+                        loadDomains();
+                        if (currentDomainId) {
+                            setTimeout(function() {
+                                showDNS(currentDomainId);
+                            }, 300);
+                        }
+                    }
+                })
+                .catch(function() {
+                    showToast('Verification failed', 'error');
+                })
+                .finally(function() {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Verify DNS';
+                });
+        });
+        
+        // Delete Domain
+        window.deleteDomain = function(domainId) {
+            if (!confirm('Delete this domain? Mailboxes using this domain will be deactivated.')) return;
+            
+            fetch('/api/team/domains/' + domainId, { method: 'DELETE' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        showToast('Domain deleted');
+                        loadDomains();
+                    } else {
+                        showToast(data.error || 'Failed to delete', 'error');
+                    }
+                })
+                .catch(function() {
+                    showToast('Error deleting domain', 'error');
+                });
+        };
+        
+        // =====================
+        // MAILBOXES
+        // =====================
+        
+        function loadMailboxes() {
+            fetch('/api/team/mailboxes')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        mailboxes = data.mailboxes || [];
+                        renderMailboxes();
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Error loading mailboxes:', err);
+                });
+        }
+        
+        function renderMailboxes() {
+            var container = document.getElementById('mailboxes-list');
+            
+            if (!mailboxes.length) {
+                container.innerHTML = '<div class="empty-state">' +
+                    '<i class="fas fa-envelope"></i>' +
+                    '<h3>No Mailboxes Yet</h3>' +
+                    '<p>Create mailboxes for your verified domains</p>' +
+                    '</div>';
+                return;
+            }
+            
+            var html = '';
+            mailboxes.forEach(function(m) {
+                var createdDate = new Date(m.created_at).toLocaleDateString();
+                var lastLogin = m.last_login ? new Date(m.last_login).toLocaleDateString() : 'Never';
+                
+                html += '<div class="list-item">' +
+                    '<div class="list-icon blue"><i class="fas fa-envelope"></i></div>' +
+                    '<div class="list-info">' +
+                        '<div class="list-title">' + m.email + '</div>' +
+                        '<div class="list-meta">' +
+                            '<span><i class="fas fa-user"></i> ' + (m.name || 'No name') + '</span>' +
+                            '<span><i class="fas fa-clock"></i> Last login: ' + lastLogin + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<span class="badge badge-success"><i class="fas fa-check"></i> Active</span>' +
+                    '<div class="list-actions">' +
+                        '<button class="btn btn-secondary btn-sm" onclick="resetPassword(' + m.id + ')"><i class="fas fa-key"></i> Reset</button>' +
+                        '<button class="btn btn-danger btn-sm" onclick="deleteMailbox(' + m.id + ', \'' + m.email + '\')"><i class="fas fa-trash"></i></button>' +
+                    '</div>' +
+                '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Create Mailbox
+        document.getElementById('create-mailbox-btn').addEventListener('click', function() {
+            openCreateMailboxModal();
+        });
+        
+        function openCreateMailboxModal() {
+            // Reset form
+            document.getElementById('mailbox-username').value = '';
+            document.getElementById('mailbox-display-name').value = '';
+            document.getElementById('mailbox-recovery-email').value = '';
+            document.getElementById('mailbox-form-container').style.display = 'block';
+            document.getElementById('mailbox-success').style.display = 'none';
+            document.getElementById('mailbox-form-footer').style.display = 'flex';
+            document.getElementById('mailbox-success-footer').style.display = 'none';
+            
+            // Get verified domains
+            var verifiedDomains = domains.filter(function(d) { return d.dns_verified; });
+            var select = document.getElementById('mailbox-domain-select');
+            select.innerHTML = '';
+            
+            if (!verifiedDomains.length) {
+                document.getElementById('no-domains-alert').style.display = 'flex';
+                document.getElementById('mailbox-form').style.display = 'none';
+                document.getElementById('mailbox-form-footer').style.display = 'none';
+            } else {
+                document.getElementById('no-domains-alert').style.display = 'none';
+                document.getElementById('mailbox-form').style.display = 'block';
+                
+                verifiedDomains.forEach(function(d) {
+                    var opt = document.createElement('option');
+                    opt.value = d.domain_name;
+                    opt.textContent = '@' + d.domain_name;
+                    select.appendChild(opt);
+                });
+            }
+            
+            openModal('create-mailbox-modal');
+        }
+        
+        document.getElementById('go-to-domains').addEventListener('click', function(e) {
+            e.preventDefault();
+            closeAllModals();
+            document.querySelector('.tab[data-tab="domains"]').click();
+        });
+        
+        document.getElementById('submit-mailbox-btn').addEventListener('click', function() {
+            var username = document.getElementById('mailbox-username').value.trim().toLowerCase();
+            var domain = document.getElementById('mailbox-domain-select').value;
+            var name = document.getElementById('mailbox-display-name').value.trim();
+            var recovery = document.getElementById('mailbox-recovery-email').value.trim().toLowerCase();
+            
+            if (!username) {
+                showToast('Please enter a username', 'error');
+                return;
+            }
+            
+            if (!/^[a-z0-9._-]+$/.test(username)) {
+                showToast('Username can only contain letters, numbers, dots, hyphens', 'error');
+                return;
+            }
+            
+            if (!recovery || recovery.indexOf('@') === -1) {
+                showToast('Please enter a valid recovery email', 'error');
+                return;
+            }
+            
+            var btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Creating...';
+            
+            fetch('/api/team/mailboxes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: username,
+                    domain: domain,
+                    name: name,
+                    recovery_email: recovery
+                })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    createdCredentials = {
+                        email: data.email,
+                        password: data.password
+                    };
+                    
+                    // Show success
+                    document.getElementById('mailbox-form-container').style.display = 'none';
+                    document.getElementById('mailbox-success').style.display = 'block';
+                    document.getElementById('mailbox-success').innerHTML = 
+                        '<div class="credentials-box">' +
+                            '<div class="credentials-title"><i class="fas fa-check-circle"></i> Mailbox Created!</div>' +
+                            '<div class="credential-row">' +
+                                '<span class="credential-label">Email:</span>' +
+                                '<span class="credential-value">' + data.email + '</span>' +
+                            '</div>' +
+                            '<div class="credential-row">' +
+                                '<span class="credential-label">Password:</span>' +
+                                '<span class="credential-value">' + data.password + '</span>' +
+                            '</div>' +
+                            '<div class="credential-row">' +
+                                '<span class="credential-label">Login URL:</span>' +
+                                '<span class="credential-value">mail.sendbaba.com</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="alert alert-success" style="margin-top:16px;">' +
+                            '<i class="fas fa-envelope"></i>' +
+                            '<span>Credentials have been sent to ' + recovery + '</span>' +
+                        '</div>';
+                    
+                    document.getElementById('mailbox-form-footer').style.display = 'none';
+                    document.getElementById('mailbox-success-footer').style.display = 'flex';
+                    
+                    showToast('Mailbox created successfully!');
+                } else {
+                    showToast(data.error || 'Failed to create mailbox', 'error');
+                }
+            })
+            .catch(function() {
+                showToast('Error creating mailbox', 'error');
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-plus"></i> Create Mailbox';
+            });
+        });
+        
+        document.getElementById('create-another-btn').addEventListener('click', function() {
+            openCreateMailboxModal();
+            loadMailboxes();
+        });
+        
+        document.getElementById('login-now-btn').addEventListener('click', function() {
+            if (createdCredentials) {
+                // Auto-login with the new credentials
+                showLoading('Logging in...');
+                
+                // Create a form and submit it
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/login';
+                
+                var emailInput = document.createElement('input');
+                emailInput.type = 'hidden';
+                emailInput.name = 'email';
+                emailInput.value = createdCredentials.email;
+                form.appendChild(emailInput);
+                
+                var passInput = document.createElement('input');
+                passInput.type = 'hidden';
+                passInput.name = 'password';
+                passInput.value = createdCredentials.password;
+                form.appendChild(passInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+        
+        // Reset Password
+        window.resetPassword = function(mailboxId) {
+            if (!confirm('Reset password? New credentials will be sent to the recovery email.')) return;
+            
+            showLoading('Resetting password...');
+            
+            fetch('/api/team/mailboxes/' + mailboxId + '/reset-password', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        showToast('New password sent to recovery email');
+                    } else {
+                        showToast(data.error || 'Failed to reset password', 'error');
+                    }
+                })
+                .catch(function() {
+                    showToast('Error resetting password', 'error');
+                })
+                .finally(hideLoading);
+        };
+        
+        // Delete Mailbox
+        window.deleteMailbox = function(mailboxId, email) {
+            if (!confirm('Delete ' + email + '? All emails will be permanently deleted.')) return;
+            
+            fetch('/api/team/mailboxes/' + mailboxId, { method: 'DELETE' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        showToast('Mailbox deleted');
+                        loadMailboxes();
+                    } else {
+                        showToast(data.error || 'Failed to delete', 'error');
+                    }
+                })
+                .catch(function() {
+                    showToast('Error deleting mailbox', 'error');
+                });
+        };
+        
+        // =====================
+        // TEAM MEMBERS
+        // =====================
+        
+        function loadMembers() {
+            fetch('/api/team/members')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        renderMembers(data.members || []);
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Error loading members:', err);
+                });
+        }
+        
+        function renderMembers(members) {
+            var container = document.getElementById('members-list');
+            
+            if (!members.length) {
+                container.innerHTML = '<div class="empty-state">' +
+                    '<i class="fas fa-users"></i>' +
+                    '<h3>Just You For Now</h3>' +
+                    '<p>Invite team members to collaborate</p>' +
+                    '</div>';
+                return;
+            }
+            
+            var html = '';
+            members.forEach(function(m) {
+                var initial = (m.name || m.email).charAt(0).toUpperCase();
+                
+                html += '<div class="list-item">' +
+                    '<div class="list-icon purple">' + initial + '</div>' +
+                    '<div class="list-info">' +
+                        '<div class="list-title">' + (m.name || 'Unknown') + '</div>' +
+                        '<div class="list-meta">' +
+                            '<span><i class="fas fa-envelope"></i> ' + m.email + '</span>' +
+                            '<span><i class="fas fa-user-tag"></i> ' + (m.role || 'member') + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Invite Member
+        document.getElementById('invite-member-btn').addEventListener('click', function() {
+            document.getElementById('invite-email').value = '';
+            document.getElementById('invite-role').value = 'member';
+            openModal('invite-modal');
+        });
+        
+        document.getElementById('submit-invite-btn').addEventListener('click', function() {
+            var email = document.getElementById('invite-email').value.trim();
+            var role = document.getElementById('invite-role').value;
+            
+            if (!email || email.indexOf('@') === -1) {
+                showToast('Please enter a valid email', 'error');
+                return;
+            }
+            
+            var btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Sending...';
+            
+            fetch('/api/team/invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email, role: role })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Invitation sent!');
+                    closeAllModals();
+                    loadMembers();
+                } else {
+                    showToast(data.error || 'Failed to send invite', 'error');
+                }
+            })
+            .catch(function() {
+                showToast('Error sending invite', 'error');
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Invite';
+            });
+        });
+        
+        // Handle hash navigation
+        if (location.hash === '#mailboxes') {
+            document.querySelector('.tab[data-tab="mailboxes"]').click();
+        } else if (location.hash === '#members') {
+            document.querySelector('.tab[data-tab="members"]').click();
+        }
+        
+        // Initialize
+        loadDomains();
+        
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{% extends 'univ.html' %}
+{% block title %}Sending Emails - SendBaba Docs{% endblock %}
+{% block content %}
+<section class="pt-32 pb-12 px-4 bg-gradient-to-br from-orange-500 to-red-600 text-white">
+    <div class="max-w-7xl mx-auto">
+        <a href="/docs" class="text-white/80 hover:text-white mb-4 inline-block">← Back to Docs</a>
+        <h1 class="text-4xl font-bold">Sending Emails</h1>
+        <p class="text-xl text-white/90 mt-4">Learn how to send transactional and bulk emails</p>
+    </div>
+</section>
+<section class="py-16 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl border p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Send a Single Email</h2>
+            <p class="text-gray-600 mb-6">Use the <code class="bg-gray-100 px-2 py-1 rounded">/v1/emails/send</code> endpoint to send a single email.</p>
+            
+            <h3 class="text-lg font-bold text-gray-900 mb-3">Request</h3>
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto mb-6">
+                <pre class="text-green-400 text-sm"><code>POST /v1/emails/send
+Content-Type: application/json
+Authorization: Bearer sb_live_your_api_key
+
+{
+  "from": "you@yourdomain.com",
+  "from_name": "Your Company",
+  "to": "recipient@example.com",
+  "subject": "Welcome to our service!",
+  "html": "&lt;h1&gt;Welcome!&lt;/h1&gt;&lt;p&gt;Thanks for signing up.&lt;/p&gt;",
+  "text": "Welcome! Thanks for signing up.",
+  "reply_to": "support@yourdomain.com",
+  "tags": ["welcome", "onboarding"]
+}</code></pre>
+            </div>
+            
+            <h3 class="text-lg font-bold text-gray-900 mb-3">Response</h3>
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto mb-6">
+                <pre class="text-green-400 text-sm"><code>{
+  "success": true,
+  "message_id": "msg_abc123xyz",
+  "status": "queued"
+}</code></pre>
+            </div>
+            
+            <h3 class="text-lg font-bold text-gray-900 mb-3">Parameters</h3>
+            <table class="w-full border-collapse text-sm">
+                <thead>
+                    <tr class="border-b bg-gray-50">
+                        <th class="text-left py-3 px-4">Parameter</th>
+                        <th class="text-left py-3 px-4">Type</th>
+                        <th class="text-left py-3 px-4">Required</th>
+                        <th class="text-left py-3 px-4">Description</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-600">
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">to</td><td>string</td><td>Yes</td><td>Recipient email</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">subject</td><td>string</td><td>Yes</td><td>Email subject</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">from</td><td>string</td><td>No</td><td>Sender email (must be verified domain)</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">from_name</td><td>string</td><td>No</td><td>Sender display name</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">html</td><td>string</td><td>No*</td><td>HTML content</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">text</td><td>string</td><td>No*</td><td>Plain text content</td></tr>
+                    <tr class="border-b"><td class="py-3 px-4 font-mono">reply_to</td><td>string</td><td>No</td><td>Reply-to address</td></tr>
+                    <tr><td class="py-3 px-4 font-mono">tags</td><td>array</td><td>No</td><td>Tags for tracking</td></tr>
+                </tbody>
+            </table>
+            <p class="text-gray-500 text-sm mt-2">* At least one of html or text is required</p>
+        </div>
+        
+        <div class="bg-white rounded-2xl border p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Send Bulk Emails</h2>
+            <p class="text-gray-600 mb-6">Send up to 1,000 emails in a single API call using <code class="bg-gray-100 px-2 py-1 rounded">/v1/emails/batch</code>.</p>
+            
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                <pre class="text-green-400 text-sm"><code>POST /v1/emails/batch
+{
+  "emails": [
+    {"to": "user1@example.com", "subject": "Hello User 1", "html": "..."},
+    {"to": "user2@example.com", "subject": "Hello User 2", "html": "..."}
+  ]
+}</code></pre>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

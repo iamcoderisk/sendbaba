@@ -1,0 +1,450 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'analytics' %}
+
+{% block title %}Real-Time Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Real-Time Analytics</h1>
+            <p class="text-gray-500">Live email sending statistics and performance metrics</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <select id="time-range" onchange="changeTimeRange(this.value)" class="px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500">
+                <option value="1h">Last 1 Hour</option>
+                <option value="24h" selected>Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+            </select>
+            <button onclick="refreshAnalytics()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+            <button onclick="exportReport()" class="px-4 py-2 gradient-primary text-white rounded-xl hover:opacity-90 transition-opacity card-shadow">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+        </div>
+    </div>
+    
+    <!-- Live Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <!-- Emails/Second -->
+        <div class="bg-white rounded-2xl p-5 card-shadow card-shadow-hover">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center">
+                    <i class="fas fa-bolt text-white text-xl"></i>
+                </div>
+                <span class="flex items-center text-green-500 text-sm font-medium">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-1 pulse-dot"></span>LIVE
+                </span>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-rate">0</p>
+            <p class="text-sm text-gray-500">Emails/Second</p>
+            <div class="mt-2 flex items-center text-sm">
+                <span class="text-green-500"><i class="fas fa-arrow-up mr-1"></i><span id="stat-rate-change">0</span>%</span>
+                <span class="text-gray-400 ml-2">vs last hour</span>
+            </div>
+        </div>
+        
+        <!-- Sent Today -->
+        <div class="bg-white rounded-2xl p-5 card-shadow card-shadow-hover">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-success rounded-xl flex items-center justify-center">
+                    <i class="fas fa-paper-plane text-white text-xl"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-sent">0</p>
+            <p class="text-sm text-gray-500">Sent Today</p>
+            <div class="mt-2">
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class="gradient-success h-2 rounded-full progress-bar" id="sent-progress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Delivery Rate -->
+        <div class="bg-white rounded-2xl p-5 card-shadow card-shadow-hover">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-info rounded-xl flex items-center justify-center">
+                    <i class="fas fa-check-double text-white text-xl"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-gray-800"><span id="stat-delivery">0</span>%</p>
+            <p class="text-sm text-gray-500">Delivery Rate</p>
+            <div class="mt-2 flex items-center text-sm">
+                <span class="text-green-500"><i class="fas fa-arrow-up mr-1"></i>2.3%</span>
+                <span class="text-gray-400 ml-2">vs yesterday</span>
+            </div>
+        </div>
+        
+        <!-- Bounces -->
+        <div class="bg-white rounded-2xl p-5 card-shadow card-shadow-hover">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-danger rounded-xl flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-white text-xl"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-bounces">0</p>
+            <p class="text-sm text-gray-500">Bounces</p>
+            <div class="mt-2 flex items-center text-sm">
+                <span id="bounce-rate" class="text-red-500">0%</span>
+                <span class="text-gray-400 ml-2">bounce rate</span>
+            </div>
+        </div>
+        
+        <!-- Queue Size -->
+        <div class="bg-white rounded-2xl p-5 card-shadow card-shadow-hover">
+            <div class="flex items-center justify-between mb-3">
+                <div class="w-12 h-12 gradient-warning rounded-xl flex items-center justify-center">
+                    <i class="fas fa-layer-group text-white text-xl"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="stat-queue">0</p>
+            <p class="text-sm text-gray-500">In Queue</p>
+            <div class="mt-2 flex items-center text-sm">
+                <span class="text-blue-500"><i class="fas fa-clock mr-1"></i><span id="queue-eta">0</span>min</span>
+                <span class="text-gray-400 ml-2">to clear</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Real-Time Sending Chart -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">Real-Time Sending Rate</h3>
+                <div class="flex items-center space-x-2 text-sm">
+                    <span class="flex items-center"><span class="w-3 h-3 bg-blue-500 rounded-full mr-1"></span>Sent</span>
+                    <span class="flex items-center"><span class="w-3 h-3 bg-red-500 rounded-full mr-1"></span>Failed</span>
+                </div>
+            </div>
+            <div id="realtime-chart" style="height: 300px;"></div>
+        </div>
+        
+        <!-- Provider Breakdown -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">Provider Breakdown</h3>
+                <span class="text-sm text-gray-500">Today's distribution</span>
+            </div>
+            <div id="provider-chart" style="height: 300px;"></div>
+        </div>
+    </div>
+    
+    <!-- Second Row Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Hourly Distribution -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">Hourly Distribution</h3>
+                <div class="flex space-x-2">
+                    <button class="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg">Sent</button>
+                    <button class="px-3 py-1 text-sm text-gray-500 hover:bg-gray-50 rounded-lg">Opens</button>
+                    <button class="px-3 py-1 text-sm text-gray-500 hover:bg-gray-50 rounded-lg">Clicks</button>
+                </div>
+            </div>
+            <div id="hourly-chart" style="height: 280px;"></div>
+        </div>
+        
+        <!-- Delivery Status -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Delivery Status</h3>
+            <div id="status-chart" style="height: 200px;"></div>
+            <div class="mt-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="flex items-center text-sm">
+                        <span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span>Delivered
+                    </span>
+                    <span class="font-bold text-gray-800" id="status-delivered">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="flex items-center text-sm">
+                        <span class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>Pending
+                    </span>
+                    <span class="font-bold text-gray-800" id="status-pending">0</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="flex items-center text-sm">
+                        <span class="w-3 h-3 bg-red-500 rounded-full mr-2"></span>Failed
+                    </span>
+                    <span class="font-bold text-gray-800" id="status-failed">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Geographic & Top Campaigns -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Top Sending Campaigns -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">Top Active Campaigns</h3>
+                <a href="/hub/campaigns" class="text-sm text-blue-600 hover:text-blue-700">View All</a>
+            </div>
+            <div class="space-y-4" id="top-campaigns">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+        
+        <!-- Top Sending IPs -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-bold text-gray-800">IP Performance</h3>
+                <a href="/hub/servers" class="text-sm text-blue-600 hover:text-blue-700">Manage IPs</a>
+            </div>
+            <div class="space-y-3" id="ip-performance">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity Stream -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">Live Activity Stream</h3>
+            <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></span>
+                <span class="text-sm text-gray-500">Live updates</span>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">Time</th>
+                        <th class="pb-3 font-medium">Recipient</th>
+                        <th class="pb-3 font-medium">Subject</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Server</th>
+                    </tr>
+                </thead>
+                <tbody id="activity-stream" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Chart instances
+let realtimeChart, providerChart, hourlyChart, statusChart;
+
+// Initialize charts
+function initCharts() {
+    // Real-time sending chart
+    realtimeChart = new ApexCharts(document.querySelector("#realtime-chart"), {
+        chart: { type: 'area', height: 300, animations: { enabled: true, dynamicAnimation: { speed: 1000 } }, toolbar: { show: false } },
+        series: [
+            { name: 'Sent', data: Array(30).fill(0) },
+            { name: 'Failed', data: Array(30).fill(0) }
+        ],
+        colors: ['#3b82f6', '#ef4444'],
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
+        stroke: { curve: 'smooth', width: 2 },
+        xaxis: { labels: { show: false }, axisBorder: { show: false }, axisTicks: { show: false } },
+        yaxis: { labels: { formatter: (v) => formatNumber(v) } },
+        grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+        tooltip: { x: { show: false } },
+        legend: { show: false }
+    });
+    realtimeChart.render();
+    
+    // Provider breakdown donut
+    providerChart = new ApexCharts(document.querySelector("#provider-chart"), {
+        chart: { type: 'donut', height: 300 },
+        series: [44, 25, 15, 10, 6],
+        labels: ['Gmail', 'Yahoo', 'Outlook', 'Others', 'Custom'],
+        colors: ['#ea4335', '#7c3aed', '#0078d4', '#6b7280', '#10b981'],
+        plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, label: 'Total', formatter: () => '0' } } } } },
+        legend: { position: 'bottom' },
+        dataLabels: { enabled: false }
+    });
+    providerChart.render();
+    
+    // Hourly distribution
+    hourlyChart = new ApexCharts(document.querySelector("#hourly-chart"), {
+        chart: { type: 'bar', height: 280, toolbar: { show: false } },
+        series: [{ name: 'Emails', data: Array(24).fill(0) }],
+        colors: ['#3b82f6'],
+        plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
+        xaxis: { categories: Array.from({length: 24}, (_, i) => `${i}:00`), labels: { rotate: -45 } },
+        yaxis: { labels: { formatter: (v) => formatNumber(v) } },
+        grid: { borderColor: '#f1f5f9' },
+        dataLabels: { enabled: false }
+    });
+    hourlyChart.render();
+    
+    // Status radial
+    statusChart = new ApexCharts(document.querySelector("#status-chart"), {
+        chart: { type: 'radialBar', height: 200 },
+        series: [95],
+        colors: ['#10b981'],
+        plotOptions: { radialBar: { hollow: { size: '70%' }, dataLabels: { name: { show: true, fontSize: '14px' }, value: { show: true, fontSize: '24px', fontWeight: 'bold' } } } },
+        labels: ['Success Rate']
+    });
+    statusChart.render();
+}
+
+// Fetch and update analytics
+async function fetchAnalytics() {
+    try {
+        const res = await fetch('/hub/api/analytics/realtime');
+        const data = await res.json();
+        
+        if (data.success) {
+            // Update stat cards
+            document.getElementById('stat-rate').textContent = data.sending_rate || 0;
+            document.getElementById('stat-sent').textContent = formatNumber(data.sent_today || 0);
+            document.getElementById('stat-delivery').textContent = (data.delivery_rate || 0).toFixed(1);
+            document.getElementById('stat-bounces').textContent = formatNumber(data.bounces || 0);
+            document.getElementById('stat-queue').textContent = formatNumber(data.queue_size || 0);
+            document.getElementById('bounce-rate').textContent = (data.bounce_rate || 0).toFixed(2) + '%';
+            
+            // Update progress
+            const sentProgress = Math.min((data.sent_today / data.daily_capacity) * 100, 100);
+            document.getElementById('sent-progress').style.width = sentProgress + '%';
+            
+            // Update charts
+            if (data.realtime_data) {
+                realtimeChart.updateSeries([
+                    { data: data.realtime_data.sent },
+                    { data: data.realtime_data.failed }
+                ]);
+            }
+            
+            if (data.provider_data) {
+                providerChart.updateSeries(data.provider_data.values);
+                providerChart.updateOptions({ labels: data.provider_data.labels });
+            }
+            
+            if (data.hourly_data) {
+                hourlyChart.updateSeries([{ data: data.hourly_data }]);
+            }
+            
+            // Update status
+            document.getElementById('status-delivered').textContent = formatNumber(data.delivered || 0);
+            document.getElementById('status-pending').textContent = formatNumber(data.pending || 0);
+            document.getElementById('status-failed').textContent = formatNumber(data.failed || 0);
+            
+            // Update top campaigns
+            updateTopCampaigns(data.top_campaigns || []);
+            
+            // Update IP performance
+            updateIPPerformance(data.ip_stats || []);
+        }
+    } catch (e) {
+        console.error('Analytics fetch error:', e);
+    }
+}
+
+function updateTopCampaigns(campaigns) {
+    const container = document.getElementById('top-campaigns');
+    if (campaigns.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-4">No active campaigns</p>';
+        return;
+    }
+    container.innerHTML = campaigns.slice(0, 5).map(c => `
+        <div class="flex items-center space-x-4">
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-800 truncate">${c.name}</p>
+                <p class="text-sm text-gray-500">${c.organization || 'Unknown'}</p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold text-gray-800">${formatNumber(c.sent)}</p>
+                <p class="text-xs text-gray-500">sent</p>
+            </div>
+            <div class="w-24">
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-green-500">${c.success_rate || 0}%</span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2">
+                    <div class="bg-green-500 h-2 rounded-full" style="width: ${c.success_rate || 0}%"></div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateIPPerformance(ips) {
+    const container = document.getElementById('ip-performance');
+    if (ips.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-center py-4">No IP data</p>';
+        return;
+    }
+    container.innerHTML = ips.slice(0, 6).map(ip => `
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center ${ip.status === 'online' ? 'bg-green-100' : 'bg-gray-100'}">
+                <i class="fas fa-server ${ip.status === 'online' ? 'text-green-500' : 'text-gray-400'}"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-800 text-sm truncate">${ip.hostname}</p>
+                <p class="text-xs text-gray-500">${ip.ip_address}</p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold text-gray-800 text-sm">${formatNumber(ip.sent_today)}</p>
+                <p class="text-xs ${ip.status === 'online' ? 'text-green-500' : 'text-gray-400'}">${ip.status}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Activity stream
+async function fetchActivityStream() {
+    try {
+        const res = await fetch('/hub/api/analytics/activity');
+        const data = await res.json();
+        
+        if (data.success && data.activities) {
+            const tbody = document.getElementById('activity-stream');
+            tbody.innerHTML = data.activities.slice(0, 10).map(a => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                    <td class="py-3 text-gray-500">${a.time}</td>
+                    <td class="py-3">${a.recipient}</td>
+                    <td class="py-3 truncate max-w-xs">${a.subject}</td>
+                    <td class="py-3">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                            a.status === 'sent' ? 'bg-green-100 text-green-700' :
+                            a.status === 'failed' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                        }">${a.status}</span>
+                    </td>
+                    <td class="py-3 text-gray-500">${a.server || '-'}</td>
+                </tr>
+            `).join('');
+        }
+    } catch (e) {}
+}
+
+function refreshAnalytics() {
+    fetchAnalytics();
+    fetchActivityStream();
+    showToast('Analytics refreshed', 'success');
+}
+
+function changeTimeRange(range) {
+    // Refetch with new time range
+    fetchAnalytics();
+}
+
+function exportReport() {
+    window.open('/hub/api/analytics/export?format=pdf', '_blank');
+    showToast('Generating report...', 'info');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    fetchAnalytics();
+    fetchActivityStream();
+    
+    // Auto-refresh every 5 seconds
+    setInterval(fetchAnalytics, 5000);
+    setInterval(fetchActivityStream, 10000);
+});
+</script>
+{% endblock %}

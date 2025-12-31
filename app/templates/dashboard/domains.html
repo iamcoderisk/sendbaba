@@ -39,455 +39,188 @@
     animation: slideInRight 0.3s ease, fadeOut 0.3s ease 4.7s forwards;
     backdrop-filter: blur(10px);
 }
-.toast-success {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-}
-.toast-error {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-}
-.toast-warning {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-}
-.toast-info {
-    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-    color: white;
-}
+.toast-success { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+.toast-error { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+.toast-warning { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+.toast-info { background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%); color: white; }
 .toast-icon {
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255,255,255,0.2);
-    border-radius: 50%;
+    width: 24px; height: 24px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.2); border-radius: 50%;
 }
 .toast-content { flex: 1; }
 .toast-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
 .toast-message { font-size: 13px; opacity: 0.9; }
-.toast-close {
-    background: none;
-    border: none;
-    color: white;
-    opacity: 0.7;
-    cursor: pointer;
-    padding: 0;
-    font-size: 18px;
-}
+.toast-close { background: none; border: none; color: white; opacity: 0.7; cursor: pointer; padding: 0; font-size: 18px; }
 .toast-close:hover { opacity: 1; }
-@keyframes slideInRight {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-@keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; transform: translateX(100%); }
-}
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateX(100%); } }
 
 /* Domain Cards */
-.domain-card {
-    transition: all 0.3s ease;
-    border: 1px solid #e5e7eb;
-}
-.domain-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-    border-color: var(--brand-primary);
-}
+.domain-card { transition: all 0.3s ease; border: 1px solid #e5e7eb; }
+.domain-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); border-color: var(--brand-primary); }
 .domain-icon {
-    width: 56px;
-    height: 56px;
+    width: 56px; height: 56px;
     background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border-radius: 16px; display: flex; align-items: center; justify-content: center;
     box-shadow: 0 8px 20px var(--brand-shadow);
 }
 .badge-verified {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: white; padding: 6px 14px; border-radius: 20px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 .badge-pending {
     background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: white; padding: 6px 14px; border-radius: 20px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
 /* DNS Records */
 .dns-record-box {
     background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid #334155;
+    border-radius: 12px; overflow: hidden; border: 1px solid #334155;
 }
 .dns-record-header {
-    background: rgba(255,255,255,0.05);
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    background: rgba(255,255,255,0.05); padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
     border-bottom: 1px solid #334155;
 }
-.dns-record-type {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 700;
-    color: #e2e8f0;
-}
+.dns-record-type { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: #e2e8f0; }
 .dns-record-type-badge {
-    background: var(--brand-primary);
-    color: white;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 10px;
-    font-weight: 700;
+    background: var(--brand-primary); color: white;
+    padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700;
 }
 .dns-record-content { padding: 16px; }
-.dns-record-row {
-    display: grid;
-    grid-template-columns: 80px 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-}
+.dns-record-row { display: grid; grid-template-columns: 80px 1fr; gap: 12px; margin-bottom: 12px; }
 .dns-record-row:last-child { margin-bottom: 0; }
-.dns-record-label {
-    color: #94a3b8;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-}
+.dns-record-label { color: #94a3b8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
 .dns-record-value {
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-    font-size: 13px;
-    color: var(--brand-primary);
-    background: rgba(248, 113, 55, 0.1);
-    padding: 10px 14px;
-    border-radius: 8px;
-    word-break: break-all;
-    line-height: 1.5;
-    border: 1px solid rgba(248, 113, 55, 0.2);
+    font-size: 13px; color: var(--brand-primary);
+    background: rgba(248, 113, 55, 0.1); padding: 10px 14px; border-radius: 8px;
+    word-break: break-all; line-height: 1.5; border: 1px solid rgba(248, 113, 55, 0.2);
 }
 .copy-btn {
     background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    color: white; border: none; padding: 8px 16px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
 }
-.copy-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px var(--brand-shadow-strong);
-}
+.copy-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px var(--brand-shadow-strong); }
 
 /* Modal Styles */
 .modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 9999;
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 9999;
     animation: fadeIn 0.2s ease;
 }
-.modal-overlay.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
+.modal-overlay.active { display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal-box {
-    background: white;
-    border-radius: 20px;
-    max-width: 900px;
-    width: 100%;
-    max-height: 90vh;
-    overflow: hidden;
-    animation: scaleIn 0.3s ease;
+    background: white; border-radius: 20px; max-width: 900px; width: 100%;
+    max-height: 90vh; overflow: hidden; animation: scaleIn 0.3s ease;
     box-shadow: 0 25px 80px rgba(0,0,0,0.3);
 }
 .modal-header {
     background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-    color: white;
-    padding: 24px 28px;
+    color: white; padding: 24px 28px;
 }
 .modal-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
 .modal-header p { opacity: 0.9; font-size: 14px; }
-.modal-body {
-    padding: 28px;
-    overflow-y: auto;
-    max-height: calc(90vh - 160px);
-}
+.modal-body { padding: 28px; overflow-y: auto; max-height: calc(90vh - 160px); }
 .modal-close {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(255,255,255,0.2);
-    border: none;
-    color: white;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 18px;
-    transition: all 0.2s;
+    position: absolute; top: 20px; right: 20px;
+    background: rgba(255,255,255,0.2); border: none; color: white;
+    width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; transition: all 0.2s;
 }
-.modal-close:hover {
-    background: rgba(255,255,255,0.3);
-    transform: rotate(90deg);
-}
+.modal-close:hover { background: rgba(255,255,255,0.3); transform: rotate(90deg); }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-/* Steps Indicator */
-.steps-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-bottom: 28px;
-    padding: 16px;
-    background: #f8fafc;
-    border-radius: 12px;
-}
-.step {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
-    transition: all 0.3s;
-}
-.step.active {
-    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-    color: white;
-    box-shadow: 0 4px 12px var(--brand-shadow);
-}
-.step.completed { background: #10b981; color: white; }
-.step-number {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-}
-.step.active .step-number, .step.completed .step-number { background: rgba(255,255,255,0.2); }
-.step-divider { width: 40px; height: 2px; background: #e2e8f0; }
-
 /* DNS Status Pills */
 .dns-status { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.dns-pill {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 600;
-}
+.dns-pill { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
 .dns-pill.valid { background: #d1fae5; color: #059669; }
 .dns-pill.invalid { background: #fee2e2; color: #dc2626; }
 .dns-pill.pending { background: #fef3c7; color: #d97706; }
 
-/* Button Styles - ORANGE THEME */
+/* Button Styles */
 .btn-primary {
     background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    color: white; border: none; padding: 12px 24px; border-radius: 10px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
     box-shadow: 0 4px 12px var(--brand-shadow);
 }
-.btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px var(--brand-shadow-strong);
-}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px var(--brand-shadow-strong); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-secondary {
-    background: #f1f5f9;
-    color: #475569;
-    border: 2px solid #e2e8f0;
-    padding: 12px 24px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+    background: #f1f5f9; color: #475569; border: 2px solid #e2e8f0;
+    padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s;
 }
 .btn-secondary:hover { background: #e2e8f0; border-color: #cbd5e1; }
 .btn-success {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    color: white; border: none; padding: 10px 20px; border-radius: 10px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 6px;
 }
-.btn-success:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
-}
-.btn-danger {
-    background: #fee2e2;
-    color: #dc2626;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
+.btn-success:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4); }
+.btn-danger { background: #fee2e2; color: #dc2626; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .btn-danger:hover { background: #fecaca; }
 
 /* Empty State */
 .empty-state {
-    text-align: center;
-    padding: 60px 40px;
+    text-align: center; padding: 60px 40px;
     background: linear-gradient(135deg, var(--brand-light) 0%, var(--brand-lighter) 100%);
-    border-radius: 20px;
-    border: 2px dashed var(--brand-border);
+    border-radius: 20px; border: 2px dashed var(--brand-border);
 }
 .empty-state-icon {
-    width: 80px;
-    height: 80px;
+    width: 80px; height: 80px;
     background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-dark) 100%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 24px;
-    box-shadow: 0 12px 30px var(--brand-shadow);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px; box-shadow: 0 12px 30px var(--brand-shadow);
 }
 .empty-state-icon i { font-size: 32px; color: white; }
 
 /* Input Styles */
 .input-group { margin-bottom: 20px; }
 .input-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
-.input-field {
-    width: 100%;
-    padding: 14px 18px;
-    border: 2px solid #e5e7eb;
-    border-radius: 12px;
-    font-size: 16px;
-    transition: all 0.2s;
-}
-.input-field:focus {
-    outline: none;
-    border-color: var(--brand-primary);
-    box-shadow: 0 0 0 4px rgba(248, 113, 55, 0.1);
-}
+.input-field { width: 100%; padding: 14px 18px; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 16px; transition: all 0.2s; }
+.input-field:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 4px rgba(248, 113, 55, 0.1); }
 .input-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
 
 /* Loading Spinner */
-.spinner {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* IP Pool Display */
-.ip-pool-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-top: 16px;
-}
-.ip-card {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 14px;
-}
-.ip-address { font-family: monospace; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
-.ip-hostname { font-size: 12px; color: #64748b; }
-
-/* Verification Results */
-.verify-results { margin-top: 20px; }
-.verify-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: #f8fafc;
-    border-radius: 10px;
-    margin-bottom: 10px;
-}
-.verify-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.verify-icon.success { background: #d1fae5; color: #059669; }
-.verify-icon.error { background: #fee2e2; color: #dc2626; }
-.verify-icon.pending { background: #fef3c7; color: #d97706; }
-
-/* Info boxes with orange theme */
-.info-box {
-    background: var(--brand-light);
-    border: 1px solid var(--brand-border);
-    border-radius: 12px;
-    padding: 16px;
-}
+/* Info boxes */
+.info-box { background: var(--brand-light); border: 1px solid var(--brand-border); border-radius: 12px; padding: 16px; }
+.info-box-success { background: #ecfdf5; border: 1px solid #a7f3d0; }
 .info-box .info-icon { color: var(--brand-dark); }
 .info-box .info-text { color: var(--brand-darker); }
 .info-box .info-title { color: var(--brand-dark); font-weight: 700; }
 
-/* Header stats */
-.header-stat { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #64748b; }
-.header-stat i { color: var(--brand-primary); }
+/* Verification Results */
+.verify-results { margin-top: 20px; }
+.verify-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #f8fafc; border-radius: 10px; margin-bottom: 10px; }
+.verify-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.verify-icon.success { background: #d1fae5; color: #059669; }
+.verify-icon.error { background: #fee2e2; color: #dc2626; }
+.verify-icon.pending { background: #fef3c7; color: #d97706; }
+
+/* Highlight box */
+.highlight-box {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #f59e0b;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+.highlight-box .highlight-title { color: #92400e; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.highlight-box .highlight-text { color: #a16207; font-size: 13px; }
 </style>
 
 <!-- Toast Container -->
@@ -497,14 +230,14 @@
 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
     <div>
         <div class="flex items-center gap-4 text-sm">
-            <span class="header-stat">
-                <i class="fas fa-server"></i>
-                <strong>4 Sending IPs</strong>
+            <span class="flex items-center gap-2 text-gray-600">
+                <i class="fas fa-shield-alt text-green-500"></i>
+                <strong>Enterprise Authentication</strong>
             </span>
             <span class="text-gray-300">|</span>
-            <span class="header-stat">
-                <i class="fas fa-shield-alt"></i>
-                Enterprise Authentication
+            <span class="flex items-center gap-2 text-gray-600">
+                <i class="fas fa-infinity text-blue-500"></i>
+                Secure Email Delivery
             </span>
         </div>
     </div>
@@ -534,24 +267,24 @@
                 {{ 'Verified' if domain.dns_verified else 'Pending DNS' }}
             </span>
         </div>
-        
+
         <!-- DNS Status Pills -->
         <div class="dns-status">
-            <span class="dns-pill {{ 'valid' if domain.dns_verified else 'pending' }}">
-                <i class="fas fa-{{ 'check' if domain.dns_verified else 'clock' }}"></i> SPF
+            <span class="dns-pill {{ 'valid' if domain.spf_valid else 'pending' }}">
+                <i class="fas fa-{{ 'check' if domain.spf_valid else 'clock' }}"></i> SPF
             </span>
-            <span class="dns-pill {{ 'valid' if domain.dns_verified else 'pending' }}">
-                <i class="fas fa-{{ 'check' if domain.dns_verified else 'clock' }}"></i> DKIM
+            <span class="dns-pill {{ 'valid' if domain.dkim_valid else 'pending' }}">
+                <i class="fas fa-{{ 'check' if domain.dkim_valid else 'clock' }}"></i> DKIM
             </span>
-            <span class="dns-pill {{ 'valid' if domain.dns_verified else 'pending' }}">
-                <i class="fas fa-{{ 'check' if domain.dns_verified else 'clock' }}"></i> DMARC
+            <span class="dns-pill {{ 'valid' if domain.dmarc_valid else 'pending' }}">
+                <i class="fas fa-{{ 'check' if domain.dmarc_valid else 'clock' }}"></i> DMARC
             </span>
         </div>
-        
+
         <!-- Action Buttons -->
         <div class="flex items-center gap-3 mt-5 pt-5 border-t border-gray-100">
             {% if not domain.dns_verified %}
-            <button onclick="openDNSModal('{{ domain.id }}', '{{ domain.domain_name }}', '{{ domain.dkim_public_key }}')" class="flex-1 btn-primary" style="padding: 10px 16px; font-size: 13px;">
+            <button onclick="openDNSModal('{{ domain.id }}', '{{ domain.domain_name }}')" class="flex-1 btn-primary" style="padding: 10px 16px; font-size: 13px;">
                 <i class="fas fa-cog"></i>
                 <span>Configure DNS</span>
             </button>
@@ -560,11 +293,11 @@
                 <span>Verify</span>
             </button>
             {% else %}
-            <button onclick="openDNSModal('{{ domain.id }}', '{{ domain.domain_name }}', '{{ domain.dkim_public_key }}')" class="flex-1 btn-secondary" style="padding: 10px 16px; font-size: 13px;">
+            <button onclick="openDNSModal('{{ domain.id }}', '{{ domain.domain_name }}')" class="flex-1 btn-secondary" style="padding: 10px 16px; font-size: 13px;">
                 <i class="fas fa-eye"></i>
                 <span>View DNS Records</span>
             </button>
-            <button onclick="recheckDomain('{{ domain.id }}', '{{ domain.domain_name }}')" class="btn-success" style="padding: 10px 16px; font-size: 13px;">
+            <button onclick="verifyDomain('{{ domain.id }}', '{{ domain.domain_name }}')" class="btn-success" style="padding: 10px 16px; font-size: 13px;">
                 <i class="fas fa-sync-alt"></i>
                 <span>Re-check</span>
             </button>
@@ -599,44 +332,33 @@
         </button>
         <div class="modal-header">
             <h2>Add Sending Domain</h2>
-            <p>We'll generate secure DKIM keys and DNS records for your domain</p>
+            <p>Simple setup - just 3 DNS records, never needs updating!</p>
         </div>
         <div class="modal-body">
             <form id="addDomainForm" onsubmit="addDomain(event)">
                 <div class="input-group">
                     <label class="input-label">Domain Name</label>
-                    <input 
-                        type="text" 
-                        id="domainInput" 
-                        name="domain"
-                        placeholder="yourdomain.com" 
-                        class="input-field"
-                        required
-                    />
+                    <input type="text" id="domainInput" name="domain" placeholder="yourdomain.com" class="input-field" required />
                     <p class="input-hint">Enter your domain without http:// or www (e.g., company.com)</p>
                 </div>
-                
-                <div class="info-box mb-6">
+
+                <div class="info-box-success info-box mb-6">
                     <div class="flex items-start gap-3">
-                        <div class="info-icon mt-0.5">
-                            <i class="fas fa-info-circle"></i>
-                        </div>
-                        <div class="text-sm info-text">
-                            <strong class="info-title">What happens next?</strong>
-                            <ul class="mt-2 space-y-1">
-                                <li>• We'll generate a unique 2048-bit DKIM key pair</li>
-                                <li>• You'll get SPF, DKIM, and DMARC records</li>
-                                <li>• Add these records to your DNS provider</li>
-                                <li>• Verify to start sending authenticated emails</li>
+                        <div class="mt-0.5"><i class="fas fa-magic text-green-600"></i></div>
+                        <div class="text-sm">
+                            <strong class="text-green-800">SendGrid-Style Setup</strong>
+                            <ul class="mt-2 space-y-1 text-green-700">
+                                <li>✓ Add DNS records once, never update again</li>
+                                <li>✓ We manage all sending IPs centrally</li>
+                                <li>✓ Automatic DKIM key generation</li>
+                                <li>✓ Enterprise-grade authentication</li>
                             </ul>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="flex gap-3">
-                    <button type="button" onclick="closeAddDomainModal()" class="flex-1 btn-secondary">
-                        Cancel
-                    </button>
+                    <button type="button" onclick="closeAddDomainModal()" class="flex-1 btn-secondary">Cancel</button>
                     <button type="submit" id="addDomainBtn" class="flex-1 btn-primary">
                         <span id="addBtnText">Generate DNS Records</span>
                         <span id="addBtnLoading" class="hidden"><span class="spinner"></span> Generating...</span>
@@ -655,65 +377,27 @@
         </button>
         <div class="modal-header">
             <h2 id="dnsModalTitle">DNS Configuration</h2>
-            <p>Add these records to your DNS provider to authenticate your emails</p>
+            <p>Add these 3 records to your DNS provider - you'll never need to change them!</p>
         </div>
         <div class="modal-body">
-            <!-- Steps -->
-            <div class="steps-container">
-                <div class="step active" data-step="1">
-                    <span class="step-number">1</span>
-                    <span>Copy Records</span>
-                </div>
-                <div class="step-divider"></div>
-                <div class="step" data-step="2">
-                    <span class="step-number">2</span>
-                    <span>Add to DNS</span>
-                </div>
-                <div class="step-divider"></div>
-                <div class="step" data-step="3">
-                    <span class="step-number">3</span>
-                    <span>Verify</span>
+            <!-- Important Notice -->
+            <div class="highlight-box">
+                <div class="highlight-title"><i class="fas fa-star mr-2"></i>One-Time Setup</div>
+                <div class="highlight-text">Unlike other providers, you only add these records once. When we add new sending IPs, your DNS stays the same because we use centralized SPF management.</div>
+            </div>
+
+            <!-- DNS Records Container -->
+            <div id="dnsRecordsContainer" class="space-y-5">
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading DNS records...</p>
                 </div>
             </div>
-            
-            <!-- IP Pool Info -->
-            <div class="info-box mb-6">
-                <div class="flex items-start gap-3">
-                    <div class="info-icon">
-                        <i class="fas fa-server"></i>
-                    </div>
-                    <div class="text-sm info-text">
-                        <strong class="info-title">Sending Infrastructure</strong>
-                        <p class="mt-1">Your emails will be sent from these IP addresses with automatic rotation:</p>
-                        <div class="ip-pool-grid">
-                            <div class="ip-card">
-                                <div class="ip-address">156.67.29.186</div>
-                                <div class="ip-hostname">mail1.sendbaba.com</div>
-                            </div>
-                            <div class="ip-card">
-                                <div class="ip-address">161.97.162.82</div>
-                                <div class="ip-hostname">mail2.sendbaba.com</div>
-                            </div>
-                            <div class="ip-card">
-                                <div class="ip-address">207.244.232.12</div>
-                                <div class="ip-hostname">mail3.sendbaba.com</div>
-                            </div>
-                            <div class="ip-card">
-                                <div class="ip-address">31.220.109.225</div>
-                                <div class="ip-hostname">mail4.sendbaba.com</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- DNS Records -->
-            <div id="dnsRecordsContainer" class="space-y-5"></div>
-            
+
             <!-- Verification Section -->
             <div id="verifySection" class="mt-6 pt-6 border-t border-gray-200">
                 <h3 class="font-bold text-gray-900 mb-3">Ready to verify?</h3>
-                <p class="text-sm text-gray-600 mb-4">After adding all DNS records, click below to verify your domain. DNS propagation may take up to 48 hours.</p>
+                <p class="text-sm text-gray-600 mb-4">After adding all DNS records, click below to verify. DNS changes typically take 5-15 minutes, but can take up to 48 hours.</p>
                 <button id="verifyDomainBtn" onclick="verifyCurrentDomain()" class="btn-success w-full justify-center">
                     <i class="fas fa-check-double"></i>
                     <span>Verify DNS Records</span>
@@ -748,7 +432,6 @@
 </div>
 
 <script>
-const SERVER_IPS = ['156.67.29.186', '161.97.162.82', '207.244.232.12', '31.220.109.225'];
 let currentDomainId = null;
 let currentDomainName = null;
 
@@ -785,16 +468,16 @@ async function addDomain(e) {
     const btnText = document.getElementById('addBtnText');
     const btnLoading = document.getElementById('addBtnLoading');
     const domain = document.getElementById('domainInput').value.trim().toLowerCase().replace(/^www\./, '');
-    
+
     if (!domain || !domain.includes('.')) {
         showToast('error', 'Invalid Domain', 'Please enter a valid domain name');
         return;
     }
-    
+
     btn.disabled = true;
     btnText.classList.add('hidden');
     btnLoading.classList.remove('hidden');
-    
+
     try {
         const response = await fetch('/dashboard/domains/add', {
             method: 'POST',
@@ -818,89 +501,115 @@ async function addDomain(e) {
     }
 }
 
-function openDNSModal(domainId, domainName, dkimKey) {
+async function openDNSModal(domainId, domainName) {
     currentDomainId = domainId;
     currentDomainName = domainName;
     document.getElementById('dnsModalTitle').textContent = `DNS Configuration for ${domainName}`;
-    const spfValue = `v=spf1 ${SERVER_IPS.map(ip => `ip4:${ip}`).join(' ')} ~all`;
-    
     document.getElementById('dnsRecordsContainer').innerHTML = `
-        <div class="dns-record-box">
-            <div class="dns-record-header">
-                <div class="dns-record-type">
-                    <span class="dns-record-type-badge">TXT</span> SPF Record
-                    <span class="text-xs text-gray-400 font-normal ml-2">Authorizes sending IPs</span>
-                </div>
-                <button onclick="copyRecord('spf')" class="copy-btn" id="copy-spf"><i class="fas fa-copy"></i> Copy</button>
-            </div>
-            <div class="dns-record-content">
-                <div class="dns-record-row">
-                    <div class="dns-record-label">Host/Name</div>
-                    <div class="dns-record-value">@</div>
-                </div>
-                <div class="dns-record-row">
-                    <div class="dns-record-label">Value</div>
-                    <div class="dns-record-value" id="spf-value">${spfValue}</div>
-                </div>
-            </div>
-        </div>
-        <div class="dns-record-box">
-            <div class="dns-record-header">
-                <div class="dns-record-type">
-                    <span class="dns-record-type-badge">TXT</span> DKIM Record
-                    <span class="text-xs text-gray-400 font-normal ml-2">Email signature verification</span>
-                </div>
-                <button onclick="copyRecord('dkim')" class="copy-btn" id="copy-dkim"><i class="fas fa-copy"></i> Copy</button>
-            </div>
-            <div class="dns-record-content">
-                <div class="dns-record-row">
-                    <div class="dns-record-label">Host/Name</div>
-                    <div class="dns-record-value">mail._domainkey</div>
-                </div>
-                <div class="dns-record-row">
-                    <div class="dns-record-label">Value</div>
-                    <div class="dns-record-value" id="dkim-value">v=DKIM1; k=rsa; p=${dkimKey || 'KEY_NOT_FOUND'}</div>
-                </div>
-            </div>
-        </div>
-        <div class="dns-record-box">
-            <div class="dns-record-header">
-                <div class="dns-record-type">
-                    <span class="dns-record-type-badge">TXT</span> DMARC Record
-                    <span class="text-xs text-gray-400 font-normal ml-2">Policy for failed authentication</span>
-                </div>
-                <button onclick="copyRecord('dmarc')" class="copy-btn" id="copy-dmarc"><i class="fas fa-copy"></i> Copy</button>
-            </div>
-            <div class="dns-record-content">
-                <div class="dns-record-row">
-                    <div class="dns-record-label">Host/Name</div>
-                    <div class="dns-record-value">_dmarc</div>
-                </div>
-                <div class="dns-record-row">
-                    <div class="dns-record-label">Value</div>
-                    <div class="dns-record-value" id="dmarc-value">v=DMARC1; p=quarantine; rua=mailto:dmarc@${domainName}; fo=1</div>
-                </div>
-            </div>
+        <div class="text-center py-8 text-gray-500">
+            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+            <p>Loading DNS records...</p>
         </div>
     `;
     document.getElementById('verifyResults').classList.add('hidden');
     document.getElementById('dnsModal').classList.add('active');
+
+    // Fetch DNS records from server
+    try {
+        const response = await fetch(`/dashboard/domains/${domainId}/dns-records`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderDNSRecords(data.records, data.domain, data.instructions);
+        } else {
+            document.getElementById('dnsRecordsContainer').innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                    <p>Failed to load DNS records</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('dnsRecordsContainer').innerHTML = `
+            <div class="text-center py-8 text-red-500">
+                <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                <p>Network error loading DNS records</p>
+            </div>
+        `;
+    }
+}
+
+function renderDNSRecords(records, domainName, instructions) {
+    let html = '';
+    
+    records.forEach((record, index) => {
+        const recordId = `record-${index}`;
+        html += `
+            <div class="dns-record-box">
+                <div class="dns-record-header">
+                    <div class="dns-record-type">
+                        <span class="dns-record-type-badge">${record.type}</span>
+                        ${record.description}
+                    </div>
+                    <button onclick="copyToClipboard('${recordId}-value', this)" class="copy-btn">
+                        <i class="fas fa-copy"></i> Copy Value
+                    </button>
+                </div>
+                <div class="dns-record-content">
+                    <div class="dns-record-row">
+                        <div class="dns-record-label">Host/Name</div>
+                        <div class="dns-record-value">${record.host}</div>
+                    </div>
+                    <div class="dns-record-row">
+                        <div class="dns-record-label">Type</div>
+                        <div class="dns-record-value">${record.type}</div>
+                    </div>
+                    <div class="dns-record-row">
+                        <div class="dns-record-label">Value</div>
+                        <div class="dns-record-value" id="${recordId}-value">${record.value}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    // Add instructions note
+    if (instructions) {
+        html += `
+            <div class="info-box mt-4">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-lightbulb text-yellow-500 mt-1"></i>
+                    <div class="text-sm text-gray-700">
+                        <strong class="text-gray-900">${instructions.note || 'Important'}</strong>
+                        <p class="mt-1">${instructions.spf_note || ''}</p>
+                        <p class="mt-1 text-gray-500">${instructions.time_note || 'DNS changes can take up to 48 hours to propagate.'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    document.getElementById('dnsRecordsContainer').innerHTML = html;
+}
+
+function copyToClipboard(elementId, button) {
+    const element = document.getElementById(elementId);
+    const text = element.textContent;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        showToast('success', 'Copied!', 'Record copied to clipboard');
+        setTimeout(() => { button.innerHTML = originalHTML; }, 2000);
+    }).catch(() => {
+        showToast('error', 'Copy Failed', 'Please select and copy manually');
+    });
 }
 
 function closeDNSModal() {
     document.getElementById('dnsModal').classList.remove('active');
     currentDomainId = null;
     currentDomainName = null;
-}
-
-function copyRecord(type) {
-    const value = document.getElementById(`${type}-value`).textContent;
-    const btn = document.getElementById(`copy-${type}`);
-    navigator.clipboard.writeText(value).then(() => {
-        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-        showToast('success', 'Copied!', `${type.toUpperCase()} record copied to clipboard`);
-        setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copy'; }, 2000);
-    });
 }
 
 async function verifyCurrentDomain() {
@@ -910,38 +619,60 @@ async function verifyCurrentDomain() {
 
 async function verifyDomain(domainId, domainName) {
     const btn = document.getElementById('verifyDomainBtn');
+    const originalHTML = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Verifying...'; }
-    
+
     try {
         const response = await fetch(`/dashboard/domains/${domainId}/verify`, { method: 'POST' });
         const data = await response.json();
+
+        const resultsDiv = document.getElementById('verifyResults');
         
-        if (data.success) {
+        if (data.verified) {
             showToast('success', 'Domain Verified!', `${domainName} is ready to send emails`);
-            const resultsDiv = document.getElementById('verifyResults');
             if (resultsDiv) {
                 resultsDiv.classList.remove('hidden');
-                resultsDiv.innerHTML = `<div class="verify-item"><div class="verify-icon success"><i class="fas fa-check"></i></div><div><div class="font-semibold text-gray-900">All DNS records verified!</div><div class="text-sm text-gray-600">Your domain is ready for sending</div></div></div>`;
+                resultsDiv.innerHTML = `
+                    <div class="verify-item">
+                        <div class="verify-icon success"><i class="fas fa-check"></i></div>
+                        <div>
+                            <div class="font-semibold text-gray-900">All DNS records verified!</div>
+                            <div class="text-sm text-gray-600">Your domain is ready for sending</div>
+                        </div>
+                    </div>
+                `;
             }
             setTimeout(() => window.location.reload(), 2000);
         } else {
-            showToast('warning', 'Verification Failed', data.error || 'DNS records not found');
-            const resultsDiv = document.getElementById('verifyResults');
-            if (resultsDiv) {
+            showToast('warning', 'Verification Incomplete', data.message || 'Some DNS records are missing');
+            if (resultsDiv && data.results) {
                 resultsDiv.classList.remove('hidden');
-                resultsDiv.innerHTML = `<div class="verify-item"><div class="verify-icon error"><i class="fas fa-times"></i></div><div><div class="font-semibold text-gray-900">Verification failed</div><div class="text-sm text-gray-600">${data.error || 'DNS records not found'}</div></div></div><p class="text-sm text-gray-500 mt-3"><i class="fas fa-info-circle text-blue-500"></i> DNS changes can take up to 48 hours to propagate.</p>`;
+                let resultsHTML = '';
+                
+                for (const [key, result] of Object.entries(data.results)) {
+                    const icon = result.valid ? 'check' : 'times';
+                    const iconClass = result.valid ? 'success' : 'error';
+                    resultsHTML += `
+                        <div class="verify-item">
+                            <div class="verify-icon ${iconClass}"><i class="fas fa-${icon}"></i></div>
+                            <div>
+                                <div class="font-semibold text-gray-900">${key.toUpperCase()}</div>
+                                <div class="text-sm text-gray-600">${result.message}</div>
+                                ${result.found ? `<div class="text-xs text-gray-400 mt-1 font-mono">${result.found.substring(0, 80)}...</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                resultsHTML += `<p class="text-sm text-gray-500 mt-3"><i class="fas fa-info-circle text-blue-500 mr-1"></i>DNS changes can take 5-15 minutes to propagate, sometimes up to 48 hours.</p>`;
+                resultsDiv.innerHTML = resultsHTML;
             }
         }
     } catch (error) {
         showToast('error', 'Network Error', 'Could not verify domain.');
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-double"></i> <span>Verify DNS Records</span>'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = originalHTML || '<i class="fas fa-check-double"></i> <span>Verify DNS Records</span>'; }
     }
-}
-
-async function recheckDomain(domainId, domainName) {
-    showToast('info', 'Checking DNS...', `Re-verifying ${domainName}`);
-    await verifyDomain(domainId, domainName);
 }
 
 let deleteDomainId = null;
@@ -962,11 +693,11 @@ async function deleteDomain() {
     const btn = document.getElementById('confirmDeleteBtn');
     const btnText = document.getElementById('deleteBtnText');
     const btnLoading = document.getElementById('deleteBtnLoading');
-    
+
     btn.disabled = true;
     btnText.classList.add('hidden');
     btnLoading.classList.remove('hidden');
-    
+
     try {
         const response = await fetch(`/dashboard/domains/${deleteDomainId}/delete`, { method: 'POST' });
         const data = await response.json();
@@ -986,10 +717,12 @@ async function deleteDomain() {
     }
 }
 
+// Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { closeAddDomainModal(); closeDNSModal(); closeDeleteModal(); }
 });
 
+// Click outside to close
 document.querySelectorAll('.modal-overlay').forEach(modal => {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
 });

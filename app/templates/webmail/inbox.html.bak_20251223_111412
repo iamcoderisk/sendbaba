@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SendBaba Mail</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#f86d31">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root{--c:#f86d31;--cd:#e55a1f;--t:#1e293b;--t2:#64748b;--b:#e2e8f0;--bg:#f8fafc;--h:#f1f5f9}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);overflow:hidden}
+        
+        /* DESKTOP LAYOUT */
+        @media(min-width:769px){
+            .mobile-only{display:none!important}
+            .app{display:grid;grid-template-columns:64px 260px 400px 1fr;height:100vh}
+            
+            /* Nav */
+            .nav{background:linear-gradient(180deg,#1e293b,#0f172a);display:flex;flex-direction:column;align-items:center;padding:12px 0}
+            .nav-logo{width:42px;height:42px;background:linear-gradient(135deg,var(--c),var(--cd));border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;margin-bottom:20px;cursor:pointer;box-shadow:0 4px 12px rgba(248,109,49,.3)}
+            .nav-btn{width:44px;height:44px;border:none;background:transparent;color:#94a3b8;font-size:18px;cursor:pointer;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:4px;position:relative;transition:all .2s}
+            .nav-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+            .nav-btn.on{background:rgba(248,109,49,.15);color:var(--c)}
+            .nav-btn.on::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:24px;background:var(--c);border-radius:0 2px 2px 0}
+            .nav-btn span{position:absolute;left:52px;background:#334155;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;white-space:nowrap;opacity:0;visibility:hidden;z-index:999;transition:all .15s}
+            .nav-btn:hover span{opacity:1;visibility:visible}
+            .nav-space{flex:1}
+            
+            /* Sidebar */
+            .side{background:#fff;border-right:1px solid var(--b);display:flex;flex-direction:column}
+            .side-head{padding:16px 20px;border-bottom:1px solid var(--b)}
+            .side-head h2{font-size:18px;font-weight:700;color:var(--t)}
+            .side-body{flex:1;overflow-y:auto;padding:8px 0}
+            .folder{display:flex;align-items:center;gap:12px;padding:10px 20px;cursor:pointer;color:var(--t2);font-size:14px;font-weight:500;border-left:3px solid transparent;transition:all .15s}
+            .folder:hover{background:var(--h);color:var(--t)}
+            .folder.on{background:rgba(248,109,49,.08);color:var(--c);border-left-color:var(--c)}
+            .folder i{width:18px;text-align:center}
+            .folder .cnt{margin-left:auto;background:var(--h);font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px}
+            .folder.on .cnt{background:var(--c);color:#fff}
+            .side-lbl{font-size:10px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;padding:16px 20px 8px}
+            .side-badge{margin:16px;padding:12px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:10px;display:flex;align-items:center;gap:10px}
+            .side-badge i{color:#059669;font-size:18px}
+            .side-badge strong{color:#065f46;display:block;font-size:13px}
+            .side-badge span{color:#047857;font-size:11px}
+            .side-ad{margin:16px;padding:12px;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:10px;cursor:pointer}
+            .side-ad small{font-size:9px;font-weight:700;color:#b45309;text-transform:uppercase}
+            .side-ad strong{display:block;font-size:13px;color:#92400e;margin:3px 0}
+            .side-ad span{font-size:11px;color:#a16207}
+            
+            /* List */
+            .list{background:#fff;border-right:1px solid var(--b);display:flex;flex-direction:column}
+            .list-head{padding:16px 20px;border-bottom:1px solid var(--b)}
+            .list-head h1{font-size:20px;font-weight:700;color:var(--t);margin-bottom:14px}
+            .search{display:flex;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:10px 14px;gap:8px}
+            .search:focus-within{border-color:var(--c);box-shadow:0 0 0 3px rgba(248,109,49,.1)}
+            .search i{color:var(--t2)}
+            .search input{flex:1;border:none;background:transparent;font-size:14px;outline:none;color:var(--t)}
+            .toolbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--b);background:var(--bg)}
+            .toolbar-left{display:flex;gap:6px}
+            .tool-btn{width:32px;height:32px;border:1px solid var(--b);background:#fff;border-radius:6px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:all .15s}
+            .tool-btn:hover{background:var(--h);color:var(--t)}
+            .toolbar-right{font-size:12px;color:var(--t2)}
+            .emails{flex:1;overflow-y:auto}
+            .email{display:flex;align-items:flex-start;gap:12px;padding:14px 20px;border-bottom:1px solid var(--b);cursor:pointer;transition:all .15s}
+            .email:hover{background:var(--h)}
+            .email.on{background:rgba(248,109,49,.06);border-left:3px solid var(--c)}
+            .email.new{background:#fffbeb}
+            .email.new .email-from{font-weight:700}
+            .email-chk input{width:16px;height:16px;accent-color:var(--c);cursor:pointer;margin-top:2px}
+            .email-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:15px;flex-shrink:0}
+            .email-body{flex:1;min-width:0}
+            .email-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+            .email-from{font-size:14px;font-weight:600;color:var(--t)}
+            .email-time{font-size:11px;color:var(--t2);display:flex;align-items:center;gap:6px}
+            .email-star{cursor:pointer;color:#d1d5db;transition:color .2s}
+            .email-star:hover,.email-star.on{color:#fbbf24}
+            .email-subj{font-size:13px;color:var(--t);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .email-prev{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+            .email-tag{display:inline-block;background:#dcfce7;color:#166534;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;margin-top:4px}
+            
+            /* View */
+            .view{background:#fff;display:flex;flex-direction:column}
+            .view-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--t2)}
+            .view-empty i{font-size:56px;opacity:.2;margin-bottom:12px}
+            .view-head{padding:20px 24px;border-bottom:1px solid var(--b)}
+            .view-subj{font-size:22px;font-weight:700;color:var(--t);margin-bottom:16px}
+            .view-meta{display:flex;align-items:center;gap:14px}
+            .view-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px}
+            .view-info{flex:1}
+            .view-info strong{display:block;font-size:15px;color:var(--t)}
+            .view-info span{font-size:13px;color:var(--t2)}
+            .view-btns{display:flex;gap:6px}
+            .view-btn{width:36px;height:36px;border:1px solid var(--b);background:#fff;border-radius:6px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:all .15s}
+            .view-btn:hover{background:var(--h);color:var(--t)}
+            .view-body{flex:1;overflow-y:auto;padding:24px}
+            .view-content{font-size:14px;line-height:1.7;color:var(--t)}
+            
+            /* FAB */
+            .fab{position:fixed;bottom:28px;right:28px;height:52px;padding:0 24px;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:26px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 6px 20px rgba(248,109,49,.4);display:flex;align-items:center;gap:8px;transition:all .2s;z-index:100}
+            .fab:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(248,109,49,.5)}
+            
+            /* Loading */
+            .loading{padding:40px 20px;text-align:center;color:var(--t2)}
+            .loading i{font-size:36px;opacity:.3;margin-bottom:12px;display:block}
+        }
+        
+        /* MOBILE LAYOUT */
+        @media(max-width:768px){
+            .desktop-only{display:none!important}
+            body{padding-bottom:70px}
+            .app{display:block}
+            .nav,.side,.view{display:none}
+            .list{display:flex;flex-direction:column;height:calc(100vh - 70px)}
+            .list-head{padding:16px;border-bottom:1px solid var(--b)}
+            .list-head h1{font-size:20px;font-weight:700;color:var(--t);margin-bottom:12px}
+            .search{display:flex;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:10px 14px;gap:8px}
+            .search input{flex:1;border:none;background:transparent;font-size:14px;outline:none}
+            .toolbar{display:none}
+            .emails{flex:1;overflow-y:auto}
+            .email{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--b)}
+            .email-chk{display:none}
+            .email-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px}
+            .email-body{flex:1;min-width:0}
+            .email-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+            .email-from{font-size:14px;font-weight:600;color:var(--t)}
+            .email-time{font-size:11px;color:var(--t2)}
+            .email-star{display:none}
+            .email-subj{font-size:13px;color:var(--t);margin-bottom:3px}
+            .email-prev{font-size:12px;color:var(--t2)}
+            .email-tag{display:inline-block;background:#dcfce7;color:#166534;font-size:10px;padding:2px 6px;border-radius:4px;margin-top:4px}
+            .loading{padding:40px;text-align:center;color:var(--t2)}
+            .loading i{font-size:36px;opacity:.3;margin-bottom:12px;display:block}
+            
+            /* Mobile Nav */
+            .mob-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e5e7eb;display:flex;justify-content:space-around;padding:8px 0;padding-bottom:calc(8px + env(safe-area-inset-bottom));z-index:1000}
+            .mob-nav button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 12px;border:none;background:transparent;color:#6b7280;font-size:10px;cursor:pointer}
+            .mob-nav button i{font-size:20px}
+            .mob-nav button.on{color:var(--c)}
+            
+            /* Mobile FAB */
+            .fab{position:fixed;bottom:90px;right:20px;width:56px;height:56px;padding:0;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:50%;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 4px 20px rgba(248,109,49,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+            .fab span{display:none}
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Desktop Nav -->
+        <nav class="nav desktop-only">
+            <div class="nav-logo"><i class="fas fa-paper-plane"></i></div>
+            <button class="nav-btn on" onclick="switchView('mail')"><i class="fas fa-envelope"></i><span>Mail</span></button>
+            <button class="nav-btn" onclick="switchView('calendar')"><i class="fas fa-calendar-alt"></i><span>Calendar</span></button>
+            <button class="nav-btn" onclick="switchView('contacts')"><i class="fas fa-address-book"></i><span>Contacts</span></button>
+            <button class="nav-btn" onclick="switchView('files')"><i class="fas fa-folder"></i><span>Files</span></button>
+            <div class="nav-space"></div>
+            <button class="nav-btn" onclick="location.href='/settings'"><i class="fas fa-cog"></i><span>Settings</span></button>
+        </nav>
+        
+        <!-- Desktop Sidebar -->
+        <aside class="side desktop-only">
+            <div class="side-head"><h2>Mail</h2></div>
+            <div class="side-body">
+                <div class="folder on" data-f="INBOX" onclick="loadFolder('INBOX',this)"><i class="fas fa-inbox"></i> Inbox <span class="cnt" id="inbox-cnt">0</span></div>
+                <div class="folder" data-f="Starred" onclick="loadFolder('Starred',this)"><i class="fas fa-star"></i> Starred</div>
+                <div class="folder" data-f="Sent" onclick="loadFolder('Sent',this)"><i class="fas fa-paper-plane"></i> Sent</div>
+                <div class="folder" data-f="Drafts" onclick="loadFolder('Drafts',this)"><i class="fas fa-file-alt"></i> Drafts</div>
+                <div class="folder" data-f="Spam" onclick="loadFolder('Spam',this)"><i class="fas fa-exclamation-triangle"></i> Spam</div>
+                <div class="folder" data-f="Trash" onclick="loadFolder('Trash',this)"><i class="fas fa-trash"></i> Trash</div>
+                <div class="side-lbl">Labels</div>
+                <div class="folder" onclick="loadFolder('Work',this)"><i class="fas fa-circle" style="color:#3b82f6;font-size:8px"></i> Work</div>
+                <div class="folder" onclick="loadFolder('Personal',this)"><i class="fas fa-circle" style="color:#10b981;font-size:8px"></i> Personal</div>
+                <div class="side-badge"><i class="fas fa-shield-alt"></i><div><strong>End-to-End Encrypted</strong><span>Your emails are secure</span></div></div>
+                <div class="side-ad"><small>Sponsored</small><strong>🚀 Grow Your Business</strong><span>Advertise with SendBaba</span></div>
+            </div>
+        </aside>
+        
+        <!-- Email List -->
+        <section class="list">
+            <div class="list-head">
+                <h1 id="list-title">Inbox</h1>
+                <div class="search"><i class="fas fa-search"></i><input type="text" placeholder="Search emails..." onkeyup="searchEmails(this.value)"></div>
+            </div>
+            <div class="toolbar desktop-only">
+                <div class="toolbar-left">
+                    <button class="tool-btn" onclick="selectAll()"><i class="far fa-square"></i></button>
+                    <button class="tool-btn" onclick="refresh()"><i class="fas fa-sync-alt"></i></button>
+                    <button class="tool-btn"><i class="fas fa-archive"></i></button>
+                    <button class="tool-btn"><i class="fas fa-trash"></i></button>
+                </div>
+                <div class="toolbar-right"><span id="email-count">0 emails</span></div>
+            </div>
+            <div class="emails" id="email-list">
+                <div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>
+            </div>
+        </section>
+        
+        <!-- Email View (Desktop) -->
+        <section class="view desktop-only" id="email-view">
+            <div class="view-empty"><i class="fas fa-envelope-open-text"></i><p>Select an email to read</p></div>
+        </section>
+    </div>
+    
+    <!-- FAB -->
+    <button class="fab" onclick="openCompose()"><i class="fas fa-pen"></i><span>Compose</span></button>
+    
+    <!-- Mobile Nav -->
+    <nav class="mob-nav mobile-only">
+        <button class="on" onclick="mobileTab('INBOX',this)"><i class="fas fa-inbox"></i><span>Inbox</span></button>
+        <button onclick="mobileTab('Sent',this)"><i class="fas fa-paper-plane"></i><span>Sent</span></button>
+        <button onclick="mobileTab('Drafts',this)"><i class="fas fa-file-alt"></i><span>Drafts</span></button>
+        <button onclick="alert('Coming soon')"><i class="fas fa-th-large"></i><span>Tools</span></button>
+        <button onclick="location.href='/settings'"><i class="fas fa-cog"></i><span>Settings</span></button>
+    </nav>
+    
+    <script>
+        var currentFolder = 'INBOX';
+        var emails = [];
+        var colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444'];
+        
+        // Load on start
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFolder('INBOX');
+        });
+        
+        function loadFolder(folder, el) {
+            currentFolder = folder;
+            
+            // Update active folder
+            document.querySelectorAll('.folder').forEach(f => f.classList.remove('on'));
+            if (el) el.classList.add('on');
+            
+            // Update title
+            var title = document.getElementById('list-title');
+            if (title) title.textContent = folder === 'INBOX' ? 'Inbox' : folder;
+            
+            // Show loading
+            var list = document.getElementById('email-list');
+            if (list) list.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+            
+            // Try fetching
+            var urls = [
+                '/api/emails?folder=' + encodeURIComponent(folder) + '&limit=50',
+                '/api/mail/messages?folder=' + encodeURIComponent(folder),
+                '/api/messages?mailbox=' + encodeURIComponent(folder)
+            ];
+            
+            tryFetch(urls, 0);
+        }
+        
+        function tryFetch(urls, i) {
+            if (i >= urls.length) {
+                renderEmpty();
+                return;
+            }
+            
+            fetch(urls[i], {credentials: 'same-origin'})
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(data => {
+                var arr = data.emails || data.messages || data.data || [];
+                if (Array.isArray(arr) && arr.length > 0) {
+                    emails = arr;
+                    renderEmails(arr);
+                } else {
+                    tryFetch(urls, i + 1);
+                }
+            })
+            .catch(() => tryFetch(urls, i + 1));
+        }
+        
+        function renderEmails(list) {
+            var el = document.getElementById('email-list');
+            var cnt = document.getElementById('email-count');
+            var icnt = document.getElementById('inbox-cnt');
+            
+            if (cnt) cnt.textContent = list.length + ' emails';
+            if (icnt && currentFolder === 'INBOX') icnt.textContent = list.length;
+            if (!el) return;
+            if (!list.length) { renderEmpty(); return; }
+            
+            var h = '';
+            list.forEach((e, idx) => {
+                var name = e.from_name || e.from || e.sender || 'Unknown';
+                if (typeof name === 'object') name = name.name || name.email || 'Unknown';
+                name = String(name);
+                var ini = name.charAt(0).toUpperCase() || '?';
+                var col = colors[ini.charCodeAt(0) % colors.length];
+                var unread = !e.is_read && !e.read && !e.seen;
+                var starred = e.is_starred || e.starred;
+                var subj = e.subject || '(No subject)';
+                var prev = e.preview || e.snippet || e.body_text || '';
+                if (prev.length > 60) prev = prev.substring(0, 60) + '...';
+                var time = formatTime(e.date || e.received || e.created_at);
+                var id = e.id || e.uid || idx;
+                var enc = e.encrypted || e.is_encrypted;
+                
+                h += '<div class="email' + (unread ? ' new' : '') + '" data-id="' + id + '" onclick="openEmail(\'' + id + '\')">' +
+                    '<div class="email-chk"><input type="checkbox" onclick="event.stopPropagation()"></div>' +
+                    '<div class="email-av" style="background:' + col + '">' + ini + '</div>' +
+                    '<div class="email-body">' +
+                        '<div class="email-top">' +
+                            '<span class="email-from">' + esc(name) + '</span>' +
+                            '<span class="email-time">' + time + ' <i class="fas fa-star email-star' + (starred ? ' on' : '') + '" onclick="event.stopPropagation();toggleStar(\'' + id + '\')"></i></span>' +
+                        '</div>' +
+                        '<div class="email-subj">' + esc(subj) + '</div>' +
+                        '<div class="email-prev">' + esc(prev) + '</div>' +
+                        (enc ? '<span class="email-tag"><i class="fas fa-lock"></i> Encrypted</span>' : '') +
+                    '</div>' +
+                '</div>';
+            });
+            el.innerHTML = h;
+        }
+        
+        function renderEmpty() {
+            var el = document.getElementById('email-list');
+            if (el) el.innerHTML = '<div class="loading"><i class="fas fa-inbox"></i><p>No emails in ' + currentFolder + '</p></div>';
+            var cnt = document.getElementById('email-count');
+            if (cnt) cnt.textContent = '0 emails';
+        }
+        
+        function openEmail(id) {
+            var e = null;
+            for (var i = 0; i < emails.length; i++) {
+                if (String(emails[i].id) == String(id) || String(emails[i].uid) == String(id) || i == id) {
+                    e = emails[i];
+                    break;
+                }
+            }
+            if (!e) return;
+            
+            // Mobile: redirect to view page
+            if (window.innerWidth <= 768) {
+                // For now, show alert. You can redirect to a view page
+                alert('Subject: ' + (e.subject || 'No subject') + '\n\nFrom: ' + (e.from_name || e.from || 'Unknown'));
+                return;
+            }
+            
+            // Desktop: show in view panel
+            document.querySelectorAll('.email').forEach(el => el.classList.remove('on'));
+            var clicked = document.querySelector('.email[data-id="' + id + '"]');
+            if (clicked) clicked.classList.add('on');
+            
+            var name = e.from_name || e.from || 'Unknown';
+            if (typeof name === 'object') name = name.name || name.email || 'Unknown';
+            var email = e.from_email || (typeof e.from === 'object' ? e.from.email : e.from) || '';
+            var ini = String(name).charAt(0).toUpperCase() || '?';
+            var col = colors[ini.charCodeAt(0) % colors.length];
+            var subj = e.subject || '(No subject)';
+            var body = e.body_html || e.html || e.body || e.body_text || 'No content';
+            
+            var view = document.getElementById('email-view');
+            if (view) view.innerHTML = 
+                '<div class="view-head">' +
+                    '<h1 class="view-subj">' + esc(subj) + '</h1>' +
+                    '<div class="view-meta">' +
+                        '<div class="view-av" style="background:' + col + '">' + ini + '</div>' +
+                        '<div class="view-info"><strong>' + esc(name) + '</strong><span>' + esc(email) + '</span></div>' +
+                        '<div class="view-btns">' +
+                            '<button class="view-btn" title="Reply"><i class="fas fa-reply"></i></button>' +
+                            '<button class="view-btn" title="Forward"><i class="fas fa-share"></i></button>' +
+                            '<button class="view-btn" title="Delete"><i class="fas fa-trash"></i></button>' +
+                            '<button class="view-btn" title="More"><i class="fas fa-ellipsis-h"></i></button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="view-body"><div class="view-content">' + body + '</div></div>';
+            
+            // Mark as read
+            fetch('/api/emails/' + id + '/read', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
+        }
+        
+        function formatTime(d) {
+            if (!d) return '';
+            try {
+                var dt = new Date(d), now = new Date(), diff = Math.floor((now - dt) / 86400000);
+                if (isNaN(diff)) return '';
+                if (diff === 0) return dt.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                if (diff === 1) return 'Yesterday';
+                if (diff < 7) return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+                return dt.toLocaleDateString();
+            } catch(e) { return ''; }
+        }
+        
+        function esc(s) {
+            if (!s) return '';
+            var d = document.createElement('div');
+            d.textContent = String(s);
+            return d.innerHTML;
+        }
+        
+        function searchEmails(q) {
+            document.querySelectorAll('.email').forEach(el => {
+                el.style.display = el.textContent.toLowerCase().indexOf(q.toLowerCase()) > -1 ? '' : 'none';
+            });
+        }
+        
+        function selectAll() {
+            var cb = document.querySelectorAll('.email-chk input');
+            var all = Array.from(cb).every(c => c.checked);
+            cb.forEach(c => c.checked = !all);
+        }
+        
+        function refresh() {
+            loadFolder(currentFolder);
+        }
+        
+        function toggleStar(id) {
+            var el = document.querySelector('.email[data-id="' + id + '"] .email-star');
+            if (el) el.classList.toggle('on');
+            fetch('/api/emails/' + id + '/star', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
+        }
+        
+        function switchView(v) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('on'));
+            event.target.closest('.nav-btn').classList.add('on');
+            if (v !== 'mail') alert(v.charAt(0).toUpperCase() + v.slice(1) + ' coming soon!');
+        }
+        
+        function mobileTab(folder, btn) {
+            document.querySelectorAll('.mob-nav button').forEach(b => b.classList.remove('on'));
+            if (btn) btn.classList.add('on');
+            loadFolder(folder);
+        }
+        
+        function openCompose() {
+            alert('Compose coming soon!');
+        }
+    </script>
+</body>
+</html>

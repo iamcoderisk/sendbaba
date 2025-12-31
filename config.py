@@ -20,7 +20,7 @@ class Config:
     }
     
     # Redis
-    REDIS_URL = os.environ.get('REDIS_URL', 'redis://:SendBaba2024SecureRedis@localhost:6379/0')
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://:SendBabaRedis2024!@localhost:6379/0')
     
     # Celery
     CELERY_BROKER_URL = REDIS_URL

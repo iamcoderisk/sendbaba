@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SendBaba Mail">
+    <meta name="theme-color" content="#f86d31">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <title>SendBaba Mail</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+:root{--c:#f86d31;--cd:#e55a1f;--cl:#fff5f0;--t:#1e293b;--t2:#64748b;--t3:#94a3b8;--b:#e5e7eb;--bg:#f8fafc;--card:#fff;--h:#f1f5f9}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);overflow:hidden;height:100vh;color:var(--t)}
+body.dark{--t:#f1f5f9;--t2:#94a3b8;--t3:#64748b;--b:#334155;--bg:#0f172a;--card:#1e293b;--h:#334155;--cl:#3d2a1f}
+body.dark .nav{background:linear-gradient(180deg,#0f172a,#020617)}
+body.dark .email-item{background:#1e293b;border-color:#334155}
+body.dark .email-item:hover{background:#293548}
+body.dark .email-item.selected{background:#3d2a1f;border-color:var(--c)}
+
+.toast-box{position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:10px}
+.toast{padding:14px 20px;border-radius:12px;color:#fff;font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;animation:toastIn .3s;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.toast.success{background:linear-gradient(135deg,#10b981,#059669)}
+.toast.error{background:linear-gradient(135deg,#ef4444,#dc2626)}
+.toast.info{background:linear-gradient(135deg,#3b82f6,#2563eb)}
+@keyframes toastIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(248,109,49,.7)}70%{box-shadow:0 0 0 15px rgba(248,109,49,0)}100%{box-shadow:0 0 0 0 rgba(248,109,49,0)}}
+@keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes wave{from{height:8px}to{height:28px}}
+
+/* FAB - positioned to not overlap reply box */
+.fab{position:fixed;bottom:30px;right:30px;width:60px;height:60px;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:50%;color:#fff;font-size:22px;cursor:pointer;box-shadow:0 4px 20px rgba(248,109,49,.4);display:flex;align-items:center;justify-content:center;z-index:100;animation:pulse 2s infinite;transition:.3s}
+.fab:hover{transform:scale(1.1)}
+.fab i{animation:blink 1.5s infinite}
+.fab.hidden{transform:scale(0);opacity:0;pointer-events:none}
+
+@media(min-width:769px){
+.mobile-only{display:none!important}
+.app{display:grid;grid-template-columns:64px 220px 380px 1fr;height:100vh;overflow:hidden;transition:grid-template-columns .3s ease}
+.app.sidebar-collapsed{grid-template-columns:64px 0 380px 1fr}
+.app.sidebar-collapsed .side{width:0;padding:0;overflow:hidden;border:none}
+
+.nav{background:linear-gradient(180deg,#1e293b,#0f172a);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px}
+.nav-toggle{width:40px;height:40px;background:transparent;border:none;color:#64748b;font-size:18px;cursor:pointer;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;transition:.3s}
+.nav-toggle:hover{background:rgba(255,255,255,.1);color:#fff}
+.nav-toggle.rotated{transform:rotate(180deg)}
+.nav-btn{width:44px;height:44px;border:none;background:transparent;color:#64748b;font-size:18px;cursor:pointer;border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;transition:.2s}
+.nav-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.nav-btn.on{background:rgba(248,109,49,.15);color:var(--c)}
+.nav-btn .tip{position:absolute;left:54px;background:#1e293b;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;white-space:nowrap;opacity:0;visibility:hidden;z-index:999;transition:.2s}
+.nav-btn:hover .tip{opacity:1;visibility:visible}
+.nav-btn .badge{position:absolute;top:6px;right:6px;width:18px;height:18px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.nav-space{flex:1}
+.dark-toggle{width:40px;height:22px;background:var(--b);border-radius:11px;position:relative;cursor:pointer;transition:.3s;margin:8px 0}
+.dark-toggle.on{background:var(--c)}
+.dark-toggle::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:2px;left:2px;transition:.3s}
+.dark-toggle.on::after{left:20px}
+
+.side{background:var(--card);border-right:1px solid var(--b);display:flex;flex-direction:column;overflow:hidden;transition:.3s ease;width:220px}
+.side-head{padding:20px 16px}
+.side-head h2{font-size:18px;font-weight:700;color:var(--t);margin-bottom:14px}
+.side-body{flex:1;overflow-y:auto;padding:0 8px 8px}
+.folder{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;color:var(--t2);font-size:14px;font-weight:500;border-radius:10px;margin-bottom:2px;transition:.15s}
+.folder:hover{background:var(--h);color:var(--t)}
+.folder.on{background:var(--cl);color:var(--c);font-weight:600}
+.folder i{width:18px;text-align:center;font-size:15px}
+.folder .cnt{margin-left:auto;background:var(--c);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;min-width:22px;text-align:center}
+.ad-banner{margin:12px 8px;padding:16px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:14px;color:#fff;text-align:center;cursor:pointer;transition:.3s}
+.ad-banner:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(102,126,234,.4)}
+.ad-banner h4{font-size:13px;font-weight:700;margin-bottom:6px}
+.ad-banner p{font-size:11px;opacity:.9}
+.ad-banner i{font-size:24px;margin-bottom:8px;display:block}
+
+.list{background:var(--bg);display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--b)}
+.list-head{padding:16px;background:var(--card);border-bottom:1px solid var(--b)}
+.list-title{font-size:17px;font-weight:700;color:var(--t);margin-bottom:12px}
+.search{display:flex;align-items:center;background:var(--bg);border:1px solid var(--b);border-radius:10px;padding:10px 14px;gap:10px;transition:.2s}
+.search:focus-within{border-color:var(--c);background:var(--card)}
+.search i{color:var(--t3);font-size:14px}
+.search input{flex:1;border:none;background:transparent;font-size:14px;outline:none;color:var(--t)}
+.emails{flex:1;overflow-y:auto;padding:8px}
+.email-item{display:flex;align-items:center;gap:14px;padding:14px 16px;background:var(--card);border:1px solid var(--b);border-radius:12px;margin-bottom:6px;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.email-item:hover{border-color:var(--c);box-shadow:0 2px 8px rgba(248,109,49,.1)}
+.email-item.selected{border-color:var(--c);background:var(--cl)}
+.email-item.unread .email-from{font-weight:700}
+.email-item.unread .email-subj{font-weight:600;color:var(--t)}
+.email-item.swiping{transition:none}
+.email-item .swipe-actions{position:absolute;right:0;top:0;bottom:0;width:100px;display:flex;align-items:center;justify-content:center;background:#ef4444;color:#fff;font-weight:600;font-size:13px;transform:translateX(100%)}
+.email-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px;flex-shrink:0}
+.email-content{flex:1;min-width:0}
+.email-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.email-from{font-size:14px;font-weight:500;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.email-time{font-size:12px;color:var(--t3)}
+.email-subj{font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.email-preview{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.email-indicators{display:flex;align-items:center;gap:6px;margin-left:8px}
+.email-star{color:#d1d5db;cursor:pointer;font-size:14px}
+.email-star:hover,.email-star.on{color:#fbbf24}
+.email-badge{width:8px;height:8px;background:var(--c);border-radius:50%}
+
+.view{background:var(--card);display:flex;flex-direction:column;overflow:hidden}
+.view-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--t3)}
+.view-empty i{font-size:64px;opacity:.15;margin-bottom:16px}
+.view-head{padding:16px 24px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:12px}
+.view-back{width:36px;height:36px;border:1px solid var(--b);background:var(--card);border-radius:8px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;font-size:14px;transition:.2s}
+.view-back:hover{background:var(--h);color:var(--t)}
+.view-subj{flex:1;font-size:18px;font-weight:700;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.view-actions{display:flex;gap:8px}
+.view-btn{width:36px;height:36px;border:1px solid var(--b);background:var(--card);border-radius:8px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:.2s}
+.view-btn:hover{background:var(--h);color:var(--t)}
+.view-meta{padding:16px 24px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:14px}
+.view-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:18px}
+.view-info{flex:1}
+.view-info .name{font-size:15px;font-weight:600;color:var(--t)}
+.view-info .email{font-size:13px;color:var(--t2)}
+.view-info .time{font-size:12px;color:var(--t3)}
+.view-body{flex:1;overflow-y:auto;padding:24px}
+.view-content{font-size:15px;line-height:1.7;color:var(--t)}
+
+/* Reply box - fixed position above FAB */
+.reply-box{border-top:1px solid var(--b);padding:12px 24px;background:var(--h)}
+.reply-toolbar{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.reply-toolbar button{width:30px;height:30px;border:none;background:var(--card);border-radius:6px;color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:.15s}
+.reply-toolbar button:hover{background:var(--c);color:#fff}
+.reply-toolbar .sep{width:1px;height:20px;background:var(--b);margin:4px 4px}
+.reply-input{background:var(--card);border:1px solid var(--b);border-radius:8px;padding:10px;min-height:50px;max-height:100px;overflow-y:auto;font-size:13px;line-height:1.5;outline:none;color:var(--t)}
+.reply-input:focus{border-color:var(--c)}
+.reply-input:empty::before{content:attr(data-placeholder);color:var(--t3)}
+.reply-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.reply-attach{display:flex;gap:4px}
+.reply-attach button{width:30px;height:30px;border:1px solid var(--b);background:var(--card);border-radius:6px;color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px}
+.reply-attach button:hover{border-color:var(--c);color:var(--c)}
+.reply-send{height:32px;padding:0 14px;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px}
+.reply-send:hover{box-shadow:0 4px 12px rgba(248,109,49,.4)}
+}
+
+@media(max-width:768px){
+.desktop-only{display:none!important}
+body{padding-bottom:70px}
+.app{display:block;height:calc(100vh - 70px)}
+.nav,.side,.view{display:none}
+.list{display:flex;flex-direction:column;height:100%}
+.list-head{padding:16px;background:var(--card);border-bottom:1px solid var(--b);position:sticky;top:0;z-index:10}
+.list-title{font-size:20px;font-weight:700;margin-bottom:12px}
+.emails{flex:1;overflow-y:auto;padding:8px 12px}
+.email-item{padding:14px 16px;border-radius:14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.email-item.unread{border-left:3px solid var(--c)}
+.email-av{width:48px;height:48px;font-size:17px}
+.email-indicators{display:none}
+.mob-nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--b);display:flex;justify-content:space-around;padding:8px 0;padding-bottom:calc(8px + env(safe-area-inset-bottom));z-index:1000}
+.mob-nav button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 16px;border:none;background:transparent;color:var(--t3);font-size:10px;font-weight:500;cursor:pointer}
+.mob-nav button i{font-size:20px}
+.mob-nav button.on{color:var(--c)}
+.fab{bottom:90px;right:20px;width:56px;height:56px;font-size:20px}
+.email-view-panel{position:fixed;inset:0;background:var(--card);z-index:1500;transform:translateX(100%);transition:transform .3s;display:flex;flex-direction:column}
+.email-view-panel.show{transform:translateX(0)}
+.ev-head{padding:12px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:12px}
+.ev-back{width:40px;height:40px;border:none;background:transparent;color:var(--t);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.ev-title{flex:1;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-actions button{width:40px;height:40px;border:none;background:transparent;color:var(--t2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.ev-body{flex:1;overflow-y:auto;padding:16px}
+.ev-subject{font-size:20px;font-weight:700;margin-bottom:16px}
+.ev-meta{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--b)}
+.ev-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600}
+.ev-info{flex:1}
+.ev-info .name{font-weight:600;font-size:15px}
+.ev-info .email{font-size:13px;color:var(--t2)}
+.ev-content{font-size:15px;line-height:1.7}
+.ev-footer{padding:12px 16px;border-top:1px solid var(--b);display:flex;gap:10px}
+.ev-footer button{flex:1;padding:14px;border:1px solid var(--b);background:var(--card);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.ev-footer button.primary{background:var(--c);color:#fff;border-color:var(--c)}
+}
+
+/* Compose Modal */
+.compose-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.compose-overlay.show{display:flex}
+.compose-box{background:var(--card);border-radius:16px;width:100%;max-width:650px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,.3);animation:slideUp .3s}
+.compose-head{padding:16px 20px;background:linear-gradient(135deg,var(--c),var(--cd));display:flex;align-items:center;justify-content:space-between}
+.compose-head h3{color:#fff;font-size:18px;font-weight:600}
+.compose-head button{width:32px;height:32px;border:none;background:rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.compose-body{flex:1;overflow-y:auto;padding:20px}
+.compose-field{margin-bottom:14px;position:relative}
+.compose-field label{display:block;font-size:11px;font-weight:600;color:var(--t3);margin-bottom:5px;text-transform:uppercase}
+.compose-field input{width:100%;border:1px solid var(--b);border-radius:8px;padding:10px 12px;font-size:14px;outline:none;background:var(--card);color:var(--t)}
+.compose-field input:focus{border-color:var(--c)}
+.contact-suggestions{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--b);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.15);max-height:200px;overflow-y:auto;z-index:10;display:none}
+.contact-suggestions.show{display:block}
+.contact-sug{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;transition:.15s}
+.contact-sug:hover{background:var(--h)}
+.contact-sug .sug-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600}
+.contact-sug .sug-email{font-size:13px;color:var(--t)}
+.compose-toolbar{display:flex;gap:3px;padding:10px 0;border-bottom:1px solid var(--b);flex-wrap:wrap}
+.compose-toolbar button{width:30px;height:30px;border:none;background:transparent;border-radius:6px;color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px}
+.compose-toolbar button:hover{background:var(--h);color:var(--t)}
+.compose-toolbar .sep{width:1px;height:20px;background:var(--b);margin:0 6px}
+.compose-toolbar select{border:1px solid var(--b);background:var(--card);color:var(--t);padding:4px 8px;border-radius:6px;font-size:12px;outline:none}
+.compose-editor{min-height:180px;max-height:280px;overflow-y:auto;padding:12px;border:1px solid var(--b);border-radius:8px;font-size:14px;line-height:1.6;outline:none;color:var(--t)}
+.compose-editor:focus{border-color:var(--c)}
+.compose-editor:empty::before{content:attr(data-placeholder);color:var(--t3)}
+.audio-recorder{display:none;align-items:center;gap:12px;padding:12px;background:var(--h);border-radius:10px;margin-top:12px}
+.audio-recorder.show{display:flex}
+.audio-wave{display:flex;align-items:center;gap:2px;height:30px}
+.audio-wave span{width:3px;background:var(--c);border-radius:2px;animation:wave .5s ease-in-out infinite alternate}
+.audio-wave span:nth-child(2){animation-delay:.1s}
+.audio-wave span:nth-child(3){animation-delay:.2s}
+.audio-wave span:nth-child(4){animation-delay:.3s}
+.audio-wave span:nth-child(5){animation-delay:.4s}
+.audio-time{font-size:14px;font-weight:600;min-width:50px}
+.audio-controls{display:flex;gap:8px;margin-left:auto}
+.audio-controls button{width:36px;height:36px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+.audio-controls .pause{background:#fef3c7;color:#f59e0b}
+.audio-controls .done{background:#d1fae5;color:#10b981}
+.audio-controls .cancel{background:#fee2e2;color:#ef4444}
+.compose-foot{padding:14px 20px;border-top:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;background:var(--h)}
+.compose-attach{display:flex;gap:6px}
+.compose-attach button{width:38px;height:38px;border:1px solid var(--b);background:var(--card);border-radius:10px;color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px}
+.compose-attach button:hover{border-color:var(--c);color:var(--c)}
+.send-wrap{position:relative}
+.send-btn{height:44px;width:44px;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;animation:pulse 2s infinite}
+.send-btn i{animation:blink 1.5s infinite}
+.send-btn:hover{transform:scale(1.1)}
+.send-options{position:absolute;bottom:54px;right:0;background:var(--card);border:1px solid var(--b);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.2);overflow:hidden;opacity:0;visibility:hidden;transform:translateY(10px);transition:.2s;min-width:160px}
+.send-wrap:hover .send-options{opacity:1;visibility:visible;transform:translateY(0)}
+.send-opt{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;font-size:13px;font-weight:500;color:var(--t);transition:.15s}
+.send-opt:hover{background:var(--h)}
+.send-opt i{width:18px;color:var(--t2)}
+.send-opt.primary{color:var(--c)}
+.send-opt.primary i{color:var(--c)}
+.send-opt.danger{color:#ef4444}
+.send-opt.danger i{color:#ef4444}
+@media(max-width:768px){.compose-overlay{padding:0;align-items:flex-end}.compose-box{max-width:100%;max-height:95vh;border-radius:20px 20px 0 0}}
+
+/* Chat Modal - WhatsApp Style */
+.chat-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;display:none;align-items:center;justify-content:center;padding:20px}
+.chat-overlay.show{display:flex}
+.chat-container{width:100%;max-width:900px;height:85vh;background:var(--card);border-radius:16px;display:flex;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,.3)}
+.chat-sidebar{width:320px;border-right:1px solid var(--b);display:flex;flex-direction:column;background:var(--card)}
+.chat-sidebar-head{padding:16px;background:linear-gradient(135deg,var(--c),var(--cd));color:#fff}
+.chat-sidebar-head-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.chat-sidebar-head h3{font-size:18px;font-weight:700}
+.chat-head-actions{display:flex;gap:8px}
+.chat-head-actions button{width:36px;height:36px;border:none;background:rgba(255,255,255,.2);border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+.chat-head-actions button:hover{background:rgba(255,255,255,.3)}
+.chat-new-input{display:flex;gap:8px}
+.chat-new-input input{flex:1;border:none;border-radius:20px;padding:10px 16px;font-size:13px;outline:none;background:rgba(255,255,255,.9);color:#333}
+.chat-new-input button{width:40px;height:40px;background:#fff;border:none;border-radius:50%;color:var(--c);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+.chat-tabs{display:flex;border-bottom:1px solid var(--b)}
+.chat-tab{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:.2s}
+.chat-tab:hover{color:var(--t)}
+.chat-tab.on{color:var(--c);border-bottom-color:var(--c)}
+.chat-list{flex:1;overflow-y:auto}
+.chat-item{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--b);transition:.15s}
+.chat-item:hover,.chat-item.on{background:var(--h)}
+.chat-item-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px;position:relative}
+.chat-item-av .status-dot{position:absolute;bottom:2px;right:2px;width:12px;height:12px;border-radius:50%;border:2px solid var(--card)}
+.chat-item-av .status-dot.online{background:#22c55e}
+.chat-item-av .status-dot.offline{background:#94a3b8}
+.chat-item-info{flex:1;min-width:0}
+.chat-item-name{font-size:14px;font-weight:600;margin-bottom:2px}
+.chat-item-last{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item-time{font-size:11px;color:var(--t3)}
+.chat-item-unread{width:20px;height:20px;background:var(--c);color:#fff;font-size:11px;font-weight:700;border-radius:50%;display:flex;align-items:center;justify-content:center}
+
+.chat-main{flex:1;display:flex;flex-direction:column;background:#e5ddd5;background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4cfc4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+body.dark .chat-main{background:#0b141a;background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231f2c33' fill-opacity='0.5'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.chat-main-head{padding:12px 16px;background:var(--card);border-bottom:1px solid var(--b);display:flex;align-items:center;gap:12px}
+.chat-main-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;position:relative}
+.chat-main-av .status-dot{position:absolute;bottom:0;right:0;width:14px;height:14px;border-radius:50%;border:2px solid var(--card)}
+.chat-main-info{flex:1}
+.chat-main-name{font-size:16px;font-weight:600}
+.chat-main-status{font-size:12px}
+.chat-main-status.online{color:#22c55e}
+.chat-main-status.offline{color:var(--t3)}
+.chat-main-actions{display:flex;gap:6px}
+.chat-main-actions button{width:40px;height:40px;border:none;background:transparent;color:var(--t2);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
+.chat-main-actions button:hover{background:var(--h)}
+.chat-close{background:var(--h)!important;color:var(--t)!important}
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:8px}
+.chat-msg{max-width:65%;padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.5;position:relative;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.chat-msg.sent{background:#dcf8c6;color:#111;align-self:flex-end;border-bottom-right-radius:4px}
+body.dark .chat-msg.sent{background:#005c4b}
+.chat-msg.recv{background:var(--card);color:var(--t);align-self:flex-start;border-bottom-left-radius:4px}
+.chat-msg .time{font-size:10px;color:var(--t3);margin-top:4px;display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.chat-msg .time .fa-check-double{color:#53bdeb}
+.chat-input-area{padding:12px 16px;background:var(--card);display:flex;gap:10px;align-items:center}
+.chat-input-attach{display:flex;gap:4px}
+.chat-input-attach button{width:40px;height:40px;border:none;background:transparent;color:var(--t2);cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+.chat-input-attach button:hover{background:var(--h)}
+.chat-input{flex:1;border:1px solid var(--b);border-radius:24px;padding:12px 18px;font-size:14px;outline:none;background:var(--bg);color:var(--t)}
+.chat-input:focus{border-color:var(--c)}
+.chat-send{width:48px;height:48px;background:var(--c);border:none;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px}
+.chat-send:hover{background:var(--cd)}
+.chat-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--t3);background:var(--card)}
+.chat-empty i{font-size:64px;opacity:.2;margin-bottom:16px}
+.chat-empty p{font-size:15px}
+
+@media(max-width:768px){
+.chat-overlay{padding:0}
+.chat-container{max-width:100%;height:100vh;border-radius:0}
+.chat-sidebar{width:100%;position:absolute;inset:0;z-index:1}
+.chat-main{position:absolute;inset:0;z-index:2;transform:translateX(100%);transition:.3s}
+.chat-main.show{transform:translateX(0)}
+}
+
+.tools-overlay{position:fixed;inset:0;z-index:2000;display:none}
+.tools-overlay.show{display:block}
+.tools-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.tools-sheet{position:absolute;bottom:70px;left:12px;right:12px;background:var(--card);border-radius:20px;overflow:hidden}
+.tools-head{padding:16px 20px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.tools-head h3{font-size:18px;font-weight:600}
+.tools-head button{width:32px;height:32px;border:none;background:var(--h);border-radius:50%;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center}
+.tools-body{padding:16px}
+.tools-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tools-item{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 8px;cursor:pointer;border-radius:12px}
+.tools-item:active{background:var(--h)}
+.tools-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.tools-item span{font-size:11px;text-align:center;font-weight:500}
+.loading{padding:60px 20px;text-align:center;color:var(--t3)}
+.loading i{font-size:32px;margin-bottom:12px;display:block;opacity:.3}
+.empty-state{padding:60px 20px;text-align:center;color:var(--t3)}
+.empty-state i{font-size:48px;margin-bottom:16px;display:block;opacity:.2}
+
+/* Invite Modal */
+.invite-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:4000;display:none;align-items:center;justify-content:center;padding:20px}
+.invite-modal.show{display:flex}
+.invite-box{background:var(--card);border-radius:16px;width:100%;max-width:400px;padding:24px;animation:slideUp .3s}
+.invite-box h3{font-size:18px;font-weight:700;margin-bottom:16px}
+.invite-box input{width:100%;border:1px solid var(--b);border-radius:10px;padding:12px;font-size:14px;margin-bottom:16px;outline:none}
+.invite-box input:focus{border-color:var(--c)}
+.invite-btns{display:flex;gap:10px}
+.invite-btns button{flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
+.invite-btns .cancel{background:var(--h);border:1px solid var(--b);color:var(--t)}
+.invite-btns .send{background:var(--c);border:none;color:#fff}
+    </style>
+</head>
+<body>
+<div class="toast-box" id="toast-box"></div>
+<div class="app" id="app">
+    <nav class="nav desktop-only">
+        <button class="nav-toggle" id="nav-toggle" onclick="toggleSidebar()"><i class="fas fa-chevron-left"></i></button>
+        <button class="nav-btn on" onclick="loadFolder('inbox')"><i class="fas fa-inbox"></i><span class="tip">Inbox</span></button>
+        <button class="nav-btn" onclick="openChat()"><i class="fas fa-comments"></i><span class="tip">Chat</span></button>
+        <button class="nav-btn" id="notif-btn" onclick="showNotifications()"><i class="fas fa-bell"></i><span class="badge" id="notif-badge" style="display:none">0</span><span class="tip">Notifications</span></button>
+        <div class="nav-space"></div>
+        <div class="dark-toggle" id="darkToggle" onclick="toggleDark()"></div>
+        <button class="nav-btn" onclick="location.href='/settings'"><i class="fas fa-cog"></i><span class="tip">Settings</span></button>
+        <button class="nav-btn" onclick="location.href='/logout'"><i class="fas fa-sign-out-alt"></i><span class="tip">Logout</span></button>
+    </nav>
+    <aside class="side desktop-only" id="sidebar">
+        <div class="side-head"><h2>Mailbox</h2></div>
+        <div class="side-body">
+            <div class="folder on" data-folder="inbox" onclick="loadFolder('inbox',this)"><i class="fas fa-inbox"></i> Inbox <span class="cnt" id="inbox-cnt"></span></div>
+            <div class="folder" data-folder="sent" onclick="loadFolder('sent',this)"><i class="fas fa-paper-plane"></i> Sent</div>
+            <div class="folder" data-folder="starred" onclick="loadFolder('starred',this)"><i class="fas fa-star"></i> Starred</div>
+            <div class="folder" data-folder="drafts" onclick="loadFolder('drafts',this)"><i class="fas fa-file-alt"></i> Drafts</div>
+            <div class="folder" data-folder="spam" onclick="loadFolder('spam',this)"><i class="fas fa-exclamation-triangle"></i> Spam</div>
+            <div class="folder" data-folder="trash" onclick="loadFolder('trash',this)"><i class="fas fa-trash"></i> Trash</div>
+            <div class="ad-banner" onclick="window.open('/ads','_blank')">
+                <i class="fas fa-bullhorn"></i>
+                <h4>📢 Advertise Here!</h4>
+                <p>Post your ads and get thousands of views daily</p>
+            </div>
+        </div>
+    </aside>
+    <section class="list">
+        <div class="list-head">
+            <div class="list-title" id="list-title">Inbox</div>
+            <div class="search"><i class="fas fa-search"></i><input type="text" placeholder="Search emails..." oninput="searchEmails(this.value)"></div>
+        </div>
+        <div class="emails" id="email-list"><div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div></div>
+    </section>
+    <section class="view desktop-only" id="email-view"><div class="view-empty"><i class="far fa-envelope-open"></i><p>Select an email to read</p></div></section>
+</div>
+
+<button class="fab" id="fab" onclick="openCompose()"><i class="fas fa-pen"></i></button>
+
+<nav class="mob-nav mobile-only">
+    <button class="on" onclick="mobileNav('inbox',this)"><i class="fas fa-inbox"></i><span>Inbox</span></button>
+    <button onclick="mobileNav('sent',this)"><i class="fas fa-paper-plane"></i><span>Sent</span></button>
+    <button onclick="openChat()"><i class="fas fa-comments"></i><span>Chat</span></button>
+    <button onclick="openTools()"><i class="fas fa-th-large"></i><span>More</span></button>
+</nav>
+
+<div class="email-view-panel mobile-only" id="ev-panel">
+    <div class="ev-head">
+        <button class="ev-back" onclick="closeEV()"><i class="fas fa-arrow-left"></i></button>
+        <div class="ev-title" id="ev-title">Email</div>
+        <div class="ev-actions">
+            <button onclick="starCurrent()"><i id="ev-star" class="far fa-star"></i></button>
+            <button onclick="deleteCurrent()"><i class="fas fa-trash"></i></button>
+        </div>
+    </div>
+    <div class="ev-body" id="ev-body"></div>
+    <div class="ev-footer">
+        <button onclick="replyEmail()"><i class="fas fa-reply"></i> Reply</button>
+        <button class="primary" onclick="fwdEmail()"><i class="fas fa-share"></i> Forward</button>
+    </div>
+</div>
+
+<!-- Compose Modal -->
+<div class="compose-overlay" id="compose-overlay" onclick="if(event.target===this)closeCompose()">
+    <div class="compose-box">
+        <div class="compose-head">
+            <h3 id="compose-title">New Message</h3>
+            <button onclick="closeCompose()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="compose-body">
+            <div class="compose-field">
+                <label>To</label>
+                <input type="email" id="compose-to" placeholder="recipient@example.com" oninput="searchContacts(this.value)" autocomplete="off">
+                <div class="contact-suggestions" id="contact-suggestions"></div>
+            </div>
+            <div class="compose-field"><label>Subject</label><input type="text" id="compose-subj" placeholder="Email subject"></div>
+            <div class="compose-toolbar">
+                <button onclick="execCmd('bold')"><i class="fas fa-bold"></i></button>
+                <button onclick="execCmd('italic')"><i class="fas fa-italic"></i></button>
+                <button onclick="execCmd('underline')"><i class="fas fa-underline"></i></button>
+                <button onclick="execCmd('strikeThrough')"><i class="fas fa-strikethrough"></i></button>
+                <div class="sep"></div>
+                <button onclick="execCmd('justifyLeft')"><i class="fas fa-align-left"></i></button>
+                <button onclick="execCmd('justifyCenter')"><i class="fas fa-align-center"></i></button>
+                <button onclick="execCmd('justifyRight')"><i class="fas fa-align-right"></i></button>
+                <div class="sep"></div>
+                <button onclick="execCmd('insertUnorderedList')"><i class="fas fa-list-ul"></i></button>
+                <button onclick="execCmd('insertOrderedList')"><i class="fas fa-list-ol"></i></button>
+                <div class="sep"></div>
+                <select onchange="execCmd('fontSize',this.value);this.selectedIndex=0">
+                    <option value="">Size</option>
+                    <option value="1">Small</option>
+                    <option value="3">Normal</option>
+                    <option value="5">Large</option>
+                    <option value="7">Huge</option>
+                </select>
+                <select onchange="execCmd('foreColor',this.value);this.selectedIndex=0">
+                    <option value="">Color</option>
+                    <option value="#ef4444">Red</option>
+                    <option value="#f59e0b">Orange</option>
+                    <option value="#10b981">Green</option>
+                    <option value="#3b82f6">Blue</option>
+                    <option value="#8b5cf6">Purple</option>
+                </select>
+                <div class="sep"></div>
+                <button onclick="insertLink()"><i class="fas fa-link"></i></button>
+                <button onclick="insertImage()"><i class="fas fa-image"></i></button>
+            </div>
+            <div class="compose-editor" id="compose-editor" contenteditable="true" data-placeholder="Write your message..."></div>
+            <div class="audio-recorder" id="audio-recorder">
+                <div class="audio-wave"><span></span><span></span><span></span><span></span><span></span></div>
+                <div class="audio-time" id="audio-time">0:00</div>
+                <div class="audio-controls">
+                    <button class="pause" onclick="pauseRecording()"><i class="fas fa-pause"></i></button>
+                    <button class="done" onclick="doneRecording()"><i class="fas fa-check"></i></button>
+                    <button class="cancel" onclick="cancelRecording()"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+        </div>
+        <div class="compose-foot">
+            <div class="compose-attach">
+                <button onclick="attachFile()"><i class="fas fa-paperclip"></i></button>
+                <button onclick="attachImage()"><i class="fas fa-image"></i></button>
+                <button onclick="attachVideo()"><i class="fas fa-video"></i></button>
+                <button onclick="startRecording()"><i class="fas fa-microphone"></i></button>
+            </div>
+            <div class="send-wrap">
+                <button class="send-btn" onclick="sendEmail()"><i class="fas fa-arrow-right"></i></button>
+                <div class="send-options">
+                    <div class="send-opt primary" onclick="sendEmail()"><i class="fas fa-paper-plane"></i> Send Now</div>
+                    <div class="send-opt" onclick="saveDraft()"><i class="fas fa-save"></i> Save Draft</div>
+                    <div class="send-opt danger" onclick="closeCompose()"><i class="fas fa-times"></i> Cancel</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat Modal -->
+<div class="chat-overlay" id="chat-overlay">
+    <div class="chat-container">
+        <div class="chat-sidebar" id="chat-sidebar">
+            <div class="chat-sidebar-head">
+                <div class="chat-sidebar-head-top">
+                    <h3>Chats</h3>
+                    <div class="chat-head-actions">
+                        <button onclick="openInvite()"><i class="fas fa-user-plus"></i></button>
+                        <button onclick="closeChat()"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="chat-new-input">
+                    <input type="email" id="chat-new-email" placeholder="Start new chat...">
+                    <button onclick="startNewChat()"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="chat-tabs">
+                <div class="chat-tab on" onclick="switchTab('all',this)">All</div>
+                <div class="chat-tab" onclick="switchTab('unread',this)">Unread</div>
+                <div class="chat-tab" onclick="switchTab('groups',this)">Groups</div>
+            </div>
+            <div class="chat-list" id="chat-list"></div>
+        </div>
+        <div class="chat-main" id="chat-main">
+            <div class="chat-empty"><i class="fas fa-comments"></i><p>Select a conversation to start chatting</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- Invite Modal -->
+<div class="invite-modal" id="invite-modal">
+    <div class="invite-box">
+        <h3>Invite to Chat</h3>
+        <input type="email" id="invite-email" placeholder="Enter email address">
+        <div class="invite-btns">
+            <button class="cancel" onclick="closeInvite()">Cancel</button>
+            <button class="send" onclick="sendInvite()">Send Invite</button>
+        </div>
+    </div>
+</div>
+
+<!-- Tools Overlay -->
+<div class="tools-overlay" id="tools-overlay">
+    <div class="tools-backdrop" onclick="closeTools()"></div>
+    <div class="tools-sheet">
+        <div class="tools-head"><h3>More</h3><button onclick="closeTools()"><i class="fas fa-times"></i></button></div>
+        <div class="tools-body">
+            <div class="tools-grid">
+                <div class="tools-item" onclick="closeTools();loadFolder('starred')"><div class="tools-icon" style="background:#fef3c7;color:#f59e0b"><i class="fas fa-star"></i></div><span>Starred</span></div>
+                <div class="tools-item" onclick="closeTools();loadFolder('spam')"><div class="tools-icon" style="background:#fef2f2;color:#ef4444"><i class="fas fa-exclamation-triangle"></i></div><span>Spam</span></div>
+                <div class="tools-item" onclick="closeTools();loadFolder('trash')"><div class="tools-icon" style="background:#f3f4f6;color:#6b7280"><i class="fas fa-trash"></i></div><span>Trash</span></div>
+                <div class="tools-item" onclick="closeTools();toggleDark()"><div class="tools-icon" style="background:#f5f3ff;color:#8b5cf6"><i class="fas fa-moon"></i></div><span>Dark</span></div>
+                <div class="tools-item" onclick="location.href='/settings'"><div class="tools-icon" style="background:#eff6ff;color:#3b82f6"><i class="fas fa-cog"></i></div><span>Settings</span></div>
+                <div class="tools-item" onclick="location.href='/logout'"><div class="tools-icon" style="background:#fef2f2;color:#ef4444"><i class="fas fa-sign-out-alt"></i></div><span>Logout</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var folder='inbox',emails=[],contacts=[],current=null,chats={},activeChat=null,pollInterval=null,viewingEmail=false;
+var colors=['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444','#6366f1','#14b8a6'];
+var mediaRecorder=null,audioChunks=[],recordingInterval=null,recordingTime=0;
+var onlineUsers={};
+
+function toast(m,t){var b=document.getElementById('toast-box'),d=document.createElement('div');d.className='toast '+(t||'info');d.innerHTML='<i class="fas fa-'+(t==='success'?'check-circle':t==='error'?'exclamation-circle':'info-circle')+'"></i>'+m;b.appendChild(d);setTimeout(function(){d.remove()},3500)}
+
+function toggleDark(){document.body.classList.toggle('dark');var isDark=document.body.classList.contains('dark');localStorage.setItem('dark',isDark);var tog=document.getElementById('darkToggle');if(tog)tog.classList.toggle('on',isDark);toast(isDark?'Dark mode on':'Light mode on','success')}
+if(localStorage.getItem('dark')==='true'){document.body.classList.add('dark');var tog=document.getElementById('darkToggle');if(tog)tog.classList.add('on')}
+
+function toggleSidebar(){
+    var app=document.getElementById('app'),tog=document.getElementById('nav-toggle');
+    app.classList.toggle('sidebar-collapsed');
+    tog.classList.toggle('rotated');
+}
+
+function updateFabVisibility(){
+    var fab=document.getElementById('fab');
+    if(viewingEmail&&window.innerWidth>768){fab.classList.add('hidden')}
+    else{fab.classList.remove('hidden')}
+}
+
+document.addEventListener('DOMContentLoaded',function(){loadFolder('inbox');loadContacts();startPolling();initSwipe();registerSW()});
+
+function registerSW(){
+    if('serviceWorker' in navigator){
+        navigator.serviceWorker.register('/static/sw.js').then(function(reg){console.log('SW registered')}).catch(function(e){console.log('SW failed',e)});
+    }
+}
+
+function loadFolder(f,el){
+    folder=f;
+    document.querySelectorAll('.folder').forEach(function(x){x.classList.remove('on')});
+    if(el)el.classList.add('on');else{var x=document.querySelector('.folder[data-folder="'+f+'"]');if(x)x.classList.add('on')}
+    var t={inbox:'Inbox',sent:'Sent',drafts:'Drafts',spam:'Spam',trash:'Trash',starred:'Starred'};
+    document.getElementById('list-title').textContent=t[f]||f;
+    document.getElementById('email-list').innerHTML='<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+    fetch('/api/emails?folder='+f+'&per_page=50',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+        if(d.success&&d.emails){emails=d.emails;render(emails);var u=emails.filter(function(e){return!e.is_read}).length;document.getElementById('inbox-cnt').textContent=f==='inbox'&&u?u:''}
+        else{emails=[];empty()}
+    }).catch(function(){empty()});
+}
+
+function render(list){
+    var el=document.getElementById('email-list');
+    if(!list.length){empty();return}
+    el.innerHTML=list.map(function(e){
+        var n=e.from_name||e.from_email?.split('@')[0]||'?',i=n.charAt(0).toUpperCase(),c=colors[i.charCodeAt(0)%colors.length],u=!e.is_read,s=e.is_starred,tm=fmtTime(e.received_at),p=(e.preview||'').substring(0,50);
+        return '<div class="email-item'+(u?' unread':'')+'" data-id="'+e.id+'" onclick="openMail('+e.id+',this)"><div class="swipe-actions"><i class="fas fa-trash"></i> Delete</div><div class="email-av" style="background:'+c+'">'+i+'</div><div class="email-content"><div class="email-row1"><span class="email-from">'+esc(n)+'</span><span class="email-time">'+tm+'</span></div><div class="email-subj">'+esc(e.subject||'(No subject)')+'</div><div class="email-preview">'+esc(p)+'</div></div><div class="email-indicators">'+(u?'<div class="email-badge"></div>':'')+'<i class="fas fa-star email-star'+(s?' on':'')+'" onclick="event.stopPropagation();star('+e.id+',this)"></i></div></div>';
+    }).join('');
+    initSwipe();
+}
+
+function empty(){var ic={trash:'fa-trash',spam:'fa-exclamation-triangle',starred:'fa-star',drafts:'fa-file-alt',sent:'fa-paper-plane'};document.getElementById('email-list').innerHTML='<div class="empty-state"><i class="fas '+(ic[folder]||'fa-inbox')+'"></i><p>No emails</p></div>'}
+
+function initSwipe(){
+    document.querySelectorAll('.email-item').forEach(function(item){
+        var startX=0,currentX=0,isDragging=false;
+        item.addEventListener('touchstart',function(e){startX=e.touches[0].clientX;isDragging=true},{ passive: true });
+        item.addEventListener('touchmove',function(e){
+            if(!isDragging)return;
+            currentX=e.touches[0].clientX;
+            var diff=startX-currentX;
+            if(diff>0&&diff<120){item.style.transform='translateX(-'+diff+'px)';item.classList.add('swiping')}
+        },{ passive: true });
+        item.addEventListener('touchend',function(){
+            isDragging=false;
+            var diff=startX-currentX;
+            if(diff>80){
+                var id=item.getAttribute('data-id');
+                deleteEmail(id);
+                item.style.transform='translateX(-100%)';
+                setTimeout(function(){item.remove()},300);
+            }else{item.style.transform=''}
+            item.classList.remove('swiping');
+        });
+    });
+}
+
+function openMail(id,el){
+    viewingEmail=true;
+    updateFabVisibility();
+    fetch('/api/email/'+id,{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+        if(!d.success||!d.email)return;var e=d.email;current=e;
+        var n=e.from_name||e.from_email?.split('@')[0]||'?',i=n.charAt(0).toUpperCase(),c=colors[i.charCodeAt(0)%colors.length],b=e.body_html||e.body_text?.replace(/\n/g,'<br>')||'',tm=fmtTime(e.received_at);
+        if(el)el.classList.remove('unread');
+        if(window.innerWidth>768){
+            document.querySelectorAll('.email-item').forEach(function(x){x.classList.remove('selected')});if(el)el.classList.add('selected');
+            document.getElementById('email-view').innerHTML='<div class="view-head"><button class="view-back" onclick="closeDesktopView()"><i class="fas fa-arrow-left"></i></button><div class="view-subj">'+esc(e.subject||'(No subject)')+'</div><div class="view-actions"><button class="view-btn" onclick="starCurrent()"><i class="fas fa-star"></i></button><button class="view-btn" onclick="deleteCurrent()"><i class="fas fa-trash"></i></button></div></div><div class="view-meta"><div class="view-av" style="background:'+c+'">'+i+'</div><div class="view-info"><div class="name">'+esc(n)+'</div><div class="email">'+esc(e.from_email||'')+'</div><div class="time">'+tm+'</div></div></div><div class="view-body"><div class="view-content">'+b+'</div></div><div class="reply-box"><div class="reply-toolbar"><button onclick="rExec(\'bold\')"><i class="fas fa-bold"></i></button><button onclick="rExec(\'italic\')"><i class="fas fa-italic"></i></button><button onclick="rExec(\'underline\')"><i class="fas fa-underline"></i></button><div class="sep"></div><button onclick="rExec(\'insertUnorderedList\')"><i class="fas fa-list-ul"></i></button><button onclick="rInsertLink()"><i class="fas fa-link"></i></button></div><div class="reply-input" id="reply-input" contenteditable="true" data-placeholder="Write a reply..."></div><div class="reply-footer"><div class="reply-attach"><button onclick="rAttach()"><i class="fas fa-paperclip"></i></button><button onclick="rImage()"><i class="fas fa-image"></i></button><button onclick="rAudio()"><i class="fas fa-microphone"></i></button></div><button class="reply-send" onclick="sendReply()"><i class="fas fa-paper-plane"></i> Send</button></div></div>';
+        }else{
+            document.getElementById('ev-title').textContent=e.subject||'(No subject)';
+            document.getElementById('ev-star').className=(e.is_starred?'fas':'far')+' fa-star';
+            document.getElementById('ev-body').innerHTML='<div class="ev-subject">'+esc(e.subject||'(No subject)')+'</div><div class="ev-meta"><div class="ev-av" style="background:'+c+'">'+i+'</div><div class="ev-info"><div class="name">'+esc(n)+'</div><div class="email">'+esc(e.from_email||'')+'</div><div class="time">'+tm+'</div></div></div><div class="ev-content">'+b+'</div>';
+            document.getElementById('ev-panel').classList.add('show');
+        }
+    });
+}
+
+function closeDesktopView(){viewingEmail=false;updateFabVisibility();document.getElementById('email-view').innerHTML='<div class="view-empty"><i class="far fa-envelope-open"></i><p>Select an email to read</p></div>';document.querySelectorAll('.email-item').forEach(function(x){x.classList.remove('selected')});current=null}
+function closeEV(){viewingEmail=false;updateFabVisibility();document.getElementById('ev-panel').classList.remove('show')}
+
+function openCompose(d){
+    document.getElementById('compose-title').textContent=d?.type==='reply'?'Reply':d?.type==='fwd'?'Forward':'New Message';
+    document.getElementById('compose-to').value=d?.to||'';
+    document.getElementById('compose-subj').value=d?.subj||'';
+    document.getElementById('compose-editor').innerHTML=d?.body||'';
+    document.getElementById('compose-overlay').classList.add('show');
+}
+function closeCompose(){document.getElementById('compose-overlay').classList.remove('show');cancelRecording()}
+
+function replyEmail(){if(!current)return;closeEV();openCompose({type:'reply',to:current.from_email,subj:'Re: '+(current.subject||''),body:'<br><br><hr><p>On '+fmtTime(current.received_at)+', '+esc(current.from_email)+' wrote:</p><blockquote style="border-left:3px solid #ccc;padding-left:10px;color:#666">'+(current.body_text||'')+'</blockquote>'})}
+function fwdEmail(){if(!current)return;closeEV();openCompose({type:'fwd',to:'',subj:'Fwd: '+(current.subject||''),body:'<br><br><hr><p>---------- Forwarded ----------</p><p>From: '+esc(current.from_email)+'</p><p>Subject: '+esc(current.subject)+'</p><br>'+(current.body_text||'')})}
+
+function execCmd(cmd,val){document.execCommand(cmd,false,val||null)}
+function insertLink(){var url=prompt('Enter URL:');if(url)execCmd('createLink',url)}
+function insertImage(){var url=prompt('Enter image URL:');if(url)execCmd('insertImage',url)}
+function rExec(cmd){document.execCommand(cmd,false,null)}
+function rInsertLink(){var url=prompt('Enter URL:');if(url)document.execCommand('createLink',false,url)}
+function rAttach(){var i=document.createElement('input');i.type='file';i.onchange=function(){toast('Attached: '+i.files[0].name,'success')};i.click()}
+function rImage(){var i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=function(){toast('Image attached','success')};i.click()}
+function rAudio(){startRecording()}
+
+function sendEmail(){
+    var to=document.getElementById('compose-to').value.trim(),subj=document.getElementById('compose-subj').value.trim(),body=document.getElementById('compose-editor').innerHTML.trim();
+    if(!to||to.indexOf('@')<0){toast('Enter valid email','error');return}
+    if(!subj){toast('Enter subject','error');return}
+    fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to,subject:subj,body:body,is_html:true})}).then(function(r){return r.json()}).then(function(d){
+        if(d.success){toast('Email sent!','success');closeCompose();document.getElementById('compose-to').value='';document.getElementById('compose-subj').value='';document.getElementById('compose-editor').innerHTML=''}
+        else toast(d.error||'Failed','error');
+    }).catch(function(){toast('Network error','error')});
+}
+
+function sendReply(){
+    if(!current)return;
+    var body=document.getElementById('reply-input')?.innerHTML?.trim();
+    if(!body){toast('Write a message','error');return}
+    fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:current.from_email,subject:'Re: '+(current.subject||''),body:body,is_html:true})}).then(function(r){return r.json()}).then(function(d){
+        if(d.success){toast('Reply sent!','success');var ri=document.getElementById('reply-input');if(ri)ri.innerHTML=''}
+        else toast(d.error||'Failed','error');
+    }).catch(function(){toast('Network error','error')});
+}
+
+function saveDraft(){
+    var to=document.getElementById('compose-to').value.trim(),subj=document.getElementById('compose-subj').value.trim(),body=document.getElementById('compose-editor').innerHTML.trim();
+    fetch('/api/drafts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to,subject:subj,body:body})}).then(function(r){return r.json()}).then(function(d){
+        if(d.success){toast('Draft saved!','success');closeCompose()}else toast(d.error||'Failed to save','error');
+    }).catch(function(e){console.error(e);toast('Network error','error')});
+}
+
+function loadContacts(){
+    fetch('/api/contacts',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+        if(d.success&&d.contacts)contacts=d.contacts;
+    }).catch(function(){});
+}
+
+function searchContacts(q){
+    var box=document.getElementById('contact-suggestions');
+    if(q.length<2){box.classList.remove('show');return}
+    var matches=contacts.filter(function(c){return c.email.toLowerCase().indexOf(q.toLowerCase())>=0}).slice(0,5);
+    if(matches.length){
+        box.innerHTML=matches.map(function(c){
+            var i=c.email.charAt(0).toUpperCase(),col=colors[i.charCodeAt(0)%colors.length];
+            return '<div class="contact-sug" onclick="selectContact(\''+c.email+'\')"><div class="sug-av" style="background:'+col+'">'+i+'</div><div class="sug-email">'+esc(c.email)+'</div></div>';
+        }).join('');
+        box.classList.add('show');
+    }else{box.classList.remove('show')}
+}
+function selectContact(email){document.getElementById('compose-to').value=email;document.getElementById('contact-suggestions').classList.remove('show');document.getElementById('compose-subj').focus()}
+
+function attachFile(){var i=document.createElement('input');i.type='file';i.onchange=function(){toast('Attached: '+i.files[0].name,'success')};i.click()}
+function attachImage(){var i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=function(){toast('Image attached','success')};i.click()}
+function attachVideo(){var i=document.createElement('input');i.type='file';i.accept='video/*';i.onchange=function(){toast('Video attached','success')};i.click()}
+
+function startRecording(){
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+        mediaRecorder=new MediaRecorder(stream);audioChunks=[];
+        mediaRecorder.ondataavailable=function(e){audioChunks.push(e.data)};
+        mediaRecorder.start();recordingTime=0;
+        document.getElementById('audio-recorder').classList.add('show');
+        recordingInterval=setInterval(function(){recordingTime++;var m=Math.floor(recordingTime/60),s=recordingTime%60;document.getElementById('audio-time').textContent=m+':'+(s<10?'0':'')+s},1000);
+        toast('Recording...','info');
+    }).catch(function(){toast('Microphone access denied','error')});
+}
+function pauseRecording(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.pause();toast('Paused','info')}else if(mediaRecorder&&mediaRecorder.state==='paused'){mediaRecorder.resume();toast('Resumed','info')}}
+function doneRecording(){if(mediaRecorder){mediaRecorder.stop();mediaRecorder.onstop=function(){var blob=new Blob(audioChunks,{type:'audio/webm'});toast('Audio recorded ('+document.getElementById('audio-time').textContent+')','success')};clearInterval(recordingInterval);document.getElementById('audio-recorder').classList.remove('show')}}
+function cancelRecording(){if(mediaRecorder){try{mediaRecorder.stop()}catch(e){}}clearInterval(recordingInterval);document.getElementById('audio-recorder').classList.remove('show');audioChunks=[]}
+
+function star(id,el){if(el)el.classList.toggle('on');fetch('/api/email/'+id+'/star',{method:'POST',credentials:'same-origin'})}
+function starCurrent(){if(current){star(current.id);current.is_starred=!current.is_starred;var i=document.getElementById('ev-star');if(i)i.className=(current.is_starred?'fas':'far')+' fa-star'}}
+
+function deleteEmail(id){
+    return fetch('/api/email/'+id+'/delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json()}).then(function(d){
+        if(d.success){emails=emails.filter(function(e){return e.id!=id});return true}
+        return false;
+    }).catch(function(){return false});
+}
+
+function deleteCurrent(){
+    if(!current)return;
+    deleteEmail(current.id).then(function(ok){
+        if(ok){closeEV();closeDesktopView();render(emails);current=null;toast('Email deleted','success')}
+        else{toast('Delete failed','error')}
+    });
+}
+
+function startPolling(){
+    pollInterval=setInterval(function(){
+        if(folder==='inbox'){
+            fetch('/api/emails/unread-count',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+                if(d.success){
+                    var cnt=d.unread_count||0;
+                    document.getElementById('inbox-cnt').textContent=cnt||'';
+                    var badge=document.getElementById('notif-badge');
+                    if(badge){badge.textContent=cnt;badge.style.display=cnt>0?'flex':'none'}
+                }
+            }).catch(function(){});
+            fetch('/api/emails?folder=inbox&per_page=50',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+                if(d.success&&d.emails&&d.emails.length>emails.length){
+                    var newCount=d.emails.length-emails.length;
+                    emails=d.emails;render(emails);
+                    if(newCount>0)toast(newCount+' new email(s)','info');
+                }
+            }).catch(function(){});
+        }
+    },2000);
+}
+
+function showNotifications(){toast('No new notifications','info')}
+
+function mobileNav(f,btn){document.querySelectorAll('.mob-nav button').forEach(function(b){b.classList.remove('on')});if(btn)btn.classList.add('on');loadFolder(f)}
+function openTools(){document.getElementById('tools-overlay').classList.add('show')}
+function closeTools(){document.getElementById('tools-overlay').classList.remove('show')}
+
+// Chat Functions
+function openChat(){document.getElementById('chat-overlay').classList.add('show');loadChats()}
+function closeChat(){document.getElementById('chat-overlay').classList.remove('show');if(window.innerWidth<=768)document.getElementById('chat-main').classList.remove('show')}
+function loadChats(){
+    fetch('/api/chat/conversations',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+        if(d.success&&d.conversations){
+            d.conversations.forEach(function(c){
+                chats[c.email]={email:c.email,messages:c.messages||[],unread:c.unread||0,lastSeen:c.last_seen};
+                onlineUsers[c.email]=c.is_online||false;
+            });
+            renderChatList();
+        }
+    }).catch(function(){renderChatList()});
+}
+function switchTab(tab,el){
+    document.querySelectorAll('.chat-tab').forEach(function(t){t.classList.remove('on')});
+    el.classList.add('on');
+    renderChatList(tab);
+}
+function renderChatList(filter){
+    var el=document.getElementById('chat-list');
+    var keys=Object.keys(chats);
+    if(filter==='unread')keys=keys.filter(function(k){return chats[k].unread>0});
+    if(!keys.length){el.innerHTML='<div class="empty-state"><i class="fas fa-comments"></i><p>No conversations</p></div>';return}
+    el.innerHTML=keys.map(function(k){
+        var c=chats[k],i=k.charAt(0).toUpperCase(),col=colors[i.charCodeAt(0)%colors.length];
+        var last=c.messages?.length?c.messages[c.messages.length-1].text:'No messages yet';
+        var isOnline=onlineUsers[k];
+        return '<div class="chat-item'+(activeChat===k?' on':'')+'" onclick="selectChat(\''+k+'\')"><div class="chat-item-av" style="background:'+col+'">'+i+'<span class="status-dot '+(isOnline?'online':'offline')+'"></span></div><div class="chat-item-info"><div class="chat-item-name">'+esc(k)+'</div><div class="chat-item-last">'+esc((last||'').substring(0,35))+'</div></div>'+(c.unread?'<div class="chat-item-unread">'+c.unread+'</div>':'')+'</div>';
+    }).join('');
+}
+function selectChat(email){
+    activeChat=email;
+    if(!chats[email])chats[email]={email:email,messages:[]};
+    chats[email].unread=0;
+    renderChatList();
+    var c=chats[email],i=email.charAt(0).toUpperCase(),col=colors[i.charCodeAt(0)%colors.length];
+    var isOnline=onlineUsers[email];
+    document.getElementById('chat-main').innerHTML='<div class="chat-main-head"><div class="chat-main-av" style="background:'+col+'">'+i+'<span class="status-dot '+(isOnline?'online':'offline')+'"></span></div><div class="chat-main-info"><div class="chat-main-name">'+esc(email)+'</div><div class="chat-main-status '+(isOnline?'online':'offline')+'">'+(isOnline?'● Online':'Offline')+'</div></div><div class="chat-main-actions"><button onclick="voiceCall()"><i class="fas fa-phone"></i></button><button onclick="videoCall()"><i class="fas fa-video"></i></button><button class="chat-close" onclick="closeChatMain()"><i class="fas fa-times"></i></button></div></div><div class="chat-messages" id="chat-messages"></div><div class="chat-input-area"><div class="chat-input-attach"><button><i class="fas fa-paperclip"></i></button><button><i class="fas fa-image"></i></button></div><input class="chat-input" id="chat-input" placeholder="Type a message..." onkeypress="if(event.key===\'Enter\')sendChatMsg()"><button class="chat-send" onclick="sendChatMsg()"><i class="fas fa-paper-plane"></i></button></div>';
+    if(window.innerWidth<=768)document.getElementById('chat-main').classList.add('show');
+    renderChatMessages();
+    loadChatHistory(email);
+}
+function closeChatMain(){document.getElementById('chat-main').classList.remove('show');activeChat=null}
+function loadChatHistory(email){
+    fetch('/api/chat/history?email='+encodeURIComponent(email),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(d){
+        if(d.success&&d.messages){chats[email].messages=d.messages;renderChatMessages()}
+    }).catch(function(){});
+}
+function renderChatMessages(){
+    var el=document.getElementById('chat-messages');
+    if(!el)return;
+    var c=chats[activeChat];
+    if(!c||!c.messages||!c.messages.length){el.innerHTML='<div class="empty-state" style="padding:40px"><p>No messages yet. Say hi!</p></div>';return}
+    el.innerHTML=c.messages.map(function(m){
+        return '<div class="chat-msg '+(m.sent?'sent':'recv')+'">'+esc(m.text)+'<span class="time">'+fmtTime(m.time)+' '+(m.sent?'<i class="fas fa-check-double"></i>':'')+'</span></div>';
+    }).join('');
+    el.scrollTop=el.scrollHeight;
+}
+function startNewChat(){
+    var email=document.getElementById('chat-new-email').value.trim();
+    if(!email||email.indexOf('@')<0){toast('Enter valid email','error');return}
+    if(!chats[email])chats[email]={email:email,messages:[]};
+    document.getElementById('chat-new-email').value='';
+    selectChat(email);
+}
+function sendChatMsg(){
+    var input=document.getElementById('chat-input');
+    var text=input.value.trim();
+    if(!text||!activeChat)return;
+    if(!chats[activeChat].messages)chats[activeChat].messages=[];
+    chats[activeChat].messages.push({text:text,sent:true,time:new Date()});
+    input.value='';
+    renderChatMessages();
+    fetch('/api/chat/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:activeChat,message:text})}).catch(function(){});
+}
+function voiceCall(){toast('Voice call coming soon','info')}
+function videoCall(){toast('Video call coming soon','info')}
+
+function openInvite(){document.getElementById('invite-modal').classList.add('show')}
+function closeInvite(){document.getElementById('invite-modal').classList.remove('show');document.getElementById('invite-email').value=''}
+function sendInvite(){
+    var email=document.getElementById('invite-email').value.trim();
+    if(!email||email.indexOf('@')<0){toast('Enter valid email','error');return}
+    toast('Invitation sent to '+email,'success');
+    closeInvite();
+}
+
+function searchEmails(q){if(!q.trim()){render(emails);return}var f=emails.filter(function(e){return((e.from_name||'')+' '+(e.from_email||'')+' '+(e.subject||'')).toLowerCase().indexOf(q.toLowerCase())>=0});render(f)}
+function fmtTime(d){if(!d)return'';try{var dt=new Date(d),now=new Date(),diff=Math.floor((now-dt)/86400000);if(diff===0)return dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});if(diff===1)return'Yesterday';if(diff<7)return['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];return dt.toLocaleDateString([],{month:'short',day:'numeric'})}catch(e){return''}}
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+document.addEventListener('click',function(e){if(!e.target.closest('.compose-field'))document.getElementById('contact-suggestions')?.classList.remove('show')});
+</script>
+</body>
+</html>

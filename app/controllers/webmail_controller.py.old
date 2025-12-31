@@ -1,0 +1,2309 @@
+"""
+SendBaba Webmail Controller
+Standalone webmail interface at mail.sendbaba.com
+"""
+
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, send_file
+from functools import wraps
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import uuid
+import os
+import hashlib
+
+webmail_bp = Blueprint('webmail', __name__)
+
+DATABASE_URL = "postgresql://emailer:SecurePassword123@localhost/emailer"
+WEBMAIL_HOSTS = ['mail.sendbaba.com', 'localhost:5000']
+
+def get_db():
+    return psycopg2.connect(DATABASE_URL)
+
+def is_webmail_request():
+    """Check if request is for webmail domain"""
+    host = request.host.lower()
+    return any(wh in host for wh in WEBMAIL_HOSTS)
+
+def webmail_login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'webmail_user' not in session:
+            is_api = request.is_json or '/api/' in request.path or request.headers.get('Accept', '').startswith('application/json')
+            if is_api:
+                return jsonify({'error': 'Unauthorized'}), 401
+            return redirect(url_for('webmail.login'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ============================================================
+# INTERCEPT REQUESTS FOR mail.sendbaba.com
+# ============================================================
+
+@webmail_bp.before_app_request
+def intercept_webmail_requests():
+    """Intercept all requests to mail.sendbaba.com and route to webmail"""
+    if not is_webmail_request():
+        return None  # Let other blueprints handle
+    
+    # Map paths to webmail handlers
+    path = request.path
+    
+    # Skip static files and API calls (they have their own routes)
+    if path.startswith('/static') or path.startswith('/api/'):
+        return None
+    
+    # Root path -> redirect to login or inbox
+    if path == '/' or path == '':
+        if 'webmail_user' in session:
+            return redirect(url_for('webmail.inbox'))
+        return redirect(url_for('webmail.login'))
+    
+    return None  # Let normal routing handle
+
+
+# ============================================================
+# AUTH ROUTES
+# ============================================================
+
+@webmail_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Webmail login page with login notifications"""
+    from flask import flash
+    
+    if not is_webmail_request():
+        return redirect('/')
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').lower().strip()
+        password = request.form.get('password', '')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Check mailbox with recovery_email for notifications
+        cur.execute("SELECT id, email, name, password_hash, recovery_email, is_active FROM mailboxes WHERE email = %s", (email,))
+        mailbox = cur.fetchone()
+        
+        if not mailbox:
+            conn.close()
+            flash('Invalid email or password', 'error')
+            return render_template('webmail/login.html')
+        
+        if mailbox.get('is_active') == False:
+            conn.close()
+            flash('Your account has been suspended. Contact support.', 'error')
+            return render_template('webmail/login.html')
+        
+        # Check password
+        password_hash = hashlib.sha256(password.encode()).hexdigest() if password else None
+        
+        if mailbox['password_hash'] and mailbox['password_hash'] != password_hash:
+            conn.close()
+            flash('Invalid email or password', 'error')
+            return render_template('webmail/login.html')
+        
+        # Update last login
+        cur.execute("UPDATE mailboxes SET last_login = NOW() WHERE id = %s", (mailbox['id'],))
+        conn.commit()
+        conn.close()
+        
+        # Set session
+        session['webmail_user'] = mailbox['email']
+        session['webmail_name'] = mailbox['name'] or mailbox['email'].split('@')[0]
+        session['webmail_id'] = mailbox['id']
+        session.permanent = True
+        
+        # Send login notification in background thread
+        try:
+            from app.utils.mail_helpers import get_client_info, send_login_notification
+            login_info = get_client_info(request)
+            import threading
+            thread = threading.Thread(target=send_login_notification, args=(dict(mailbox), login_info))
+            thread.daemon = True
+            thread.start()
+        except Exception as e:
+            print(f"Login notification error: {e}")
+        
+        return redirect(url_for('webmail.inbox'))
+    
+    return render_template('webmail/login.html')
+
+
+@webmail_bp.route('/logout')
+def logout():
+    """Logout"""
+    session.pop('webmail_user', None)
+    session.pop('webmail_name', None)
+    session.pop('webmail_id', None)
+    return redirect(url_for('webmail.login'))
+
+
+# ============================================================
+# MAIN PAGES
+# ============================================================
+
+@webmail_bp.route('/inbox')
+@webmail_login_required
+def inbox():
+    """Main inbox page"""
+    if not is_webmail_request():
+        return redirect('/')
+    return render_template('webmail/inbox.html', user=session.get('webmail_user'), name=session.get('webmail_name'))
+
+
+# ============================================================
+# API ENDPOINTS
+# ============================================================
+
+@webmail_bp.route('/api/counts')
+@webmail_login_required
+def api_counts():
+    """Get folder counts"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT 
+                COUNT(*) FILTER (WHERE folder = 'inbox' AND is_read = false) as inbox_unread,
+                COUNT(*) FILTER (WHERE folder = 'inbox') as inbox,
+                COUNT(*) FILTER (WHERE folder = 'sent') as sent,
+                COUNT(*) FILTER (WHERE folder = 'drafts') as drafts,
+                COUNT(*) FILTER (WHERE folder = 'spam') as spam,
+                COUNT(*) FILTER (WHERE folder = 'trash') as trash,
+                COUNT(*) FILTER (WHERE is_starred = true AND folder != 'trash') as starred
+            FROM mailbox_emails
+            WHERE mailbox_id = %s AND (deleted_at IS NULL OR folder = 'trash')
+        """, (mailbox_id,))
+        
+        counts = cur.fetchone()
+        conn.close()
+        
+        return jsonify({'success': True, 'counts': counts or {}})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/emails')
+@webmail_login_required
+def api_emails():
+    """Get emails for a folder"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        folder = request.args.get('folder', 'inbox')
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        offset = (page - 1) * per_page
+        
+        # Build query
+        if folder == 'starred':
+            folder_condition = "is_starred = true AND folder != 'trash'"
+        elif folder == 'all':
+            folder_condition = "folder NOT IN ('trash', 'spam')"
+        else:
+            folder_condition = f"folder = '{folder}'"
+        
+        params = [mailbox_id]
+        search_condition = ""
+        if search:
+            search_condition = "AND (subject ILIKE %s OR from_email ILIKE %s OR body_text ILIKE %s)"
+            search_term = f'%{search}%'
+            params.extend([search_term, search_term, search_term])
+        
+        query = f"""
+            SELECT 
+                id, message_id, from_email, from_name, to_email, subject,
+                SUBSTRING(COALESCE(body_text, ''), 1, 150) as preview,
+                folder, is_read, is_starred, has_attachments, received_at
+            FROM mailbox_emails
+            WHERE mailbox_id = %s AND {folder_condition} {search_condition}
+            ORDER BY received_at DESC
+            LIMIT {per_page} OFFSET {offset}
+        """
+        
+        cur.execute(query, params)
+        emails = cur.fetchall()
+        
+        # Get total count
+        count_query = f"""
+            SELECT COUNT(*) as total FROM mailbox_emails
+            WHERE mailbox_id = %s AND {folder_condition} {search_condition}
+        """
+        cur.execute(count_query, params)
+        total = cur.fetchone()['total']
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'emails': emails, 'total': total})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/email/<int:email_id>')
+@webmail_login_required
+def api_email(email_id):
+    """Get single email"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT * FROM mailbox_emails
+            WHERE id = %s AND mailbox_id = %s
+        """, (email_id, mailbox_id))
+        
+        email = cur.fetchone()
+        
+        if not email:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Email not found'}), 404
+        
+        # Mark as read
+        cur.execute("UPDATE mailbox_emails SET is_read = true WHERE id = %s", (email_id,))
+        conn.commit()
+        
+        # Get attachments
+        cur.execute("SELECT id, filename, content_type, size FROM mailbox_attachments WHERE email_id = %s", (email_id,))
+        attachments = cur.fetchall()
+        email['attachments'] = attachments
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'email': email})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/email/<int:email_id>/star', methods=['POST'])
+@webmail_login_required
+def api_star(email_id):
+    """Toggle star"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE mailbox_emails SET is_starred = NOT is_starred WHERE id = %s AND mailbox_id = %s", (email_id, mailbox_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/email/<int:email_id>/read', methods=['POST'])
+@webmail_login_required
+def api_read(email_id):
+    """Mark read/unread"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json() or {}
+        is_read = data.get('is_read', True)
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE mailbox_emails SET is_read = %s WHERE id = %s AND mailbox_id = %s", (is_read, email_id, mailbox_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/email/<int:email_id>/move', methods=['POST'])
+@webmail_login_required
+def api_move(email_id):
+    """Move to folder"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json() or {}
+        folder = data.get('folder', 'inbox')
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        if folder == 'trash':
+            cur.execute("UPDATE mailbox_emails SET folder = %s, deleted_at = NOW() WHERE id = %s AND mailbox_id = %s", (folder, email_id, mailbox_id))
+        else:
+            cur.execute("UPDATE mailbox_emails SET folder = %s, deleted_at = NULL WHERE id = %s AND mailbox_id = %s", (folder, email_id, mailbox_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/email/<int:email_id>/delete', methods=['POST'])
+@webmail_login_required
+def api_delete(email_id):
+    """Delete email"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json() or {}
+        permanent = data.get('permanent', False)
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        if permanent:
+            # Delete attachments first
+            cur.execute("SELECT path FROM mailbox_attachments WHERE email_id = %s", (email_id,))
+            for row in cur.fetchall():
+                try:
+                    if row[0] and os.path.exists(row[0]):
+                        os.remove(row[0])
+                except:
+                    pass
+            cur.execute("DELETE FROM mailbox_attachments WHERE email_id = %s", (email_id,))
+            cur.execute("DELETE FROM mailbox_emails WHERE id = %s AND mailbox_id = %s", (email_id, mailbox_id))
+        else:
+            cur.execute("UPDATE mailbox_emails SET folder = 'trash', deleted_at = NOW() WHERE id = %s AND mailbox_id = %s", (email_id, mailbox_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/bulk', methods=['POST'])
+@webmail_login_required
+def api_bulk():
+    """Bulk actions"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json() or {}
+        email_ids = data.get('ids', [])
+        action = data.get('action', '')
+        
+        if not email_ids or not action:
+            return jsonify({'success': False, 'error': 'Missing ids or action'}), 400
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # Verify ownership
+        cur.execute("SELECT id FROM mailbox_emails WHERE id = ANY(%s) AND mailbox_id = %s", (email_ids, mailbox_id))
+        valid_ids = [r[0] for r in cur.fetchall()]
+        
+        if action == 'read':
+            cur.execute("UPDATE mailbox_emails SET is_read = true WHERE id = ANY(%s)", (valid_ids,))
+        elif action == 'unread':
+            cur.execute("UPDATE mailbox_emails SET is_read = false WHERE id = ANY(%s)", (valid_ids,))
+        elif action == 'trash':
+            cur.execute("UPDATE mailbox_emails SET folder = 'trash', deleted_at = NOW() WHERE id = ANY(%s)", (valid_ids,))
+        elif action == 'spam':
+            cur.execute("UPDATE mailbox_emails SET folder = 'spam', is_spam = true WHERE id = ANY(%s)", (valid_ids,))
+        elif action == 'star':
+            cur.execute("UPDATE mailbox_emails SET is_starred = true WHERE id = ANY(%s)", (valid_ids,))
+        elif action == 'unstar':
+            cur.execute("UPDATE mailbox_emails SET is_starred = false WHERE id = ANY(%s)", (valid_ids,))
+        elif action == 'inbox':
+            cur.execute("UPDATE mailbox_emails SET folder = 'inbox', deleted_at = NULL WHERE id = ANY(%s)", (valid_ids,))
+        elif action == 'delete':
+            cur.execute("DELETE FROM mailbox_emails WHERE id = ANY(%s)", (valid_ids,))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/send', methods=['POST'])
+@webmail_login_required
+def api_send():
+    """Send email - Internal delivery for SendBaba users, SMTP relay for external"""
+    try:
+        from app.utils.internal_delivery import is_internal_user, deliver_internal
+        
+        mailbox_id = session.get('webmail_id')
+        from_email = session.get('webmail_user')
+        from_name = session.get('webmail_name', '')
+
+        data = request.get_json() or {}
+        to_email = data.get('to', '').strip().lower()
+        cc = data.get('cc', '')
+        bcc = data.get('bcc', '')
+        subject = data.get('subject', '')
+        body = data.get('body', '')
+        is_html = data.get('is_html', False)
+        is_draft = data.get('draft', False)
+        reply_to_id = data.get('reply_to_id')
+        has_audio = data.get('has_audio', False)
+        audio_data = data.get('audio_data')
+
+        if not to_email and not is_draft:
+            return jsonify({'success': False, 'error': 'Recipient required'}), 400
+
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        message_id = f'<{uuid.uuid4()}@sendbaba.com>'
+        folder = 'drafts' if is_draft else 'sent'
+
+        # Handle reply threading
+        in_reply_to = None
+        thread_id = message_id
+        if reply_to_id:
+            cur.execute("SELECT message_id, thread_id FROM mailbox_emails WHERE id = %s", (reply_to_id,))
+            orig = cur.fetchone()
+            if orig:
+                in_reply_to = orig['message_id']
+                thread_id = orig['thread_id']
+
+        # Build HTML body
+        html_body = body if is_html else f'<html><body><p>{body.replace(chr(10), "<br>")}</p></body></html>'
+        text_body = body if not is_html else ''
+
+        # Store email in sender's sent folder
+        cur.execute("""
+            INSERT INTO mailbox_emails
+            (mailbox_id, message_id, in_reply_to, thread_id, from_email, from_name, to_email, cc, subject,
+             body_text, body_html, folder, is_read, has_attachments, received_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, true, %s, NOW())
+            RETURNING id
+        """, (
+            mailbox_id, message_id, in_reply_to, thread_id, from_email, from_name, 
+            to_email, cc, subject, text_body, html_body, folder, has_audio
+        ))
+
+        sent_email_id = cur.fetchone()['id']
+        conn.commit()
+        conn.close()
+
+        if is_draft:
+            return jsonify({'success': True, 'email_id': sent_email_id, 'draft': True})
+
+        send_errors = []
+        internal_count = 0
+        external_count = 0
+
+        # Process all recipients
+        all_recipients = [to_email]
+        if cc:
+            all_recipients.extend([e.strip().lower() for e in cc.split(',') if e.strip()])
+        if bcc:
+            all_recipients.extend([e.strip().lower() for e in bcc.split(',') if e.strip()])
+
+        for recipient in all_recipients:
+            if is_internal_user(recipient):
+                # ⚡ INSTANT INTERNAL DELIVERY
+                result = deliver_internal(
+                    from_email=from_email,
+                    from_name=from_name,
+                    to_email=recipient,
+                    subject=subject,
+                    body_text=text_body,
+                    body_html=html_body,
+                    message_id=message_id,
+                    in_reply_to=in_reply_to,
+                    thread_id=thread_id,
+                    has_audio=has_audio
+                )
+                if result.get('success'):
+                    internal_count += 1
+                else:
+                    send_errors.append(f"{recipient}: {result.get('error', 'Internal delivery failed')}")
+            else:
+                # 📤 EXTERNAL SMTP RELAY
+                try:
+                    from app.smtp.relay_server import send_email_sync
+                    result = send_email_sync({
+                        'from': from_email,
+                        'from_name': from_name,
+                        'to': recipient,
+                        'subject': subject,
+                        'html_body': html_body,
+                        'text_body': text_body,
+                        'reply_to': from_email
+                    })
+                    if result.get('success'):
+                        external_count += 1
+                    else:
+                        send_errors.append(f"{recipient}: {result.get('message', 'SMTP error')}")
+                except Exception as smtp_err:
+                    send_errors.append(f"{recipient}: {str(smtp_err)}")
+
+        response = {
+            'success': True,
+            'email_id': sent_email_id,
+            'internal_delivered': internal_count,
+            'external_sent': external_count
+        }
+        
+        if send_errors:
+            response['warnings'] = send_errors
+
+        return jsonify(response)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+@webmail_bp.route('/api/attachment/<int:attachment_id>')
+@webmail_login_required
+def api_attachment(attachment_id):
+    """Download attachment"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT a.* FROM mailbox_attachments a
+            JOIN mailbox_emails e ON a.email_id = e.id
+            WHERE a.id = %s AND e.mailbox_id = %s
+        """, (attachment_id, mailbox_id))
+        
+        attachment = cur.fetchone()
+        conn.close()
+        
+        if not attachment or not attachment.get('path') or not os.path.exists(attachment['path']):
+            return jsonify({'success': False, 'error': 'Attachment not found'}), 404
+        
+        return send_file(
+            attachment['path'],
+            as_attachment=True,
+            download_name=attachment['filename'],
+            mimetype=attachment['content_type']
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# SETTINGS PAGE & API
+# ============================================================
+
+@webmail_bp.route('/settings')
+@webmail_login_required
+def settings():
+    """Mailbox settings page"""
+    return render_template('webmail/settings.html', user=session.get('webmail_user'), name=session.get('webmail_name'))
+
+
+@webmail_bp.route('/api/settings/domains')
+@webmail_login_required
+def api_settings_domains():
+    """Get user's domains"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get organization for this mailbox
+        cur.execute("SELECT organization_id FROM mailboxes WHERE id = %s", (mailbox_id,))
+        result = cur.fetchone()
+        if not result or not result['organization_id']:
+            conn.close()
+            return jsonify({'success': True, 'domains': []})
+        
+        org_id = result['organization_id']
+        
+        # Get domains
+        cur.execute("""
+            SELECT id, domain, is_verified, mx_verified, spf_verified, created_at
+            FROM mailbox_domains
+            WHERE organization_id = %s AND is_active = true
+            ORDER BY created_at DESC
+        """, (org_id,))
+        
+        domains = cur.fetchall()
+        conn.close()
+        
+        return jsonify({'success': True, 'domains': domains})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/domains', methods=['POST'])
+@webmail_login_required
+def api_settings_add_domain():
+    """Add a custom domain"""
+    import secrets as sec
+    
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json()
+        domain = data.get('domain', '').lower().strip()
+        
+        # Validate domain
+        import re
+        if not re.match(r'^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$', domain):
+            return jsonify({'success': False, 'error': 'Invalid domain format'}), 400
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get organization
+        cur.execute("SELECT organization_id FROM mailboxes WHERE id = %s", (mailbox_id,))
+        result = cur.fetchone()
+        if not result or not result['organization_id']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'No organization found'}), 400
+        
+        org_id = result['organization_id']
+        
+        # Check if domain already exists
+        cur.execute("SELECT id FROM mailbox_domains WHERE domain = %s", (domain,))
+        if cur.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Domain already registered'}), 400
+        
+        # Add domain
+        verification_token = sec.token_hex(16)
+        cur.execute("""
+            INSERT INTO mailbox_domains (organization_id, domain, verification_token, is_active)
+            VALUES (%s, %s, %s, true)
+            RETURNING id
+        """, (org_id, domain, verification_token))
+        
+        domain_id = cur.fetchone()['id']
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'domain_id': domain_id})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/domains/<int:domain_id>/verify', methods=['POST'])
+@webmail_login_required
+def api_settings_verify_domain(domain_id):
+    """Verify domain DNS records"""
+    import subprocess
+    
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("SELECT domain, verification_token FROM mailbox_domains WHERE id = %s", (domain_id,))
+        domain_data = cur.fetchone()
+        
+        if not domain_data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Domain not found'}), 404
+        
+        domain = domain_data['domain']
+        verified = False
+        mx_verified = False
+        
+        # Check MX record
+        try:
+            result = subprocess.run(
+                ['dig', '+short', 'MX', domain],
+                capture_output=True, text=True, timeout=10
+            )
+            if 'mail.sendbaba.com' in result.stdout.lower():
+                mx_verified = True
+        except:
+            pass
+        
+        # Check TXT verification record
+        try:
+            result = subprocess.run(
+                ['dig', '+short', 'TXT', domain],
+                capture_output=True, text=True, timeout=10
+            )
+            if f"sendbaba-verify={domain_id}" in result.stdout:
+                verified = True
+        except:
+            pass
+        
+        # Update domain
+        if verified or mx_verified:
+            cur.execute("""
+                UPDATE mailbox_domains 
+                SET is_verified = %s, mx_verified = %s, verified_at = NOW()
+                WHERE id = %s
+            """, (verified, mx_verified, domain_id))
+            conn.commit()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'verified': verified or mx_verified,
+            'mx_verified': mx_verified,
+            'txt_verified': verified
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/domains/<int:domain_id>', methods=['DELETE'])
+@webmail_login_required
+def api_settings_delete_domain(domain_id):
+    """Delete a domain"""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # Soft delete - just deactivate
+        cur.execute("UPDATE mailbox_domains SET is_active = false WHERE id = %s", (domain_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/team')
+@webmail_login_required
+def api_settings_team():
+    """Get team members"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get organization
+        cur.execute("SELECT organization_id FROM mailboxes WHERE id = %s", (mailbox_id,))
+        result = cur.fetchone()
+        if not result or not result['organization_id']:
+            conn.close()
+            return jsonify({'success': True, 'members': [], 'domains': []})
+        
+        org_id = result['organization_id']
+        
+        # Get team members
+        cur.execute("""
+            SELECT id, email, name, role, is_active, last_login, recovery_email
+            FROM mailboxes
+            WHERE organization_id = %s AND is_active = true
+            ORDER BY created_at
+        """, (org_id,))
+        members = cur.fetchall()
+        
+        # Get verified domains for dropdown
+        cur.execute("""
+            SELECT domain FROM mailbox_domains
+            WHERE organization_id = %s AND is_active = true AND (is_verified = true OR mx_verified = true)
+        """, (org_id,))
+        domains = cur.fetchall()
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'members': members, 'domains': domains})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/team', methods=['POST'])
+@webmail_login_required
+def api_settings_add_team_member():
+    """Add a team member"""
+    import secrets as sec
+    import hashlib
+    
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json()
+        
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        username = data.get('username', '').lower().strip()
+        domain = data.get('domain', '').lower().strip()
+        recovery_email = data.get('recovery_email', '').strip()
+        
+        if not username or not domain or not recovery_email:
+            return jsonify({'success': False, 'error': 'All fields required'}), 400
+        
+        email = f"{username}@{domain}"
+        name = f"{first_name} {last_name}".strip()
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get organization
+        cur.execute("SELECT organization_id FROM mailboxes WHERE id = %s", (mailbox_id,))
+        result = cur.fetchone()
+        if not result or not result['organization_id']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'No organization found'}), 400
+        
+        org_id = result['organization_id']
+        
+        # Check if email exists
+        cur.execute("SELECT id FROM mailboxes WHERE email = %s", (email,))
+        if cur.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Email already exists'}), 400
+        
+        # Generate password
+        password = sec.token_urlsafe(12)
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        # Create mailbox
+        cur.execute("""
+            INSERT INTO mailboxes (organization_id, email, name, password_hash, role, recovery_email, is_active)
+            VALUES (%s, %s, %s, %s, 'user', %s, true)
+            RETURNING id
+        """, (org_id, email, name, password_hash, recovery_email))
+        
+        new_id = cur.fetchone()['id']
+        conn.commit()
+        conn.close()
+        
+        # Send credentials email
+        try:
+            from app.smtp.relay_server import send_email_sync
+            
+            html_body = f'''
+            <html><body style="font-family: Arial, sans-serif;">
+            <h2>Your SendBaba Mail Account</h2>
+            <p>Hello {name},</p>
+            <p>Your email account has been created:</p>
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                <p><strong>Email:</strong> {email}</p>
+                <p><strong>Password:</strong> {password}</p>
+                <p><strong>Login:</strong> <a href="https://mail.sendbaba.com">mail.sendbaba.com</a></p>
+            </div>
+            <p>Please change your password after logging in.</p>
+            </body></html>
+            '''
+            
+            send_email_sync({
+                'from': 'noreply@sendbaba.com',
+                'from_name': 'SendBaba Mail',
+                'to': recovery_email,
+                'subject': f'Your Email Account: {email}',
+                'html_body': html_body,
+                'text_body': f'Email: {email}\nPassword: {password}\nLogin: https://mail.sendbaba.com'
+            })
+        except Exception as e:
+            print(f"Failed to send credentials: {e}")
+        
+        return jsonify({'success': True, 'email': email, 'id': new_id})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/team/<int:member_id>/reset-password', methods=['POST'])
+@webmail_login_required
+def api_settings_reset_team_password(member_id):
+    """Reset team member password"""
+    import secrets as sec
+    import hashlib
+    
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("SELECT email, name, recovery_email FROM mailboxes WHERE id = %s", (member_id,))
+        member = cur.fetchone()
+        
+        if not member or not member['recovery_email']:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Member not found or no recovery email'}), 404
+        
+        # Generate new password
+        password = sec.token_urlsafe(12)
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        cur.execute("UPDATE mailboxes SET password_hash = %s WHERE id = %s", (password_hash, member_id))
+        conn.commit()
+        conn.close()
+        
+        # Send new password
+        try:
+            from app.smtp.relay_server import send_email_sync
+            
+            send_email_sync({
+                'from': 'noreply@sendbaba.com',
+                'from_name': 'SendBaba Mail',
+                'to': member['recovery_email'],
+                'subject': f'Password Reset: {member["email"]}',
+                'html_body': f'<p>Your new password for {member["email"]}: <strong>{password}</strong></p>',
+                'text_body': f'New password for {member["email"]}: {password}'
+            })
+        except:
+            pass
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/team/<int:member_id>', methods=['DELETE'])
+@webmail_login_required
+def api_settings_delete_team_member(member_id):
+    """Delete team member"""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("DELETE FROM mailbox_emails WHERE mailbox_id = %s", (member_id,))
+        cur.execute("DELETE FROM mailboxes WHERE id = %s", (member_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/profile')
+@webmail_login_required
+def api_settings_profile():
+    """Get profile settings"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("SELECT name, signature, timezone FROM mailboxes WHERE id = %s", (mailbox_id,))
+        profile = cur.fetchone()
+        conn.close()
+        
+        return jsonify({'success': True, 'profile': profile or {}})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/profile', methods=['PUT'])
+@webmail_login_required
+def api_settings_update_profile():
+    """Update profile settings"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json()
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE mailboxes SET name = %s, signature = %s WHERE id = %s
+        """, (data.get('name'), data.get('signature'), mailbox_id))
+        
+        conn.commit()
+        conn.close()
+        
+        # Update session
+        session['webmail_name'] = data.get('name')
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# ENHANCED API ENDPOINTS
+# ============================================================
+
+@webmail_bp.route('/api/emails')
+@webmail_login_required
+def api_emails_enhanced():
+    """Get emails with search and new email checking"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        folder = request.args.get('folder', 'inbox')
+        search = request.args.get('search', '')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        check_new = request.args.get('check_new', '')
+        last_id = int(request.args.get('last_id', 0))
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        offset = (page - 1) * per_page
+        
+        # Build folder condition
+        if folder == 'starred':
+            folder_condition = "is_starred = true AND folder != 'trash'"
+        elif folder == 'all':
+            folder_condition = "folder NOT IN ('trash', 'spam')"
+        else:
+            folder_condition = f"folder = %s"
+        
+        # Check for new emails
+        new_count = 0
+        latest_email = None
+        if check_new and last_id > 0:
+            if folder == 'starred' or folder == 'all':
+                cur.execute(f"""
+                    SELECT COUNT(*) as cnt FROM mailbox_emails
+                    WHERE mailbox_id = %s AND {folder_condition} AND id > %s
+                """, (mailbox_id, last_id))
+            else:
+                cur.execute("""
+                    SELECT COUNT(*) as cnt FROM mailbox_emails
+                    WHERE mailbox_id = %s AND folder = %s AND id > %s
+                """, (mailbox_id, folder, last_id))
+            new_count = cur.fetchone()['cnt']
+            
+            if new_count > 0:
+                if folder == 'starred' or folder == 'all':
+                    cur.execute(f"""
+                        SELECT from_email, from_name, subject FROM mailbox_emails
+                        WHERE mailbox_id = %s AND {folder_condition} AND id > %s
+                        ORDER BY id DESC LIMIT 1
+                    """, (mailbox_id, last_id))
+                else:
+                    cur.execute("""
+                        SELECT from_email, from_name, subject FROM mailbox_emails
+                        WHERE mailbox_id = %s AND folder = %s AND id > %s
+                        ORDER BY id DESC LIMIT 1
+                    """, (mailbox_id, folder, last_id))
+                latest_email = cur.fetchone()
+        
+        # Build search condition
+        params = [mailbox_id]
+        search_condition = ""
+        if search:
+            search_condition = "AND (subject ILIKE %s OR from_email ILIKE %s OR from_name ILIKE %s OR body_text ILIKE %s)"
+            search_term = f'%{search}%'
+            params.extend([search_term, search_term, search_term, search_term])
+        
+        # Main query
+        if folder == 'starred' or folder == 'all':
+            query = f"""
+                SELECT 
+                    id, message_id, from_email, from_name, to_email, subject,
+                    SUBSTRING(COALESCE(body_text, ''), 1, 150) as preview,
+                    folder, is_read, is_starred, has_attachments, received_at
+                FROM mailbox_emails
+                WHERE mailbox_id = %s AND {folder_condition} {search_condition}
+                ORDER BY received_at DESC
+                LIMIT {per_page} OFFSET {offset}
+            """
+        else:
+            params.insert(1, folder)
+            query = f"""
+                SELECT 
+                    id, message_id, from_email, from_name, to_email, subject,
+                    SUBSTRING(COALESCE(body_text, ''), 1, 150) as preview,
+                    folder, is_read, is_starred, has_attachments, received_at
+                FROM mailbox_emails
+                WHERE mailbox_id = %s AND folder = %s {search_condition}
+                ORDER BY received_at DESC
+                LIMIT {per_page} OFFSET {offset}
+            """
+        
+        cur.execute(query, params)
+        emails = cur.fetchall()
+        
+        conn.close()
+        
+        response = {'success': True, 'emails': emails}
+        if check_new:
+            response['new_count'] = new_count
+            response['latest_email'] = latest_email
+        
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/2fa', methods=['POST'])
+@webmail_login_required
+def api_enable_2fa():
+    """Enable/disable 2FA"""
+    import secrets as sec
+    
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json()
+        enable = data.get('enable', True)
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        if enable:
+            # Generate 2FA secret
+            secret = sec.token_hex(16)
+            backup_codes = [sec.token_hex(4) for _ in range(8)]
+            
+            # Store in database (would need to add columns)
+            # For now, just return the codes
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'message': '2FA setup initiated',
+                'backup_codes': backup_codes
+            })
+        else:
+            # Disable 2FA
+            conn.close()
+            return jsonify({'success': True, 'message': '2FA disabled'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# SECURITY API ENDPOINTS
+# ============================================================
+
+@webmail_bp.route('/api/settings/password', methods=['POST'])
+@webmail_login_required
+def api_change_password():
+    """Change mailbox password"""
+    import hashlib
+    
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json()
+        current_password = data.get('current_password', '')
+        new_password = data.get('new_password', '')
+        
+        if len(new_password) < 8:
+            return jsonify({'success': False, 'error': 'Password must be at least 8 characters'}), 400
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify current password
+        cur.execute("SELECT password_hash FROM mailboxes WHERE id = %s", (mailbox_id,))
+        row = cur.fetchone()
+        
+        if row and row['password_hash']:
+            current_hash = hashlib.sha256(current_password.encode()).hexdigest()
+            if current_hash != row['password_hash']:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Current password is incorrect'}), 400
+        
+        # Update password
+        new_hash = hashlib.sha256(new_password.encode()).hexdigest()
+        cur.execute("UPDATE mailboxes SET password_hash = %s WHERE id = %s", (new_hash, mailbox_id))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/2fa/verify', methods=['POST'])
+@webmail_login_required
+def api_verify_2fa():
+    """Verify and enable 2FA"""
+    try:
+        data = request.get_json()
+        code = data.get('code', '')
+        
+        # For now, accept any 6-digit code (in production, verify against TOTP)
+        if len(code) != 6 or not code.isdigit():
+            return jsonify({'success': False, 'error': 'Invalid code'}), 400
+        
+        # In production: verify TOTP code, store 2FA secret
+        # For demo, just return success
+        return jsonify({'success': True, 'message': '2FA enabled'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/settings/2fa/disable', methods=['POST'])
+@webmail_login_required
+def api_disable_2fa():
+    """Disable 2FA"""
+    try:
+        # In production: clear 2FA secret from database
+        return jsonify({'success': True, 'message': '2FA disabled'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+# MAILBOX REGISTRATION (Separate from Campaign Users)
+# ============================================================
+
+# ============================================================
+
+@webmail_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    """Mailbox user registration"""
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    import hashlib
+    import secrets
+    import re
+    from flask import flash, redirect
+    
+    if request.method == 'GET':
+        return render_template('webmail/register.html')
+    
+    # POST - handle registration
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+    recovery_email = request.form.get('recovery_email', '').strip().lower()
+    username = request.form.get('username', '').strip().lower()
+    password = request.form.get('password', '')
+    confirm_password = request.form.get('confirm_password', '')
+    
+    name = f"{first_name} {last_name}".strip()
+    sendbaba_email = f"{username}@sendbaba.com"
+    
+    # Validation
+    if not first_name or not last_name:
+        flash('First name and last name are required', 'error')
+        return render_template('webmail/register.html')
+    
+    if not username or not recovery_email or not password:
+        flash('All fields are required', 'error')
+        return render_template('webmail/register.html')
+    
+    if len(password) < 8:
+        flash('Password must be at least 8 characters', 'error')
+        return render_template('webmail/register.html')
+    
+    if password != confirm_password:
+        flash('Passwords do not match', 'error')
+        return render_template('webmail/register.html')
+    
+    if len(username) < 3:
+        flash('Username must be at least 3 characters', 'error')
+        return render_template('webmail/register.html')
+    
+    if not re.match(r'^[a-z0-9._]+$', username):
+        flash('Username can only contain lowercase letters, numbers, dots, and underscores', 'error')
+        return render_template('webmail/register.html')
+    
+    conn = None
+    try:
+        conn = psycopg2.connect("postgresql://emailer:SecurePassword123@localhost/emailer")
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Check if email already exists
+        cur.execute("SELECT id FROM mailboxes WHERE email = %s", (sendbaba_email,))
+        if cur.fetchone():
+            flash('This SendBaba email is already taken', 'error')
+            conn.close()
+            return render_template('webmail/register.html')
+        
+        # Create mailbox organization
+        slug = re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')
+        slug = f"{slug}-{secrets.token_hex(4)}"
+        
+        cur.execute("""
+            INSERT INTO mailbox_organizations (name, slug, plan, max_mailboxes, max_storage_gb, is_active)
+            VALUES (%s, %s, 'free', 5, 1, true)
+            RETURNING id
+        """, (f"{name}'s Mailbox", slug))
+        
+        org_row = cur.fetchone()
+        org_id = org_row['id']
+        
+        # Create mailbox
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        cur.execute("""
+            INSERT INTO mailboxes (organization_id, email, name, password_hash, role, is_active, recovery_email, storage_used_mb)
+            VALUES (%s, %s, %s, %s, 'admin', true, %s, 0)
+            RETURNING id
+        """, (org_id, sendbaba_email, name, password_hash, recovery_email))
+        
+        mailbox_id = cur.fetchone()['id']
+        
+        conn.commit()
+        conn.close()
+        conn = None  # Mark as closed
+        
+        # Send welcome email with SendBaba orange theme
+        try:
+            from app.smtp.relay_server import send_email_sync
+            html_body = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #fef3e7;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+        <!-- Header with Logo -->
+        <div style="text-align: center; margin-bottom: 30px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); padding: 20px 40px; border-radius: 16px; margin-bottom: 20px;">
+                <h1 style="margin: 0; color: white; font-size: 28px; font-weight: bold;">📧 SendBaba Mail</h1>
+            </div>
+        </div>
+        
+        <!-- Main Card -->
+        <div style="background: white; border-radius: 24px; padding: 40px; box-shadow: 0 10px 40px rgba(249, 115, 22, 0.15);">
+            <!-- Welcome Message -->
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f97316, #dc2626); border-radius: 20px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+                    <span style="font-size: 40px;">🎉</span>
+                </div>
+                <h2 style="margin: 0; color: #1f2937; font-size: 24px;">Welcome to SendBaba Mail!</h2>
+                <p style="color: #6b7280; margin-top: 10px;">Your professional email is ready</p>
+            </div>
+            
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                Hi <strong style="color: #f97316;">{first_name}</strong>,
+            </p>
+            <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+                Congratulations! Your SendBaba Mail account has been created successfully. You now have a professional email address to use for your business communications.
+            </p>
+            
+            <!-- Account Details Box -->
+            <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border: 2px solid #fed7aa; border-radius: 16px; padding: 24px; margin: 30px 0;">
+                <h3 style="margin: 0 0 16px; color: #c2410c; font-size: 18px; display: flex; align-items: center;">
+                    <span style="margin-right: 10px;">📋</span> Your Account Details
+                </h3>
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="padding: 8px 0; color: #78716c; font-size: 14px;">Email Address:</td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px; font-weight: bold;">{sendbaba_email}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #78716c; font-size: 14px;">Recovery Email:</td>
+                        <td style="padding: 8px 0; color: #1f2937; font-size: 14px;">{recovery_email}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #78716c; font-size: 14px;">Login URL:</td>
+                        <td style="padding: 8px 0;"><a href="https://mail.sendbaba.com/login" style="color: #f97316; text-decoration: none; font-weight: bold;">mail.sendbaba.com</a></td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Login Button -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="https://mail.sendbaba.com/login" style="display: inline-block; background: linear-gradient(135deg, #f97316, #ea580c); color: white; text-decoration: none; padding: 16px 48px; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);">
+                    Login to Your Mailbox →
+                </a>
+            </div>
+            
+            <!-- Tips -->
+            <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin-top: 30px;">
+                <h4 style="margin: 0 0 12px; color: #374151; font-size: 14px;">💡 Quick Tips:</h4>
+                <ul style="margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px; line-height: 1.8;">
+                    <li>Use the password you created during registration</li>
+                    <li>Add your custom domain in Settings for branded emails</li>
+                    <li>Invite team members to collaborate</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 30px; color: #9ca3af; font-size: 12px;">
+            <p style="margin: 0;">© 2024 SendBaba. Professional Email Solutions.</p>
+            <p style="margin: 8px 0 0;">
+                <a href="https://sendbaba.com" style="color: #f97316; text-decoration: none;">Website</a> · 
+                <a href="https://mail.sendbaba.com" style="color: #f97316; text-decoration: none;">Webmail</a> · 
+                <a href="mailto:support@sendbaba.com" style="color: #f97316; text-decoration: none;">Support</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+'''
+            send_email_sync({
+                'from': 'noreply@sendbaba.com',
+                'from_name': 'SendBaba Mail',
+                'to': recovery_email,
+                'subject': f'🎉 Welcome to SendBaba Mail - {sendbaba_email}',
+                'html_body': html_body,
+                'text_body': f'Welcome to SendBaba Mail!\n\nHi {first_name},\n\nYour account has been created!\n\nEmail: {sendbaba_email}\nLogin: https://mail.sendbaba.com/login\n\nUse the password you created during registration.\n\n- SendBaba Team'
+            })
+            print(f"Welcome email sent to {recovery_email}")
+        except Exception as e:
+            print(f"Failed to send welcome email: {e}")
+        
+        flash('Registration successful! You can now login with your new email.', 'success')
+        return redirect('/login')
+        
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+                conn.close()
+            except:
+                pass
+        print(f"Registration error: {e}")
+        import traceback
+        traceback.print_exc()
+        flash('Registration failed. Please try again.', 'error')
+        return render_template('webmail/register.html')
+
+
+@webmail_bp.route('/api/check-email')
+def api_check_email():
+    """Check if a SendBaba email is available"""
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    import re
+    
+    username = request.args.get('username', '').lower().strip()
+    
+    if not username or len(username) < 3:
+        return jsonify({'available': False, 'error': 'Username must be at least 3 characters'})
+    
+    if not re.match(r'^[a-z0-9._]+$', username):
+        return jsonify({'available': False, 'error': 'Invalid characters'})
+    
+    email = f"{username}@sendbaba.com"
+    
+    try:
+        conn = psycopg2.connect("postgresql://emailer:SecurePassword123@localhost/emailer")
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("SELECT id FROM mailboxes WHERE email = %s", (email,))
+        exists = cur.fetchone() is not None
+        conn.close()
+        
+        if exists:
+            suggestions = [f"{username}1", f"{username}2", f"{username}123"]
+            return jsonify({'available': False, 'suggestions': suggestions})
+        
+        return jsonify({'available': True, 'email': email})
+        
+    except Exception as e:
+        print(f"Email check error: {e}")
+        return jsonify({'available': False, 'error': str(e)})
+
+
+@webmail_bp.route('/api/thread/<thread_id>')
+@webmail_login_required
+def api_thread(thread_id):
+    """Get all emails in a thread"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT id, from_email, from_name, to_email, subject, body_text, body_html, 
+                   received_at, is_read
+            FROM mailbox_emails 
+            WHERE mailbox_id = %s AND (thread_id = %s OR message_id = %s)
+            ORDER BY received_at ASC
+        """, (mailbox_id, thread_id, thread_id))
+        
+        emails = cur.fetchall()
+        conn.close()
+        
+        # Convert datetime to string
+        for email in emails:
+            if email.get('received_at'):
+                email['received_at'] = email['received_at'].isoformat()
+        
+        return jsonify({'success': True, 'emails': emails})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== CONTACTS API ==========
+
+@webmail_bp.route('/api/contacts')
+@webmail_login_required
+def api_contacts():
+    """Get all contacts for this mailbox"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get contacts from sent emails (unique recipients)
+        cur.execute("""
+            SELECT DISTINCT 
+                LOWER(to_email) as email,
+                MAX(COALESCE(NULLIF(to_email, ''), to_email)) as display_email,
+                COUNT(*) as email_count,
+                MAX(received_at) as last_contact
+            FROM mailbox_emails 
+            WHERE mailbox_id = %s AND folder = 'sent' AND to_email IS NOT NULL AND to_email != ''
+            GROUP BY LOWER(to_email)
+            ORDER BY email_count DESC, last_contact DESC
+            LIMIT 100
+        """, (mailbox_id,))
+        
+        contacts = cur.fetchall()
+        conn.close()
+        
+        # Format contacts
+        formatted = []
+        for c in contacts:
+            name = c['email'].split('@')[0].replace('.', ' ').replace('_', ' ').title()
+            formatted.append({
+                'email': c['display_email'] or c['email'],
+                'name': name,
+                'count': c['email_count'],
+                'last_contact': c['last_contact'].isoformat() if c['last_contact'] else None
+            })
+        
+        return jsonify({'success': True, 'contacts': formatted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/contacts/search')
+@webmail_login_required
+def api_contacts_search():
+    """Search contacts for autocomplete"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        query = request.args.get('q', '').lower()
+        
+        if len(query) < 1:
+            return jsonify({'success': True, 'contacts': []})
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT DISTINCT 
+                LOWER(to_email) as email,
+                COUNT(*) as cnt
+            FROM mailbox_emails 
+            WHERE mailbox_id = %s 
+              AND folder = 'sent' 
+              AND to_email IS NOT NULL 
+              AND LOWER(to_email) LIKE %s
+            GROUP BY LOWER(to_email)
+            ORDER BY cnt DESC
+            LIMIT 10
+        """, (mailbox_id, f'%{query}%'))
+        
+        contacts = cur.fetchall()
+        conn.close()
+        
+        formatted = []
+        for c in contacts:
+            name = c['email'].split('@')[0].replace('.', ' ').replace('_', ' ').title()
+            formatted.append({
+                'email': c['email'],
+                'name': name
+            })
+        
+        return jsonify({'success': True, 'contacts': formatted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== CALENDAR API ==========
+
+@webmail_bp.route('/api/calendar/events')
+@webmail_login_required
+def api_calendar_events():
+    """Get calendar events (extracted from emails)"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        month = request.args.get('month', '')
+        year = request.args.get('year', '')
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get events from a calendar_events table if it exists, otherwise create simple events from emails
+        cur.execute("""
+            SELECT 
+                id,
+                subject as title,
+                from_email,
+                received_at as event_date,
+                'email' as type
+            FROM mailbox_emails 
+            WHERE mailbox_id = %s 
+              AND (subject ILIKE '%%meeting%%' OR subject ILIKE '%%appointment%%' OR subject ILIKE '%%schedule%%' OR subject ILIKE '%%call%%' OR subject ILIKE '%%reminder%%')
+              AND folder NOT IN ('trash', 'spam')
+            ORDER BY received_at DESC
+            LIMIT 50
+        """, (mailbox_id,))
+        
+        events = cur.fetchall()
+        conn.close()
+        
+        formatted = []
+        for e in events:
+            formatted.append({
+                'id': e['id'],
+                'title': e['title'] or 'Untitled Event',
+                'date': e['event_date'].strftime('%Y-%m-%d') if e['event_date'] else None,
+                'time': e['event_date'].strftime('%H:%M') if e['event_date'] else None,
+                'type': e['type'],
+                'from': e['from_email']
+            })
+        
+        return jsonify({'success': True, 'events': formatted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/calendar/add', methods=['POST'])
+@webmail_login_required
+def api_calendar_add():
+    """Add a calendar event"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        data = request.get_json() or {}
+        title = data.get('title', '')
+        date = data.get('date', '')
+        time = data.get('time', '')
+        
+        # For now, store as a special email in drafts
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            INSERT INTO mailbox_emails 
+            (mailbox_id, message_id, from_email, to_email, subject, body_text, folder, is_read, received_at)
+            VALUES (%s, %s, %s, %s, %s, %s, 'calendar', true, %s)
+            RETURNING id
+        """, (
+            mailbox_id,
+            f'<calendar-{uuid.uuid4()}@sendbaba.com>',
+            session.get('webmail_user'),
+            session.get('webmail_user'),
+            f'📅 {title}',
+            f'Calendar Event: {title}\nDate: {date}\nTime: {time}',
+            f'{date} {time}:00' if date else 'NOW()'
+        ))
+        
+        event_id = cur.fetchone()['id']
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'event_id': event_id})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== FILES API ==========
+
+@webmail_bp.route('/api/files')
+@webmail_login_required
+def api_files():
+    """Get files/attachments"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT 
+                a.id, a.filename, a.content_type, a.size, a.created_at,
+                e.subject as email_subject, e.from_email
+            FROM mailbox_attachments a
+            JOIN mailbox_emails e ON e.id = a.email_id
+            WHERE e.mailbox_id = %s AND e.folder NOT IN ('trash', 'spam')
+            ORDER BY a.created_at DESC
+            LIMIT 50
+        """, (mailbox_id,))
+        
+        files = cur.fetchall()
+        conn.close()
+        
+        formatted = []
+        for f in files:
+            formatted.append({
+                'id': f['id'],
+                'name': f['filename'],
+                'type': f['content_type'],
+                'size': f['size'],
+                'date': f['created_at'].isoformat() if f['created_at'] else None,
+                'from_email': f['from_email'],
+                'email_subject': f['email_subject']
+            })
+        
+        return jsonify({'success': True, 'files': formatted})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== LIVE CHAT API ==========
+
+@webmail_bp.route('/api/chat/send', methods=['POST'])
+@webmail_login_required
+def api_chat_send():
+    """Send a chat message"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        from_email = session.get('webmail_user')
+        data = request.get_json() or {}
+        to_email = data.get('to', '')
+        content = data.get('content', '')
+        
+        if not to_email or not content:
+            return jsonify({'success': False, 'error': 'Missing to or content'}), 400
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Check if chat_messages table exists, create if not
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id SERIAL PRIMARY KEY,
+                from_email VARCHAR(255) NOT NULL,
+                to_email VARCHAR(255) NOT NULL,
+                content TEXT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        
+        # Insert message
+        cur.execute("""
+            INSERT INTO chat_messages (from_email, to_email, content)
+            VALUES (%s, %s, %s)
+            RETURNING id, created_at
+        """, (from_email, to_email, content))
+        
+        result = cur.fetchone()
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'message_id': result['id'],
+            'time': result['created_at'].strftime('%H:%M')
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/chat/history')
+@webmail_login_required
+def api_chat_history():
+    """Get chat history with a user"""
+    try:
+        from_email = session.get('webmail_user')
+        with_email = request.args.get('with', '')
+        
+        if not with_email:
+            return jsonify({'success': False, 'error': 'Missing with parameter'}), 400
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Check if table exists
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'chat_messages'
+            )
+        """)
+        if not cur.fetchone()['exists']:
+            conn.close()
+            return jsonify({'success': True, 'messages': []})
+        
+        # Get messages between the two users
+        cur.execute("""
+            SELECT 
+                id, content, created_at,
+                CASE WHEN from_email = %s THEN true ELSE false END as sent_by_me
+            FROM chat_messages
+            WHERE (from_email = %s AND to_email = %s)
+               OR (from_email = %s AND to_email = %s)
+            ORDER BY created_at ASC
+            LIMIT 100
+        """, (from_email, from_email, with_email, with_email, from_email))
+        
+        messages = cur.fetchall()
+        conn.close()
+        
+        formatted = []
+        for m in messages:
+            formatted.append({
+                'id': m['id'],
+                'content': m['content'],
+                'sent_by_me': m['sent_by_me'],
+                'time': m['created_at'].strftime('%H:%M')
+            })
+        
+        return jsonify({'success': True, 'messages': formatted})
+    except Exception as e:
+        return jsonify({'success': True, 'messages': [], 'error': str(e)})
+
+
+@webmail_bp.route('/chat')
+@webmail_login_required
+def chat_page():
+    """Standalone chat page"""
+    with_email = request.args.get('with', '')
+    from_email = session.get('webmail_user', '')
+    return render_template('webmail/chat.html', with_email=with_email, from_email=from_email)
+
+
+@webmail_bp.route('/api/chat/conversations')
+@webmail_login_required
+def api_chat_conversations():
+    """Get list of chat conversations"""
+    try:
+        from_email = session.get('webmail_user')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Check if table exists
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'chat_messages'
+            )
+        """)
+        if not cur.fetchone()['exists']:
+            conn.close()
+            return jsonify({'success': True, 'conversations': []})
+        
+        # Get unique conversations with last message
+        cur.execute("""
+            WITH conversations AS (
+                SELECT 
+                    CASE WHEN from_email = %s THEN to_email ELSE from_email END as with_email,
+                    content as last_message,
+                    created_at as last_message_at,
+                    CASE WHEN from_email != %s AND is_read = false THEN 1 ELSE 0 END as is_unread,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY CASE WHEN from_email = %s THEN to_email ELSE from_email END 
+                        ORDER BY created_at DESC
+                    ) as rn
+                FROM chat_messages
+                WHERE from_email = %s OR to_email = %s
+            )
+            SELECT 
+                with_email,
+                last_message,
+                last_message_at,
+                SUM(is_unread) as unread_count
+            FROM conversations
+            WHERE rn = 1
+            GROUP BY with_email, last_message, last_message_at
+            ORDER BY last_message_at DESC
+            LIMIT 50
+        """, (from_email, from_email, from_email, from_email, from_email))
+        
+        conversations = cur.fetchall()
+        conn.close()
+        
+        result = []
+        for conv in conversations:
+            name = conv['with_email'].split('@')[0].replace('.', ' ').replace('_', ' ').title()
+            result.append({
+                'with_email': conv['with_email'],
+                'with_name': name,
+                'last_message': conv['last_message'],
+                'last_message_at': conv['last_message_at'].isoformat() if conv['last_message_at'] else None,
+                'unread_count': int(conv['unread_count'] or 0)
+            })
+        
+        return jsonify({'success': True, 'conversations': result})
+    except Exception as e:
+        return jsonify({'success': True, 'conversations': [], 'error': str(e)})
+
+
+@webmail_bp.route('/api/chat/unread-count')
+@webmail_login_required
+def api_chat_unread_count():
+    """Get total unread chat count"""
+    try:
+        from_email = session.get('webmail_user')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Check if table exists
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'chat_messages'
+            )
+        """)
+        if not cur.fetchone()['exists']:
+            conn.close()
+            return jsonify({'success': True, 'count': 0})
+        
+        cur.execute("""
+            SELECT COUNT(*) as count
+            FROM chat_messages
+            WHERE to_email = %s AND is_read = false
+        """, (from_email,))
+        
+        result = cur.fetchone()
+        conn.close()
+        
+        return jsonify({'success': True, 'count': result['count'] if result else 0})
+    except Exception as e:
+        return jsonify({'success': True, 'count': 0})
+
+
+@webmail_bp.route('/api/chat/mark-read', methods=['POST'])
+@webmail_login_required
+def api_chat_mark_read():
+    """Mark chat messages as read"""
+    try:
+        from_email = session.get('webmail_user')
+        data = request.get_json() or {}
+        with_email = data.get('with', '')
+        
+        if not with_email:
+            return jsonify({'success': False, 'error': 'Missing with parameter'})
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE chat_messages 
+            SET is_read = true 
+            WHERE to_email = %s AND from_email = %s AND is_read = false
+        """, (from_email, with_email))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@webmail_bp.route('/api/emails/unread-count')
+@webmail_login_required
+def api_emails_unread_count():
+    """Get unread email count"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT COUNT(*) as count
+            FROM emails
+            WHERE mailbox_id = %s AND folder = 'INBOX' AND is_read = false
+        """, (mailbox_id,))
+        
+        result = cur.fetchone()
+        conn.close()
+        
+        return jsonify({'success': True, 'count': result['count'] if result else 0})
+    except Exception as e:
+        return jsonify({'success': True, 'count': 0})
+
+
+@webmail_bp.route('/api/emails/unread-count')
+@webmail_login_required
+def api_emails_unread_count():
+    """Get unread email count"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT COUNT(*) as count
+            FROM emails
+            WHERE mailbox_id = %s AND folder = 'INBOX' AND is_read = false
+        """, (mailbox_id,))
+        
+        result = cur.fetchone()
+        conn.close()
+        
+        return jsonify({'success': True, 'count': result['count'] if result else 0})
+    except Exception as e:
+        return jsonify({'success': True, 'count': 0})
+
+
+@webmail_bp.route('/settings')
+@webmail_login_required
+def settings_page():
+    """Settings page"""
+    user = session.get('webmail_user', '')
+    name = session.get('webmail_name', user.split('@')[0] if user else 'User')
+    return render_template('webmail/settings.html', user=user, name=name)
+
+
+@webmail_bp.route('/api/change-password', methods=['POST'])
+@webmail_login_required
+def api_change_password():
+    """Change user password"""
+    try:
+        data = request.get_json()
+        current = data.get('current')
+        new_pass = data.get('new')
+        
+        if not current or not new_pass:
+            return jsonify({'success': False, 'message': 'Missing fields'})
+        
+        if len(new_pass) < 8:
+            return jsonify({'success': False, 'message': 'Password must be at least 8 characters'})
+        
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify current password
+        cur.execute("SELECT password_hash FROM mailboxes WHERE id = %s", (mailbox_id,))
+        row = cur.fetchone()
+        
+        if not row:
+            conn.close()
+            return jsonify({'success': False, 'message': 'User not found'})
+        
+        from werkzeug.security import check_password_hash, generate_password_hash
+        
+        if not check_password_hash(row['password_hash'], current):
+            conn.close()
+            return jsonify({'success': False, 'message': 'Current password is incorrect'})
+        
+        # Update password
+        new_hash = generate_password_hash(new_pass)
+        cur.execute("UPDATE mailboxes SET password_hash = %s WHERE id = %s", (new_hash, mailbox_id))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Password changed successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
+# ============================================================
+# DRAFTS API
+# ============================================================
+
+@webmail_bp.route('/api/drafts', methods=['POST'])
+@webmail_login_required
+def api_save_draft():
+    """Save email as draft"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        user_email = session.get('webmail_user')
+        data = request.get_json()
+        
+        to_email = data.get('to', '').strip()
+        subject = data.get('subject', '').strip()
+        body = data.get('body', '')
+        draft_id = data.get('draft_id')  # For updating existing draft
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        message_id = f"<draft-{uuid.uuid4()}@sendbaba.com>"
+        
+        if draft_id:
+            # Update existing draft
+            cur.execute("""
+                UPDATE mailbox_emails 
+                SET to_email = %s, subject = %s, body_text = %s, body_html = %s, updated_at = NOW()
+                WHERE id = %s AND mailbox_id = %s AND folder = 'drafts'
+                RETURNING id
+            """, (to_email, subject, body, body, draft_id, mailbox_id))
+            result = cur.fetchone()
+            if result:
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'draft_id': result['id'], 'message': 'Draft updated'})
+        
+        # Create new draft
+        cur.execute("""
+            INSERT INTO mailbox_emails (
+                mailbox_id, message_id, from_email, from_name, to_email, subject, 
+                body_text, body_html, folder, is_read, received_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'drafts', true, NOW())
+            RETURNING id
+        """, (mailbox_id, message_id, user_email, session.get('webmail_name', ''), 
+              to_email, subject, body, body))
+        
+        result = cur.fetchone()
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'draft_id': result['id'], 'message': 'Draft saved'})
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/drafts/<int:draft_id>', methods=['GET'])
+@webmail_login_required
+def api_get_draft(draft_id):
+    """Get a specific draft"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT id, to_email, subject, body_html, body_text
+            FROM mailbox_emails 
+            WHERE id = %s AND mailbox_id = %s AND folder = 'drafts'
+        """, (draft_id, mailbox_id))
+        
+        draft = cur.fetchone()
+        conn.close()
+        
+        if not draft:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+            
+        return jsonify({'success': True, 'draft': draft})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/drafts/<int:draft_id>', methods=['DELETE'])
+@webmail_login_required
+def api_delete_draft(draft_id):
+    """Delete a draft"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            DELETE FROM mailbox_emails 
+            WHERE id = %s AND mailbox_id = %s AND folder = 'drafts'
+        """, (draft_id, mailbox_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Draft deleted'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/chats', methods=['GET'])
+@webmail_login_required  
+def api_get_chats():
+    """Get all chat conversations"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        cur.execute("""
+            SELECT DISTINCT 
+                CASE WHEN sender_id = %s THEN receiver_email ELSE sender_email END as email,
+                MAX(created_at) as last_message
+            FROM webmail_chats 
+            WHERE sender_id = %s OR receiver_id = %s
+            GROUP BY email
+            ORDER BY last_message DESC
+        """, (mailbox_id, mailbox_id, mailbox_id))
+        
+        chats = cur.fetchall()
+        conn.close()
+        
+        return jsonify({'success': True, 'chats': chats})
+        
+    except Exception as e:
+        return jsonify({'success': True, 'chats': []})
+
+
+
+# ============================================================
+# TRASH MANAGEMENT
+# ============================================================
+
+@webmail_bp.route('/api/email/<int:email_id>/restore', methods=['POST'])
+@webmail_login_required
+def api_restore_email(email_id):
+    """Restore email from trash to inbox"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor()
+        
+        cur.execute("""
+            UPDATE mailbox_emails 
+            SET folder = 'inbox', deleted_at = NULL 
+            WHERE id = %s AND mailbox_id = %s AND folder = 'trash'
+        """, (email_id, mailbox_id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True, 'message': 'Email restored to inbox'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/emails/empty-trash', methods=['POST'])
+@webmail_login_required
+def api_empty_trash():
+    """Permanently delete all emails in trash"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get all trash emails
+        cur.execute("""
+            SELECT id FROM mailbox_emails 
+            WHERE mailbox_id = %s AND folder = 'trash'
+        """, (mailbox_id,))
+        
+        trash_emails = cur.fetchall()
+        count = len(trash_emails)
+        
+        if count > 0:
+            email_ids = [e['id'] for e in trash_emails]
+            
+            # Delete attachments first
+            cur.execute("""
+                SELECT path FROM mailbox_attachments 
+                WHERE email_id = ANY(%s)
+            """, (email_ids,))
+            
+            for row in cur.fetchall():
+                try:
+                    if row['path'] and os.path.exists(row['path']):
+                        os.remove(row['path'])
+                except:
+                    pass
+            
+            cur.execute("DELETE FROM mailbox_attachments WHERE email_id = ANY(%s)", (email_ids,))
+            cur.execute("DELETE FROM mailbox_emails WHERE id = ANY(%s)", (email_ids,))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': f'{count} emails permanently deleted'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@webmail_bp.route('/api/email/<int:email_id>/permanent-delete', methods=['POST'])
+@webmail_login_required
+def api_permanent_delete(email_id):
+    """Permanently delete email from trash"""
+    try:
+        mailbox_id = session.get('webmail_id')
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify ownership and that it's in trash
+        cur.execute("""
+            SELECT id FROM mailbox_emails 
+            WHERE id = %s AND mailbox_id = %s AND folder = 'trash'
+        """, (email_id, mailbox_id))
+        
+        if not cur.fetchone():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Email not found in trash'}), 404
+        
+        # Delete attachments first
+        cur.execute("SELECT path FROM mailbox_attachments WHERE email_id = %s", (email_id,))
+        for row in cur.fetchall():
+            try:
+                if row['path'] and os.path.exists(row['path']):
+                    os.remove(row['path'])
+            except:
+                pass
+        
+        cur.execute("DELETE FROM mailbox_attachments WHERE email_id = %s", (email_id,))
+        cur.execute("DELETE FROM mailbox_emails WHERE id = %s AND mailbox_id = %s", (email_id, mailbox_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Email permanently deleted'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

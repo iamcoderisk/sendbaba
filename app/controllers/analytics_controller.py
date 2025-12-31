@@ -372,6 +372,7 @@ def index():
         hourly_dist = get_hourly_distribution(org_id, start_date, end_date)
         domain_stats = get_domain_stats(org_id)
         engagement_funnel = get_engagement_funnel(org_id, start_date, end_date)
+        failed_emails = get_failed_emails(org_id, start_date, end_date)
         
         logger.info(f"[Analytics] Data: sent={overview['total_sent']}, contacts={overview['total_contacts']}, campaigns={campaign_stats['total']}")
         
@@ -384,6 +385,7 @@ def index():
             hourly_dist=json.dumps(hourly_dist),
             domain_stats=domain_stats,
             engagement_funnel=engagement_funnel,
+            failed_emails=failed_emails,
             period=period
         )
         
@@ -479,3 +481,130 @@ def api_export():
     except Exception as e:
         logger.error(f"[Analytics] Export error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@analytics_bp.route('/api/active-campaign')
+@login_required
+def api_active_campaign():
+    """Get active sending campaign with real-time progress"""
+    try:
+        org_id = current_user.organization_id
+        
+        # Get active campaign
+        result = db.session.execute(text("""
+            SELECT id, name, status, total_recipients, sent_count, failed_count, started_at
+            FROM campaigns
+            WHERE organization_id = :org_id AND status = 'sending'
+            ORDER BY started_at DESC
+            LIMIT 1
+        """), {'org_id': org_id}).fetchone()
+        
+        if not result:
+            return jsonify({'success': True, 'campaign': None})
+        
+        campaign_id = result[0]
+        
+        # Try to get Redis progress
+        import redis
+        r = redis.Redis(host='localhost', port=6379, password='SendBabaRedis2024!', decode_responses=True)
+        progress = r.hgetall(f'campaign_progress:{campaign_id}')
+        
+        sent = int(progress.get('sent', result[4] or 0))
+        failed = int(progress.get('failed', result[5] or 0))
+        total = int(progress.get('total', result[3] or 0))
+        percent = int(progress.get('percent', 0)) if total > 0 else 0
+        
+        return jsonify({
+            'success': True,
+            'campaign': {
+                'id': campaign_id,
+                'name': result[1],
+                'status': result[2],
+                'total': total,
+                'sent': sent,
+                'failed': failed,
+                'percent': percent,
+                'rate': progress.get('rate', '0'),
+                'eta': progress.get('eta', 'Calculating...'),
+                'started_at': result[6].strftime('%H:%M') if result[6] else None
+            }
+        })
+    except Exception as e:
+        logger.error(f"[Analytics] Active campaign error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@analytics_bp.route('/api/export-failed')
+@login_required
+def api_export_failed():
+    """Export failed emails as CSV"""
+    try:
+        org_id = current_user.organization_id
+        period = request.args.get('period', '30d')
+        start_date, _ = get_date_range(period)
+        
+        result = db.session.execute(text("""
+            SELECT e.recipient, e.status, e.error_message, c.name as campaign_name, e.created_at
+            FROM emails e
+            LEFT JOIN campaigns c ON e.campaign_id = c.id
+            WHERE e.organization_id = :org_id 
+              AND e.status IN ('failed', 'bounced', 'rejected', 'error')
+              AND e.created_at >= :start_date
+            ORDER BY e.created_at DESC
+            LIMIT 10000
+        """), {'org_id': org_id, 'start_date': start_date}).fetchall()
+        
+        import io, csv
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Email', 'Status', 'Error', 'Campaign', 'Date'])
+        
+        for row in result:
+            writer.writerow([
+                row[0] or '',
+                row[1] or '',
+                row[2] or '',
+                row[3] or '',
+                row[4].isoformat() if row[4] else ''
+            ])
+        
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=failed_emails_{period}.csv'}
+        )
+    except Exception as e:
+        logger.error(f"[Analytics] Export failed error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+
+def get_failed_emails(org_id, start_date, end_date):
+    """Get failed/bounced emails"""
+    if not org_id:
+        return []
+    
+    try:
+        result = db.session.execute(text("""
+            SELECT e.recipient, e.status, e.error_message, c.name as campaign_name, e.created_at
+            FROM emails e
+            LEFT JOIN campaigns c ON e.campaign_id = c.id
+            WHERE e.organization_id = :org_id 
+              AND e.status IN ('failed', 'bounced', 'rejected', 'error')
+              AND e.created_at >= :start_date
+            ORDER BY e.created_at DESC
+            LIMIT 100
+        """), {'org_id': org_id, 'start_date': start_date}).fetchall()
+        
+        return [{
+            'recipient': row[0],
+            'status': row[1],
+            'error': row[2] or 'Unknown error',
+            'campaign_name': row[3] or 'N/A',
+            'created_at': row[4].strftime('%Y-%m-%d %H:%M') if row[4] else ''
+        } for row in result]
+    except Exception as e:
+        logger.error(f"[Analytics] Failed emails error: {e}")
+        return []
+

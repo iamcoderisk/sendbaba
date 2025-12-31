@@ -1,0 +1,65 @@
+{% extends "hub/base.html" %}
+{% block title %}Create Template - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="/hub/templates" class="text-gray-500 hover:text-gray-700 text-sm"><i class="fas fa-arrow-left mr-2"></i>Back to Templates</a>
+</div>
+
+<div class="max-w-xl mx-auto">
+    <div class="bg-white rounded-xl card-shadow p-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">Create New Template</h1>
+        
+        <form id="createForm" onsubmit="createTemplate(event)">
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Template Name *</label>
+                <input type="text" id="inpName" required class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="My Template">
+            </div>
+            
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select id="inpCategory" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    {% for cat in categories %}<option value="{{ cat }}">{{ cat|title }}</option>{% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Default Subject</label>
+                <input type="text" id="inpSubject" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Email subject line">
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea id="inpDesc" rows="3" class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="Template description"></textarea>
+            </div>
+            
+            <button type="submit" class="w-full bg-[#f86d31] hover:bg-[#e55a1f] text-white py-3 rounded-lg font-medium">
+                <i class="fas fa-plus mr-2"></i>Create & Edit Template
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+async function createTemplate(e) {
+    e.preventDefault();
+    try {
+        const r = await fetch('/hub/api/templates/save', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: document.getElementById('inpName').value,
+                category: document.getElementById('inpCategory').value,
+                subject: document.getElementById('inpSubject').value,
+                description: document.getElementById('inpDesc').value,
+                is_active: true,
+                is_hidden: false,
+                json_data: {globalStyles:{backgroundColor:'#f4f4f5',contentBackgroundColor:'#ffffff',fontFamily:'Arial,sans-serif',maxWidth:'620px',defaultButtonColor:'#f86d31'},sections:[]}
+            })
+        });
+        const data = await r.json();
+        if (data.success) window.location.href = '/hub/templates/edit/' + data.template_id;
+        else alert('Error: ' + data.error);
+    } catch(e) { alert('Error: ' + e); }
+}
+</script>
+{% endblock %}

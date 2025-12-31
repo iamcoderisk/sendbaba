@@ -1,0 +1,335 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'servers' %}
+
+{% block title %}Server Health Monitoring{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Server Health Monitoring</h1>
+            <p class="text-gray-500">Real-time infrastructure status and performance</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="refreshServers()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+                <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+            <button onclick="openAddServerModal()" class="px-4 py-2 gradient-primary text-white rounded-xl card-shadow">
+                <i class="fas fa-plus mr-2"></i>Add Server
+            </button>
+        </div>
+    </div>
+    
+    <!-- Overview Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Total Servers</span>
+                <i class="fas fa-server text-gray-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-gray-800" id="total-servers">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Online</span>
+                <span class="w-3 h-3 bg-green-500 rounded-full pulse-dot"></span>
+            </div>
+            <p class="text-3xl font-bold text-green-600" id="online-servers">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Warmed IPs</span>
+                <i class="fas fa-fire text-orange-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-orange-600" id="warmed-servers">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Daily Capacity</span>
+                <i class="fas fa-tachometer-alt text-blue-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-blue-600" id="daily-capacity">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Sent Today</span>
+                <i class="fas fa-paper-plane text-purple-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-purple-600" id="sent-today">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Avg Response</span>
+                <i class="fas fa-clock text-cyan-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-cyan-600"><span id="avg-response">0</span>ms</p>
+        </div>
+    </div>
+    
+    <!-- Server Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="server-grid">
+        <!-- Populated by JS -->
+    </div>
+    
+    <!-- Server Details Modal -->
+    <div id="server-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50" onclick="closeServerModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white rounded-2xl card-shadow-lg p-6 slide-in max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-800" id="modal-server-name">Server Details</h3>
+                <button onclick="closeServerModal()" class="p-2 hover:bg-gray-100 rounded-lg">
+                    <i class="fas fa-times text-gray-400"></i>
+                </button>
+            </div>
+            <div id="server-modal-content">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allServers = [];
+
+async function fetchServers() {
+    try {
+        const res = await fetch('/hub/api/server-health');
+        const data = await res.json();
+        
+        if (data.success) {
+            allServers = data.servers;
+            
+            // Update overview
+            document.getElementById('total-servers').textContent = data.summary.total;
+            document.getElementById('online-servers').textContent = data.summary.online;
+            document.getElementById('warmed-servers').textContent = data.summary.warmed;
+            document.getElementById('daily-capacity').textContent = formatNumber(data.summary.capacity);
+            document.getElementById('sent-today').textContent = formatNumber(data.summary.sent_today);
+            document.getElementById('avg-response').textContent = data.summary.avg_response || 0;
+            
+            renderServers(data.servers);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderServers(servers) {
+    const grid = document.getElementById('server-grid');
+    
+    grid.innerHTML = servers.map(s => `
+        <div class="bg-white rounded-2xl p-5 card-shadow card-shadow-hover cursor-pointer" onclick="openServerModal('${s.ip_address}')">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center ${s.is_online ? 'gradient-success' : 'bg-gray-200'}">
+                        <i class="fas fa-server text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-800">${s.hostname}</h4>
+                        <p class="text-sm text-gray-500 font-mono">${s.ip_address}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${s.is_online ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                        ${s.is_online ? '● Online' : '● Offline'}
+                    </span>
+                    <span class="text-xs text-gray-400 mt-1">${s.warmup_status}</span>
+                </div>
+            </div>
+            
+            <!-- Resource Bars -->
+            <div class="space-y-3">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-500">CPU</span>
+                        <span class="font-medium">${s.cpu_usage || 0}%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2">
+                        <div class="h-2 rounded-full ${s.cpu_usage > 80 ? 'bg-red-500' : s.cpu_usage > 50 ? 'bg-yellow-500' : 'bg-green-500'}" style="width: ${s.cpu_usage || 0}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-500">Memory</span>
+                        <span class="font-medium">${s.memory_usage || 0}%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2">
+                        <div class="h-2 rounded-full ${s.memory_usage > 80 ? 'bg-red-500' : s.memory_usage > 50 ? 'bg-yellow-500' : 'bg-blue-500'}" style="width: ${s.memory_usage || 0}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-500">Daily Usage</span>
+                        <span class="font-medium">${formatNumber(s.sent_today)} / ${formatNumber(s.daily_limit)}</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2">
+                        <div class="h-2 rounded-full bg-purple-500" style="width: ${(s.sent_today / s.daily_limit * 100) || 0}%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Stats -->
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                <div class="text-center">
+                    <p class="text-lg font-bold text-gray-800">${s.warmup_day || 0}</p>
+                    <p class="text-xs text-gray-500">Warmup Day</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-bold text-gray-800">${s.concurrency || 0}</p>
+                    <p class="text-xs text-gray-500">Workers</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-bold text-gray-800">${s.response_time || 0}ms</p>
+                    <p class="text-xs text-gray-500">Response</p>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                <button onclick="event.stopPropagation(); toggleServer('${s.ip_address}', ${!s.is_active})" 
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium ${s.is_active ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-green-50 text-green-600 hover:bg-green-100'}">
+                    <i class="fas ${s.is_active ? 'fa-power-off' : 'fa-play'} mr-1"></i>
+                    ${s.is_active ? 'Disable' : 'Enable'}
+                </button>
+                <button onclick="event.stopPropagation(); restartServer('${s.ip_address}')" 
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100">
+                    <i class="fas fa-sync-alt mr-1"></i>Restart
+                </button>
+                <button onclick="event.stopPropagation(); assignServer('${s.id}')" 
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-50 text-purple-600 hover:bg-purple-100">
+                    <i class="fas fa-user-plus mr-1"></i>Assign
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function openServerModal(ip) {
+    const server = allServers.find(s => s.ip_address === ip);
+    if (!server) return;
+    
+    document.getElementById('modal-server-name').textContent = server.hostname;
+    document.getElementById('server-modal-content').innerHTML = `
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">IP Address</p>
+                <p class="font-mono font-bold">${server.ip_address}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">Status</p>
+                <p class="font-bold ${server.is_online ? 'text-green-600' : 'text-red-600'}">${server.is_online ? 'Online' : 'Offline'}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">Warmup Day</p>
+                <p class="font-bold">${server.warmup_day} / 30</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-1">Daily Limit</p>
+                <p class="font-bold">${formatNumber(server.daily_limit)}</p>
+            </div>
+        </div>
+        
+        <h4 class="font-bold text-gray-800 mb-3">Resource Usage</h4>
+        <div class="space-y-4 mb-6">
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span>CPU Usage</span>
+                    <span class="font-bold">${server.cpu_usage || 0}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="h-3 rounded-full ${server.cpu_usage > 80 ? 'bg-red-500' : 'bg-green-500'}" style="width: ${server.cpu_usage || 0}%"></div>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span>Memory Usage</span>
+                    <span class="font-bold">${server.memory_usage || 0}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="h-3 rounded-full ${server.memory_usage > 80 ? 'bg-red-500' : 'bg-blue-500'}" style="width: ${server.memory_usage || 0}%"></div>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span>Disk Usage</span>
+                    <span class="font-bold">${server.disk_usage || 0}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="h-3 rounded-full ${server.disk_usage > 80 ? 'bg-red-500' : 'bg-purple-500'}" style="width: ${server.disk_usage || 0}%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex space-x-3">
+            <button onclick="toggleServer('${server.ip_address}', ${!server.is_active})" 
+                    class="flex-1 py-2 rounded-xl font-medium ${server.is_active ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}">
+                ${server.is_active ? 'Disable Server' : 'Enable Server'}
+            </button>
+            <button onclick="restartServer('${server.ip_address}')" class="flex-1 py-2 rounded-xl font-medium bg-blue-500 text-white">
+                Restart Worker
+            </button>
+        </div>
+    `;
+    document.getElementById('server-modal').classList.remove('hidden');
+}
+
+function closeServerModal() {
+    document.getElementById('server-modal').classList.add('hidden');
+}
+
+async function toggleServer(ip, activate) {
+    try {
+        const res = await fetch('/hub/api/servers/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip_address: ip, is_active: activate })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`Server ${activate ? 'enabled' : 'disabled'}`, 'success');
+            fetchServers();
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } catch (e) {
+        showToast('Error toggling server', 'error');
+    }
+}
+
+async function restartServer(ip) {
+    try {
+        const res = await fetch('/hub/api/servers/restart', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip_address: ip })
+        });
+        const data = await res.json();
+        showToast(data.message || 'Restarting...', data.success ? 'success' : 'error');
+    } catch (e) {
+        showToast('Error restarting server', 'error');
+    }
+}
+
+function assignServer(serverId) {
+    // Open assign modal (reuse from servers page)
+    window.location.href = '/hub/servers?assign=' + serverId;
+}
+
+function refreshServers() {
+    fetchServers();
+    showToast('Servers refreshed', 'success');
+}
+
+function openAddServerModal() {
+    // TODO: Add server modal
+    showToast('Add server coming soon', 'info');
+}
+
+// Initialize
+fetchServers();
+setInterval(fetchServers, 30000);
+</script>
+{% endblock %}

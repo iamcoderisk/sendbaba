@@ -1,0 +1,67 @@
+{% extends 'univ.html' %}
+{% block title %}Email Templates - SendBaba Docs{% endblock %}
+{% block content %}
+<section class="pt-32 pb-12 px-4 bg-gradient-to-br from-orange-500 to-red-600 text-white">
+    <div class="max-w-7xl mx-auto">
+        <a href="/docs" class="text-white/80 hover:text-white mb-4 inline-block">← Back to Docs</a>
+        <h1 class="text-4xl font-bold">Email Templates</h1>
+        <p class="text-xl text-white/90 mt-4">Create and use dynamic email templates</p>
+    </div>
+</section>
+<section class="py-16 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl border p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Template Variables</h2>
+            <p class="text-gray-600 mb-6">Use double curly braces to insert dynamic content into your emails.</p>
+            
+            <h3 class="text-lg font-bold text-gray-900 mb-3">Example Template</h3>
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto mb-6">
+                <pre class="text-green-400 text-sm"><code>&lt;h1&gt;Hello {{first_name}}!&lt;/h1&gt;
+&lt;p&gt;Welcome to {{company_name}}.&lt;/p&gt;
+&lt;p&gt;Your account was created on {{created_at}}.&lt;/p&gt;
+&lt;a href="{{dashboard_url}}"&gt;Go to Dashboard&lt;/a&gt;</code></pre>
+            </div>
+            
+            <h3 class="text-lg font-bold text-gray-900 mb-3">Sending with Variables</h3>
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                <pre class="text-green-400 text-sm"><code>POST /v1/emails/send
+{
+  "to": "john@example.com",
+  "subject": "Welcome {{first_name}}!",
+  "template_id": "tmpl_welcome_001",
+  "variables": {
+    "first_name": "John",
+    "company_name": "Acme Inc",
+    "created_at": "December 22, 2024",
+    "dashboard_url": "https://app.acme.com/dashboard"
+  }
+}</code></pre>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl border p-8 mb-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Conditional Content</h2>
+            <p class="text-gray-600 mb-4">Show or hide content based on conditions:</p>
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                <pre class="text-green-400 text-sm"><code>{% raw %}{% if is_premium %}
+  &lt;p&gt;Thank you for being a premium member!&lt;/p&gt;
+{% else %}
+  &lt;p&gt;Upgrade to premium for more features.&lt;/p&gt;
+{% endif %}{% endraw %}</code></pre>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-2xl border p-8">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Loops</h2>
+            <p class="text-gray-600 mb-4">Iterate over arrays in your templates:</p>
+            <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                <pre class="text-green-400 text-sm"><code>{% raw %}&lt;ul&gt;
+{% for item in order_items %}
+  &lt;li&gt;{{item.name}} - ${{item.price}}&lt;/li&gt;
+{% endfor %}
+&lt;/ul&gt;{% endraw %}</code></pre>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

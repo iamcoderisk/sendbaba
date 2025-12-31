@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}{{ ticket.ticket_number }} - Support{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white border-b">
+        <div class="max-w-5xl mx-auto px-4 py-6">
+            <a href="{{ url_for('tickets.support_home') }}" class="inline-flex items-center text-gray-500 hover:text-orange-600 mb-4">
+                <i class="fas fa-arrow-left mr-2"></i> Back to tickets
+            </a>
+            <div class="flex items-start justify-between">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-sm font-mono text-gray-500">{{ ticket.ticket_number }}</span>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold
+                            {% if ticket.status == 'open' %}bg-green-100 text-green-700
+                            {% elif ticket.status == 'pending' %}bg-yellow-100 text-yellow-700
+                            {% elif ticket.status == 'resolved' %}bg-blue-100 text-blue-700
+                            {% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {{ ticket.status|title }}
+                        </span>
+                        <span class="text-xs px-2 py-1 rounded
+                            {% if ticket.priority == 'urgent' %}bg-red-100 text-red-600
+                            {% elif ticket.priority == 'high' %}bg-orange-100 text-orange-600
+                            {% elif ticket.priority == 'medium' %}bg-yellow-100 text-yellow-600
+                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {{ ticket.priority|title }} Priority
+                        </span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ ticket.subject }}</h1>
+                    <div class="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                        {% if ticket.category_name %}
+                        <span><i class="fas {{ ticket.category_icon }} mr-1" style="color: {{ ticket.category_color }}"></i> {{ ticket.category_name }}</span>
+                        {% endif %}
+                        <span><i class="fas fa-clock mr-1"></i> Created {{ ticket.created_at.strftime('%b %d, %Y at %H:%M') }}</span>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    {% if ticket.status == 'closed' %}
+                    <form action="{{ url_for('tickets.reopen_ticket_user', ticket_id=ticket.id) }}" method="POST">
+                        <button type="submit" class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                            <i class="fas fa-redo mr-1"></i> Reopen
+                        </button>
+                    </form>
+                    {% elif ticket.status != 'closed' %}
+                    <form action="{{ url_for('tickets.close_ticket_user', ticket_id=ticket.id) }}" method="POST">
+                        <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                            <i class="fas fa-check mr-1"></i> Close Ticket
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Conversation -->
+    <div class="max-w-5xl mx-auto px-4 py-8">
+        <div class="space-y-6">
+            <!-- Original Message -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-semibold">
+                            {{ (ticket.user_name or ticket.user_email)[0]|upper }}
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-900">{{ ticket.user_name or ticket.user_email }}</div>
+                            <div class="text-sm text-gray-500">{{ ticket.created_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded">Original</span>
+                </div>
+                <div class="p-6">
+                    <div class="prose max-w-none text-gray-700 whitespace-pre-wrap">{{ ticket.description }}</div>
+                </div>
+            </div>
+            
+            <!-- Replies -->
+            {% for reply in replies %}
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden {% if reply.is_staff %}border-l-4 border-orange-500{% endif %}">
+                <div class="px-6 py-4 bg-gray-50 border-b flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-semibold
+                            {% if reply.is_staff %}bg-orange-500 text-white{% else %}bg-gray-300 text-gray-700{% endif %}">
+                            {{ (reply.user_name or reply.user_email or 'S')[0]|upper }}
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-900">
+                                {{ reply.user_name or reply.user_email or 'Support Team' }}
+                                {% if reply.is_staff %}
+                                <span class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded ml-2">Staff</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-gray-500">{{ reply.created_at.strftime('%b %d, %Y at %H:%M') }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="prose max-w-none text-gray-700 whitespace-pre-wrap">{{ reply.message }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <!-- Reply Form -->
+            {% if ticket.status != 'closed' %}
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <form action="{{ url_for('tickets.reply_ticket', ticket_id=ticket.id) }}" method="POST">
+                    <div class="p-6">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Your Reply</label>
+                        <textarea name="message" required rows="5"
+                                  class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all resize-none"
+                                  placeholder="Type your reply here..."></textarea>
+                    </div>
+                    <div class="px-6 py-4 bg-gray-50 border-t flex justify-end">
+                        <button type="submit" 
+                                class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg transition-all">
+                            <i class="fas fa-reply mr-2"></i>Send Reply
+                        </button>
+                    </div>
+                </form>
+            </div>
+            {% else %}
+            <!-- Rating (for closed/resolved tickets) -->
+            {% if ticket.status in ['resolved', 'closed'] and not ticket.satisfaction_rating %}
+            <div class="bg-white rounded-xl shadow-sm p-6 text-center">
+                <h3 class="text-lg font-semibold mb-4">How was your experience?</h3>
+                <form action="{{ url_for('tickets.rate_ticket', ticket_id=ticket.id) }}" method="POST" class="space-y-4">
+                    <div class="flex justify-center gap-2">
+                        {% for i in range(1, 6) %}
+                        <label class="cursor-pointer">
+                            <input type="radio" name="rating" value="{{ i }}" class="sr-only peer" required>
+                            <div class="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-2xl transition-all
+                                        peer-checked:border-orange-500 peer-checked:bg-orange-50 hover:border-orange-300">
+                                {% if i == 1 %}😞{% elif i == 2 %}😕{% elif i == 3 %}😐{% elif i == 4 %}🙂{% else %}😄{% endif %}
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <textarea name="comment" rows="2" 
+                              class="w-full max-w-md mx-auto px-4 py-2 border border-gray-200 rounded-lg"
+                              placeholder="Any additional feedback? (optional)"></textarea>
+                    <button type="submit" class="bg-orange-500 text-white px-6 py-2 rounded-lg font-semibold hover:bg-orange-600">
+                        Submit Feedback
+                    </button>
+                </form>
+            </div>
+            {% elif ticket.satisfaction_rating %}
+            <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
+                <p class="text-green-700">Thank you for your feedback!</p>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

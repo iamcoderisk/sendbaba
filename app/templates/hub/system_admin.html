@@ -1,0 +1,756 @@
+{% extends "hub/base.html" %}
+
+{% block title %}System Administration - SendBaba Hub{% endblock %}
+
+{% block content %}
+<style>
+    .admin-card {
+        background: white;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 20px;
+    }
+    .admin-card h2 {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .admin-card h2 i { color: #f87137; }
+    
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .stat-box {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+    }
+    .stat-value { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .stat-value.green { color: #10b981; }
+    .stat-value.yellow { color: #f59e0b; }
+    .stat-value.red { color: #ef4444; }
+    .stat-value.blue { color: #3b82f6; }
+    .stat-value.purple { color: #8b5cf6; }
+    .stat-label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; }
+    
+    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+    .data-table th { background: #f8fafc; padding: 10px 12px; text-align: left; font-weight: 600; color: #475569; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+    .data-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+    .data-table tr:hover { background: #f8fafc; }
+    
+    .status-badge { padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+    .status-online { background: #d1fae5; color: #059669; }
+    .status-offline { background: #fee2e2; color: #dc2626; }
+    .status-warning { background: #fef3c7; color: #d97706; }
+    
+    .action-btn { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+    .action-btn.primary { background: linear-gradient(135deg, #f87137, #e85d2a); color: white; }
+    .action-btn.success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .action-btn.warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .action-btn.danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .action-btn.secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    
+    .tab-container { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; overflow-x: auto; flex-wrap: nowrap; }
+    .tab-btn { padding: 10px 16px; border: none; background: none; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; white-space: nowrap; font-size: 13px; }
+    .tab-btn:hover { color: #f87137; }
+    .tab-btn.active { color: #f87137; border-bottom-color: #f87137; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .log-viewer {
+        background: #1e293b;
+        color: #94a3b8;
+        font-family: 'SF Mono', 'Monaco', monospace;
+        font-size: 11px;
+        padding: 16px;
+        border-radius: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+        line-height: 1.6;
+    }
+    .log-viewer .log-error { color: #f87171; }
+    .log-viewer .log-warning { color: #fbbf24; }
+    .log-viewer .log-info { color: #60a5fa; }
+    .log-viewer .log-success { color: #34d399; }
+    
+    .dns-result { font-family: monospace; font-size: 11px; background: #1e293b; color: #10b981; padding: 12px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    .dns-result.error { color: #f87171; }
+    .dns-result.warning { color: #fbbf24; }
+    
+    .process-card { background: #f8fafc; border-radius: 10px; padding: 12px; border: 1px solid #e2e8f0; }
+    .process-card.online { border-left: 3px solid #10b981; }
+    .process-card.stopped { border-left: 3px solid #ef4444; }
+    
+    .mini-chart { height: 60px; }
+    
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; }
+    .toast { padding: 12px 16px; border-radius: 10px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; animation: slideIn 0.3s ease; min-width: 250px; font-size: 13px; }
+    .toast.success { background: #10b981; color: white; }
+    .toast.error { background: #ef4444; color: white; }
+    .toast.info { background: #3b82f6; color: white; }
+    .toast.warning { background: #f59e0b; color: white; }
+    @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    
+    .connection-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .connection-indicator.ok { background: #10b981; }
+    .connection-indicator.error { background: #ef4444; }
+    
+    .progress-bar { height: 6px; background: #e5e7eb; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+    .progress-fill.green { background: #10b981; }
+    .progress-fill.yellow { background: #f59e0b; }
+    .progress-fill.red { background: #ef4444; }
+</style>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">System Administration</h1>
+        <p class="text-gray-500 text-sm">Complete control center for SendBaba</p>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="testConnections()" class="action-btn secondary"><i class="fas fa-plug"></i> Test Connections</button>
+        <button onclick="refreshAll()" class="action-btn primary" id="refreshBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
+</div>
+
+<!-- Connection Status Bar -->
+<div class="admin-card" style="padding: 12px 20px;">
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-6">
+            <div id="pgStatus"><span class="connection-indicator"></span>PostgreSQL: Checking...</div>
+            <div id="redisStatus"><span class="connection-indicator"></span>Redis: Checking...</div>
+            <div id="celeryStatus"><span class="connection-indicator"></span>Celery: Checking...</div>
+        </div>
+        <div class="text-sm text-gray-500" id="versionInfo">Loading version...</div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="tab-container">
+    <button class="tab-btn active" onclick="switchTab('realtime')"><i class="fas fa-chart-line mr-1"></i>Real-Time</button>
+    <button class="tab-btn" onclick="switchTab('workers')"><i class="fas fa-cogs mr-1"></i>Workers</button>
+    <button class="tab-btn" onclick="switchTab('email')"><i class="fas fa-envelope mr-1"></i>Email Health</button>
+    <button class="tab-btn" onclick="switchTab('database')"><i class="fas fa-database mr-1"></i>Database</button>
+    <button class="tab-btn" onclick="switchTab('logs')"><i class="fas fa-file-alt mr-1"></i>Logs</button>
+    <button class="tab-btn" onclick="switchTab('domains')"><i class="fas fa-globe mr-1"></i>DNS Check</button>
+    <button class="tab-btn" onclick="switchTab('deploy')"><i class="fas fa-rocket mr-1"></i>Deploy</button>
+</div>
+
+<!-- Real-Time Tab -->
+<div id="tab-realtime" class="tab-content active">
+    <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value blue" id="rtEmailsPerSec">-</div><div class="stat-label">Emails/Sec</div></div>
+        <div class="stat-box"><div class="stat-value" id="rtEmailsPerMin">-</div><div class="stat-label">Emails/Min</div></div>
+        <div class="stat-box"><div class="stat-value green" id="rtSuccessRate">-</div><div class="stat-label">Success %</div></div>
+        <div class="stat-box"><div class="stat-value red" id="rtBounceRate">-</div><div class="stat-label">Bounce %</div></div>
+        <div class="stat-box"><div class="stat-value purple" id="rtActiveCampaigns">-</div><div class="stat-label">Active Campaigns</div></div>
+        <div class="stat-box"><div class="stat-value yellow" id="rtQueueDepth">-</div><div class="stat-label">Queue Depth</div></div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="admin-card">
+            <h2><i class="fas fa-chart-area"></i> Sending Rate (Last 30 min)</h2>
+            <canvas id="sendingChart" class="mini-chart" style="height: 200px;"></canvas>
+        </div>
+        <div class="admin-card">
+            <h2><i class="fas fa-server"></i> Redis Stats</h2>
+            <div id="redisStats" class="space-y-3">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Workers Tab -->
+<div id="tab-workers" class="tab-content">
+    <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value green" id="wkOnline">-</div><div class="stat-label">Online</div></div>
+        <div class="stat-box"><div class="stat-value" id="wkTotal">-</div><div class="stat-label">Total</div></div>
+        <div class="stat-box"><div class="stat-value blue" id="wkActive">-</div><div class="stat-label">Active Tasks</div></div>
+        <div class="stat-box"><div class="stat-value yellow" id="wkQueued">-</div><div class="stat-label">Queued</div></div>
+    </div>
+    
+    <div class="admin-card">
+        <div class="flex items-center justify-between mb-4">
+            <h2><i class="fas fa-microchip"></i> PM2 Processes</h2>
+            <div class="flex gap-2">
+                <button onclick="restartService('all')" class="action-btn warning"><i class="fas fa-redo"></i> Restart All</button>
+            </div>
+        </div>
+        <div id="pm2Processes" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">Loading...</div>
+    </div>
+    
+    <div class="admin-card">
+        <div class="flex items-center justify-between mb-4">
+            <h2><i class="fas fa-tasks"></i> Celery Tasks</h2>
+            <button onclick="purgeQueue()" class="action-btn danger"><i class="fas fa-trash"></i> Purge Queue</button>
+        </div>
+        <div id="celeryTasks" class="log-viewer" style="max-height: 250px;">Loading...</div>
+    </div>
+</div>
+
+<!-- Email Health Tab -->
+<div id="tab-email" class="tab-content">
+    <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value" id="ehTotal">-</div><div class="stat-label">Total (24h)</div></div>
+        <div class="stat-box"><div class="stat-value green" id="ehDelivered">-</div><div class="stat-label">Delivered</div></div>
+        <div class="stat-box"><div class="stat-value red" id="ehBounced">-</div><div class="stat-label">Bounced</div></div>
+        <div class="stat-box"><div class="stat-value yellow" id="ehFailed">-</div><div class="stat-label">Failed</div></div>
+        <div class="stat-box"><div class="stat-value purple" id="ehComplaints">-</div><div class="stat-label">Complaints</div></div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="admin-card">
+            <h2><i class="fas fa-exclamation-triangle"></i> Recent Bounces</h2>
+            <div id="recentBounces" class="max-h-64 overflow-y-auto">Loading...</div>
+        </div>
+        <div class="admin-card">
+            <h2><i class="fas fa-chart-pie"></i> Top Bounce Reasons</h2>
+            <div id="bounceReasons">Loading...</div>
+        </div>
+    </div>
+    
+    <div class="admin-card">
+        <h2><i class="fas fa-globe"></i> Domain Performance (24h)</h2>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead><tr><th>Domain</th><th>Total</th><th>Delivered</th><th>Bounced</th><th>Rate</th></tr></thead>
+                <tbody id="domainStats"><tr><td colspan="5" class="text-center">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Database Tab -->
+<div id="tab-database" class="tab-content">
+    <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value blue" id="dbSize">-</div><div class="stat-label">DB Size</div></div>
+        <div class="stat-box"><div class="stat-value green" id="dbConnActive">-</div><div class="stat-label">Active Conn</div></div>
+        <div class="stat-box"><div class="stat-value" id="dbConnIdle">-</div><div class="stat-label">Idle Conn</div></div>
+        <div class="stat-box"><div class="stat-value yellow" id="dbOldest">-</div><div class="stat-label">Oldest Email</div></div>
+    </div>
+    
+    <div class="admin-card">
+        <div class="flex items-center justify-between mb-4">
+            <h2><i class="fas fa-table"></i> Table Sizes</h2>
+            <div class="flex gap-2">
+                <select id="cleanupDays" class="px-3 py-1 border rounded-lg text-sm">
+                    <option value="30">30 days</option>
+                    <option value="60">60 days</option>
+                    <option value="90">90 days</option>
+                </select>
+                <button onclick="cleanupOldData()" class="action-btn danger"><i class="fas fa-broom"></i> Cleanup Old Data</button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead><tr><th>Table</th><th>Rows</th><th>Size</th></tr></thead>
+                <tbody id="tableStats"><tr><td colspan="3" class="text-center">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Tab -->
+<div id="tab-logs" class="tab-content">
+    <div class="admin-card">
+        <div class="flex items-center justify-between mb-4">
+            <h2><i class="fas fa-terminal"></i> Application Logs</h2>
+            <div class="flex gap-2">
+                <select id="logType" class="px-3 py-1 border rounded-lg text-sm" onchange="loadLogs()">
+                    <option value="app">App Output</option>
+                    <option value="error">App Errors</option>
+                    <option value="celery">Celery Output</option>
+                    <option value="celery-error">Celery Errors</option>
+                </select>
+                <select id="logLines" class="px-3 py-1 border rounded-lg text-sm" onchange="loadLogs()">
+                    <option value="50">50 lines</option>
+                    <option value="100" selected>100 lines</option>
+                    <option value="200">200 lines</option>
+                    <option value="500">500 lines</option>
+                </select>
+                <button onclick="loadLogs()" class="action-btn secondary"><i class="fas fa-sync-alt"></i> Refresh</button>
+            </div>
+        </div>
+        <div id="logViewer" class="log-viewer">Loading logs...</div>
+    </div>
+</div>
+
+<!-- DNS Check Tab -->
+<div id="tab-domains" class="tab-content">
+    <div class="admin-card">
+        <h2><i class="fas fa-search"></i> Check Domain DNS</h2>
+        <div class="flex gap-4 mb-4">
+            <input type="text" id="dnsCheckDomain" class="flex-1 px-4 py-2 border rounded-xl text-sm" placeholder="example.com" style="max-width: 300px;">
+            <button onclick="checkDomainDNS()" class="action-btn primary"><i class="fas fa-search"></i> Check</button>
+        </div>
+        <div id="dnsResults" style="display: none;">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><div class="text-xs font-semibold text-gray-500 mb-1">SPF</div><div id="spfResult" class="dns-result">-</div></div>
+                <div><div class="text-xs font-semibold text-gray-500 mb-1">DKIM</div><div id="dkimResult" class="dns-result">-</div></div>
+                <div><div class="text-xs font-semibold text-gray-500 mb-1">DMARC</div><div id="dmarcResult" class="dns-result">-</div></div>
+                <div><div class="text-xs font-semibold text-gray-500 mb-1">MX</div><div id="mxResult" class="dns-result">-</div></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="admin-card">
+        <h2><i class="fas fa-users"></i> Client Domains</h2>
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead><tr><th>Domain</th><th>Org</th><th>SPF</th><th>DKIM</th><th>DMARC</th><th>Verified</th><th></th></tr></thead>
+                <tbody id="clientDomainsBody"><tr><td colspan="7" class="text-center">Loading...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Deploy Tab -->
+<div id="tab-deploy" class="tab-content">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="admin-card">
+            <h2><i class="fas fa-code-branch"></i> Version Info</h2>
+            <div id="deployVersion" class="space-y-2">Loading...</div>
+        </div>
+        <div class="admin-card">
+            <h2><i class="fas fa-server"></i> System Resources</h2>
+            <div id="systemResources">Loading...</div>
+        </div>
+    </div>
+    
+    <div class="admin-card">
+        <h2><i class="fas fa-rocket"></i> Deployment Actions</h2>
+        <div class="flex flex-wrap gap-3">
+            <button onclick="gitPull()" class="action-btn primary"><i class="fas fa-download"></i> Git Pull</button>
+            <button onclick="restartService('sendbaba-web')" class="action-btn warning"><i class="fas fa-redo"></i> Restart Web</button>
+            <button onclick="restartService('celery-worker')" class="action-btn warning"><i class="fas fa-redo"></i> Restart Celery</button>
+            <button onclick="restartService('all')" class="action-btn danger"><i class="fas fa-power-off"></i> Restart All</button>
+        </div>
+        <div id="deployOutput" class="log-viewer mt-4" style="display: none; max-height: 200px;"></div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let sendingChart = null;
+let refreshInterval = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    initChart();
+    loadAll();
+    startAutoRefresh();
+});
+
+function showToast(msg, type='success') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    const icons = {success:'check',error:'times',info:'info',warning:'exclamation-triangle'};
+    t.innerHTML = `<i class="fas fa-${icons[type]}"></i> ${msg}`;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+function startAutoRefresh() {
+    refreshInterval = setInterval(() => {
+        loadLiveStats();
+        loadWorkerStats();
+    }, 10000);
+}
+
+async function loadAll() {
+    await Promise.all([
+        testConnections(),
+        loadVersion(),
+        loadLiveStats(),
+        loadWorkerStats(),
+        loadEmailHealth(),
+        loadDatabaseStats(),
+        loadLogs(),
+        loadClientDomains(),
+        loadRedisStats(),
+        loadPM2Status(),
+        loadSystemResources()
+    ]);
+}
+
+async function refreshAll() {
+    document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt fa-spin"></i>';
+    await loadAll();
+    document.getElementById('refreshBtn').innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+    showToast('Refreshed!');
+}
+
+// Connection Tests
+async function testConnections() {
+    try {
+        const res = await fetch('/hub/api/system/test-connections');
+        const data = await res.json();
+        
+        const pgEl = document.getElementById('pgStatus');
+        pgEl.innerHTML = `<span class="connection-indicator ${data.postgresql?.status === 'ok' ? 'ok' : 'error'}"></span>PostgreSQL: ${data.postgresql?.status === 'ok' ? 'Connected' : 'Error'}`;
+        
+        const redisEl = document.getElementById('redisStatus');
+        redisEl.innerHTML = `<span class="connection-indicator ${data.redis?.status === 'ok' ? 'ok' : 'error'}"></span>Redis: ${data.redis?.status === 'ok' ? 'Connected' : 'Error'}`;
+    } catch (e) {
+        console.error(e);
+    }
+    
+    // Check Celery
+    try {
+        const res = await fetch('/hub/api/system/workers');
+        const data = await res.json();
+        const celeryEl = document.getElementById('celeryStatus');
+        celeryEl.innerHTML = `<span class="connection-indicator ${data.online > 0 ? 'ok' : 'error'}"></span>Celery: ${data.online || 0} workers`;
+    } catch (e) {}
+}
+
+async function loadVersion() {
+    try {
+        const res = await fetch('/hub/api/system/version');
+        const data = await res.json();
+        document.getElementById('versionInfo').innerHTML = `${data.app || 'SendBaba'} | ${data.branch || 'main'}@${data.commit || '???'}`;
+        document.getElementById('deployVersion').innerHTML = `
+            <div class="flex justify-between py-2 border-b"><span class="text-gray-500">Branch</span><span class="font-mono">${data.branch || '-'}</span></div>
+            <div class="flex justify-between py-2 border-b"><span class="text-gray-500">Commit</span><span class="font-mono">${data.commit || '-'}</span></div>
+            <div class="flex justify-between py-2 border-b"><span class="text-gray-500">Last Update</span><span>${data.last_update || '-'}</span></div>
+            <div class="flex justify-between py-2"><span class="text-gray-500">Python</span><span>${data.python || '-'}</span></div>
+        `;
+    } catch (e) {}
+}
+
+// Real-time Stats
+function initChart() {
+    const ctx = document.getElementById('sendingChart').getContext('2d');
+    sendingChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'Emails/min', data: [], borderColor: '#f87137', backgroundColor: 'rgba(248,113,55,0.1)', fill: true, tension: 0.4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { display: false } } }
+    });
+}
+
+async function loadLiveStats() {
+    try {
+        const res = await fetch('/hub/api/system/live-stats');
+        const data = await res.json();
+        
+        document.getElementById('rtEmailsPerSec').textContent = data.emails_per_second || 0;
+        document.getElementById('rtEmailsPerMin').textContent = data.emails_per_minute || 0;
+        document.getElementById('rtSuccessRate').textContent = (data.success_rate || 0) + '%';
+        document.getElementById('rtBounceRate').textContent = (data.bounce_rate || 0) + '%';
+        document.getElementById('rtActiveCampaigns').textContent = data.active_campaigns || 0;
+        
+        // Update chart
+        if (data.timeline && sendingChart) {
+            sendingChart.data.labels = data.timeline.map(t => new Date(t.minute).toLocaleTimeString());
+            sendingChart.data.datasets[0].data = data.timeline.map(t => t.count);
+            sendingChart.update('none');
+        }
+    } catch (e) {}
+    
+    // Queue depth from workers
+    try {
+        const res = await fetch('/hub/api/system/workers');
+        const data = await res.json();
+        document.getElementById('rtQueueDepth').textContent = data.queued || 0;
+    } catch (e) {}
+}
+
+async function loadRedisStats() {
+    try {
+        const res = await fetch('/hub/api/system/redis-stats');
+        const data = await res.json();
+        document.getElementById('redisStats').innerHTML = `
+            <div class="flex justify-between py-2 border-b"><span class="text-gray-500">Memory</span><span class="font-semibold">${data.used_memory_human || '-'}</span></div>
+            <div class="flex justify-between py-2 border-b"><span class="text-gray-500">Keys</span><span class="font-semibold">${data.total_keys || 0}</span></div>
+            <div class="flex justify-between py-2 border-b"><span class="text-gray-500">Clients</span><span class="font-semibold">${data.connected_clients || 0}</span></div>
+            <div class="flex justify-between py-2 border-b"><span class="text-gray-500">Ops/sec</span><span class="font-semibold">${data.ops_per_sec || 0}</span></div>
+            <div class="flex justify-between py-2"><span class="text-gray-500">Hit Rate</span><span class="font-semibold">${data.hit_rate || 0}%</span></div>
+        `;
+    } catch (e) {}
+}
+
+// Workers
+async function loadWorkerStats() {
+    try {
+        const res = await fetch('/hub/api/system/workers');
+        const data = await res.json();
+        document.getElementById('wkOnline').textContent = data.online || 0;
+        document.getElementById('wkTotal').textContent = (data.workers || []).length;
+        document.getElementById('wkActive').textContent = data.active_tasks || 0;
+        document.getElementById('wkQueued').textContent = data.queued || 0;
+    } catch (e) {}
+    
+    loadCeleryTasks();
+}
+
+async function loadPM2Status() {
+    try {
+        const res = await fetch('/hub/api/system/pm2-status');
+        const data = await res.json();
+        const container = document.getElementById('pm2Processes');
+        
+        if (!data.processes?.length) {
+            container.innerHTML = '<div class="text-gray-500">No PM2 processes found</div>';
+            return;
+        }
+        
+        container.innerHTML = data.processes.map(p => `
+            <div class="process-card ${p.status === 'online' ? 'online' : 'stopped'}">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="font-semibold text-sm">${p.name}</span>
+                    <span class="status-badge ${p.status === 'online' ? 'status-online' : 'status-offline'}">${p.status}</span>
+                </div>
+                <div class="text-xs text-gray-500 space-y-1">
+                    <div class="flex justify-between"><span>CPU:</span><span>${p.cpu}%</span></div>
+                    <div class="flex justify-between"><span>Memory:</span><span>${p.memory}MB</span></div>
+                    <div class="flex justify-between"><span>Restarts:</span><span>${p.restarts}</span></div>
+                </div>
+                <button onclick="restartService('${p.name}')" class="action-btn secondary w-full mt-2" style="justify-content:center;"><i class="fas fa-redo"></i> Restart</button>
+            </div>
+        `).join('');
+    } catch (e) {}
+}
+
+async function loadCeleryTasks() {
+    try {
+        const res = await fetch('/hub/api/system/celery-tasks');
+        const data = await res.json();
+        document.getElementById('celeryTasks').innerHTML = `<div class="text-blue-400 mb-2">== Active Tasks ==</div>${data.active || 'None'}\n\n<div class="text-yellow-400 mb-2">== Scheduled ==</div>${data.scheduled || 'None'}`;
+    } catch (e) {}
+}
+
+async function restartService(service) {
+    if (!confirm(`Restart ${service}?`)) return;
+    showToast(`Restarting ${service}...`, 'info');
+    try {
+        const res = await fetch('/hub/api/system/restart-service', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({service})
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(`${service} restarted!`, 'success');
+            setTimeout(loadPM2Status, 2000);
+        } else {
+            showToast('Restart failed', 'error');
+        }
+    } catch (e) { showToast('Error', 'error'); }
+}
+
+async function purgeQueue() {
+    if (!confirm('Purge all queued tasks? This cannot be undone.')) return;
+    try {
+        const res = await fetch('/hub/api/system/purge-queue', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({queue: 'celery'}) });
+        showToast('Queue purged', 'success');
+    } catch (e) { showToast('Error', 'error'); }
+}
+
+// Email Health
+async function loadEmailHealth() {
+    try {
+        const res = await fetch('/hub/api/system/email-health');
+        const data = await res.json();
+        
+        const s = data.stats_24h || {};
+        document.getElementById('ehTotal').textContent = (s.total || 0).toLocaleString();
+        document.getElementById('ehDelivered').textContent = (s.delivered || 0).toLocaleString();
+        document.getElementById('ehBounced').textContent = (s.bounced || 0).toLocaleString();
+        document.getElementById('ehFailed').textContent = (s.failed || 0).toLocaleString();
+        document.getElementById('ehComplaints').textContent = (s.complained || 0).toLocaleString();
+        
+        // Recent bounces
+        const bounces = data.recent_bounces || [];
+        document.getElementById('recentBounces').innerHTML = bounces.length ? bounces.map(b => `
+            <div class="py-2 border-b border-gray-100 text-sm">
+                <div class="font-mono text-red-600">${b.recipient || '-'}</div>
+                <div class="text-xs text-gray-500">${b.bounce_reason || 'Unknown'}</div>
+            </div>
+        `).join('') : '<div class="text-gray-500">No recent bounces</div>';
+        
+        // Bounce reasons
+        const reasons = data.bounce_reasons || [];
+        document.getElementById('bounceReasons').innerHTML = reasons.length ? reasons.map(r => `
+            <div class="flex justify-between py-2 border-b border-gray-100 text-sm">
+                <span class="text-gray-600 truncate" style="max-width:200px">${r.bounce_reason || 'Unknown'}</span>
+                <span class="font-semibold text-red-600">${r.count}</span>
+            </div>
+        `).join('') : '<div class="text-gray-500">No bounce data</div>';
+        
+        // Domain stats
+        const domains = data.domain_stats || [];
+        document.getElementById('domainStats').innerHTML = domains.length ? domains.map(d => {
+            const rate = d.total > 0 ? Math.round(d.delivered / d.total * 100) : 0;
+            return `<tr>
+                <td class="font-mono">${d.domain}</td>
+                <td>${d.total}</td>
+                <td class="text-green-600">${d.delivered}</td>
+                <td class="text-red-600">${d.bounced}</td>
+                <td><div class="flex items-center gap-2"><div class="progress-bar flex-1"><div class="progress-fill ${rate>90?'green':rate>70?'yellow':'red'}" style="width:${rate}%"></div></div><span class="text-xs">${rate}%</span></div></td>
+            </tr>`;
+        }).join('') : '<tr><td colspan="5" class="text-center text-gray-500">No data</td></tr>';
+    } catch (e) {}
+}
+
+// Database
+async function loadDatabaseStats() {
+    try {
+        const res = await fetch('/hub/api/system/database-stats');
+        const data = await res.json();
+        
+        document.getElementById('dbSize').textContent = data.database_size || '-';
+        document.getElementById('dbConnActive').textContent = data.connections?.active || 0;
+        document.getElementById('dbConnIdle').textContent = data.connections?.idle || 0;
+        document.getElementById('dbOldest').textContent = data.oldest_email ? new Date(data.oldest_email).toLocaleDateString() : '-';
+        
+        const tables = data.tables || [];
+        document.getElementById('tableStats').innerHTML = tables.map(t => `
+            <tr><td class="font-mono">${t.table_name}</td><td>${(t.row_count || 0).toLocaleString()}</td><td>${t.total_size}</td></tr>
+        `).join('') || '<tr><td colspan="3" class="text-center">No data</td></tr>';
+    } catch (e) {}
+}
+
+async function cleanupOldData() {
+    const days = document.getElementById('cleanupDays').value;
+    if (!confirm(`Delete emails older than ${days} days? This cannot be undone.`)) return;
+    
+    try {
+        const res = await fetch('/hub/api/system/cleanup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({days: parseInt(days), table: 'emails'})
+        });
+        const data = await res.json();
+        showToast(`Deleted ${data.deleted || 0} old records`, 'success');
+        loadDatabaseStats();
+    } catch (e) { showToast('Cleanup failed', 'error'); }
+}
+
+// Logs
+async function loadLogs() {
+    const type = document.getElementById('logType').value;
+    const lines = document.getElementById('logLines').value;
+    
+    try {
+        const res = await fetch(`/hub/api/system/logs?type=${type}&lines=${lines}`);
+        const data = await res.json();
+        
+        const viewer = document.getElementById('logViewer');
+        viewer.innerHTML = (data.logs || []).map(line => {
+            let cls = '';
+            if (line.includes('ERROR') || line.includes('Error')) cls = 'log-error';
+            else if (line.includes('WARNING') || line.includes('Warning')) cls = 'log-warning';
+            else if (line.includes('INFO')) cls = 'log-info';
+            else if (line.includes('SUCCESS') || line.includes('✅')) cls = 'log-success';
+            return `<div class="${cls}">${line}</div>`;
+        }).join('');
+        
+        viewer.scrollTop = viewer.scrollHeight;
+    } catch (e) { document.getElementById('logViewer').innerHTML = 'Failed to load logs'; }
+}
+
+// DNS Check
+async function checkDomainDNS() {
+    const domain = document.getElementById('dnsCheckDomain').value.trim();
+    if (!domain) { showToast('Enter a domain', 'warning'); return; }
+    
+    showToast('Checking DNS...', 'info');
+    document.getElementById('dnsResults').style.display = 'block';
+    
+    try {
+        const res = await fetch('/hub/api/system/check-dns', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({domain})
+        });
+        const d = await res.json();
+        
+        document.getElementById('spfResult').textContent = d.spf?.found ? d.spf.value : 'NOT FOUND';
+        document.getElementById('spfResult').className = `dns-result ${d.spf?.found ? '' : 'error'}`;
+        document.getElementById('dkimResult').textContent = d.dkim?.found ? d.dkim.value.substring(0,150)+'...' : 'NOT FOUND';
+        document.getElementById('dkimResult').className = `dns-result ${d.dkim?.found ? '' : 'error'}`;
+        document.getElementById('dmarcResult').textContent = d.dmarc?.found ? d.dmarc.value : 'NOT FOUND';
+        document.getElementById('dmarcResult').className = `dns-result ${d.dmarc?.found ? '' : 'warning'}`;
+        document.getElementById('mxResult').textContent = d.mx?.length ? d.mx.join('\n') : 'NOT FOUND';
+        
+        showToast('DNS check complete');
+    } catch (e) { showToast('DNS check failed', 'error'); }
+}
+
+async function loadClientDomains() {
+    try {
+        const res = await fetch('/hub/api/system/client-domains');
+        const data = await res.json();
+        const tbody = document.getElementById('clientDomainsBody');
+        
+        if (!data.domains?.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500">No domains</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = data.domains.map(d => `
+            <tr>
+                <td class="font-semibold">${d.domain_name}</td>
+                <td class="text-gray-500">${d.org_name || '-'}</td>
+                <td><span class="status-badge ${d.spf_valid ? 'status-online' : 'status-offline'}">${d.spf_valid ? '✓' : '✗'}</span></td>
+                <td><span class="status-badge ${d.dkim_valid ? 'status-online' : 'status-offline'}">${d.dkim_valid ? '✓' : '✗'}</span></td>
+                <td><span class="status-badge ${d.dmarc_valid ? 'status-online' : 'status-offline'}">${d.dmarc_valid ? '✓' : '✗'}</span></td>
+                <td><span class="status-badge ${d.dns_verified ? 'status-online' : 'status-warning'}">${d.dns_verified ? 'Yes' : 'No'}</span></td>
+                <td><button onclick="document.getElementById('dnsCheckDomain').value='${d.domain_name}';switchTab('domains');checkDomainDNS();" class="text-blue-500 hover:text-blue-700"><i class="fas fa-search"></i></button></td>
+            </tr>
+        `).join('');
+    } catch (e) {}
+}
+
+// Deploy
+async function loadSystemResources() {
+    try {
+        const res = await fetch('/hub/api/system/info');
+        const d = await res.json();
+        document.getElementById('systemResources').innerHTML = `
+            <div class="space-y-3">
+                <div><div class="flex justify-between text-sm mb-1"><span>CPU</span><span>${d.cpu_percent || 0}%</span></div><div class="progress-bar"><div class="progress-fill ${d.cpu_percent>80?'red':d.cpu_percent>50?'yellow':'green'}" style="width:${d.cpu_percent||0}%"></div></div></div>
+                <div><div class="flex justify-between text-sm mb-1"><span>Memory</span><span>${d.memory_percent || 0}%</span></div><div class="progress-bar"><div class="progress-fill ${d.memory_percent>80?'red':d.memory_percent>50?'yellow':'green'}" style="width:${d.memory_percent||0}%"></div></div></div>
+                <div><div class="flex justify-between text-sm mb-1"><span>Disk</span><span>${d.disk_percent || 0}%</span></div><div class="progress-bar"><div class="progress-fill ${d.disk_percent>80?'red':d.disk_percent>50?'yellow':'green'}" style="width:${d.disk_percent||0}%"></div></div></div>
+                <div class="flex justify-between text-sm pt-2 border-t"><span>Uptime</span><span class="font-semibold">${d.uptime || '-'}</span></div>
+            </div>
+        `;
+    } catch (e) {}
+}
+
+async function gitPull() {
+    showToast('Pulling latest code...', 'info');
+    document.getElementById('deployOutput').style.display = 'block';
+    document.getElementById('deployOutput').innerHTML = 'Running git pull...';
+    
+    try {
+        const res = await fetch('/hub/api/system/git-pull', { method: 'POST' });
+        const data = await res.json();
+        document.getElementById('deployOutput').innerHTML = data.output || 'No output';
+        showToast(data.success ? 'Git pull successful' : 'Git pull failed', data.success ? 'success' : 'error');
+        if (data.success) loadVersion();
+    } catch (e) { showToast('Git pull failed', 'error'); }
+}
+</script>
+{% endblock %}

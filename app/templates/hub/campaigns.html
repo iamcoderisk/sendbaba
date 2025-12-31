@@ -1,0 +1,523 @@
+{% extends "hub/base.html" %}
+{% block title %}Campaign Management - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center flex-wrap gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Campaign Management</h1>
+            <p class="text-gray-500 text-sm mt-1">Real-time campaign monitoring and management</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="refreshData()" class="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 hover:bg-gray-50">
+                <i class="fas fa-sync-alt" id="refresh-icon"></i> Refresh
+            </button>
+            <button onclick="showClearDraftsModal()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2">
+                <i class="fas fa-trash-alt"></i> Clear Drafts
+            </button>
+        </div>
+    </div>
+
+    <!-- Real-time Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div class="bg-white rounded-xl p-4 card-shadow border-l-4 border-gray-400">
+            <div class="text-2xl font-bold text-gray-900" id="stat-total">-</div>
+            <div class="text-sm text-gray-500">Total</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 card-shadow border-l-4 border-blue-500">
+            <div class="text-2xl font-bold text-blue-600" id="stat-sending">-</div>
+            <div class="text-sm text-gray-500">Sending</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 card-shadow border-l-4 border-purple-500">
+            <div class="text-2xl font-bold text-purple-600" id="stat-queued">-</div>
+            <div class="text-sm text-gray-500">Queued</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 card-shadow border-l-4 border-green-500">
+            <div class="text-2xl font-bold text-green-600" id="stat-completed">-</div>
+            <div class="text-sm text-gray-500">Completed</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 card-shadow border-l-4 border-yellow-500">
+            <div class="text-2xl font-bold text-yellow-600" id="stat-draft">-</div>
+            <div class="text-sm text-gray-500">Drafts</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 card-shadow border-l-4 border-red-500">
+            <div class="text-2xl font-bold text-red-600" id="stat-failed">-</div>
+            <div class="text-sm text-gray-500">Failed</div>
+        </div>
+        <div class="bg-white rounded-xl p-4 card-shadow border-l-4 border-orange-500">
+            <div class="text-2xl font-bold text-orange-600" id="stat-emails-today">-</div>
+            <div class="text-sm text-gray-500">Emails Today</div>
+        </div>
+    </div>
+
+    <!-- Active Campaigns (Sending Now) -->
+    <div id="active-campaigns-section" class="hidden">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+            Active Campaigns
+        </h2>
+        <div class="grid gap-4" id="active-campaigns-grid"></div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-xl p-4 card-shadow">
+        <div class="flex flex-wrap gap-3 items-center">
+            <select id="dateFilter" onchange="applyFilters()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500">
+                <option value="all">All Time</option>
+                <option value="today" selected>Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+            </select>
+            <select id="statusFilter" onchange="applyFilters()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500">
+                <option value="all">All Status</option>
+                <option value="sending">Sending</option>
+                <option value="queued">Queued</option>
+                <option value="completed">Completed</option>
+                <option value="draft">Draft</option>
+                <option value="paused">Paused</option>
+                <option value="failed">Failed</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            <select id="orgFilter" onchange="applyFilters()" class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 min-w-[200px]">
+                <option value="">All Organizations</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="Search campaigns..." 
+                   onkeyup="applyFilters()" 
+                   class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 flex-1 min-w-[200px]">
+            <div class="flex items-center gap-2 ml-auto">
+                <span class="text-sm text-gray-500">Sort:</span>
+                <select id="sortBy" onchange="applyFilters()" class="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                    <option value="created_desc">Newest First</option>
+                    <option value="created_asc">Oldest First</option>
+                    <option value="sent_desc">Most Sent</option>
+                    <option value="sent_asc">Least Sent</option>
+                    <option value="name_asc">Name A-Z</option>
+                    <option value="name_desc">Name Z-A</option>
+                    <option value="org_asc">Company A-Z</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div id="bulkActions" class="hidden bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-center gap-4">
+        <span class="text-sm font-medium text-orange-800"><span id="selectedCount">0</span> selected</span>
+        <button onclick="bulkAction('pause')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium"><i class="fas fa-pause mr-1"></i> Pause</button>
+        <button onclick="bulkAction('resume')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium"><i class="fas fa-play mr-1"></i> Resume</button>
+        <button onclick="bulkAction('delete')" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium"><i class="fas fa-trash mr-1"></i> Delete</button>
+        <button onclick="clearSelection()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium ml-auto">Cancel</button>
+    </div>
+
+    <!-- Results Info -->
+    <div class="flex justify-between items-center">
+        <p class="text-sm text-gray-500">Showing <span id="showing-count">0</span> campaigns</p>
+        <div class="flex items-center gap-2">
+            <label class="flex items-center gap-2 text-sm text-gray-600">
+                <input type="checkbox" id="autoRefresh" checked class="rounded"> Auto-refresh (10s)
+            </label>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-xl card-shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="w-10 px-4 py-3"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="w-4 h-4 rounded"></th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('name')">
+                            Campaign <i class="fas fa-sort ml-1"></i>
+                        </th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('org')">
+                            Organization <i class="fas fa-sort ml-1"></i>
+                        </th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('sent')">
+                            Progress <i class="fas fa-sort ml-1"></i>
+                        </th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Stats</th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onclick="sortTable('created')">
+                            Created <i class="fas fa-sort ml-1"></i>
+                        </th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="campaignsBody" class="divide-y divide-gray-100">
+                    <tr><td colspan="8" class="px-4 py-12 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Loading campaigns...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex justify-between items-center">
+        <div class="text-sm text-gray-500">
+            Page <span id="current-page">1</span> of <span id="total-pages">1</span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="prevPage()" id="prev-btn" disabled class="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">Previous</button>
+            <button onclick="nextPage()" id="next-btn" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Drafts Modal -->
+<div id="clearDraftsModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="p-6">
+            <h2 class="text-xl font-bold text-gray-900 mb-2">Clear Draft Campaigns</h2>
+            <p class="text-gray-600 mb-4">This will permanently delete all draft campaigns. This action cannot be undone.</p>
+            <div class="flex justify-end gap-3">
+                <button onclick="hideClearDraftsModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onclick="clearDrafts()" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete All Drafts</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let campaigns = [];
+let filteredCampaigns = [];
+let currentPage = 1;
+const perPage = 50;
+let autoRefreshInterval = null;
+let selectedIds = new Set();
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    startAutoRefresh();
+});
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    autoRefreshInterval = setInterval(() => {
+        if (document.getElementById('autoRefresh').checked) {
+            loadData(true); // silent refresh
+        }
+    }, 10000);
+}
+
+async function loadData(silent = false) {
+    if (!silent) {
+        document.getElementById('refresh-icon').classList.add('fa-spin');
+    }
+    
+    try {
+        const res = await fetch('/hub/api/campaigns/enhanced');
+        const data = await res.json();
+        
+        if (data.success) {
+            campaigns = data.campaigns;
+            updateStats(data.stats);
+            updateOrgFilter(data.organizations);
+            updateActiveCampaigns(data.active_campaigns);
+            applyFilters();
+        }
+    } catch (e) {
+        console.error('Error loading campaigns:', e);
+    }
+    
+    document.getElementById('refresh-icon').classList.remove('fa-spin');
+}
+
+function refreshData() {
+    loadData();
+}
+
+function updateStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total?.toLocaleString() || 0;
+    document.getElementById('stat-sending').textContent = stats.sending?.toLocaleString() || 0;
+    document.getElementById('stat-queued').textContent = stats.queued?.toLocaleString() || 0;
+    document.getElementById('stat-completed').textContent = stats.completed?.toLocaleString() || 0;
+    document.getElementById('stat-draft').textContent = stats.draft?.toLocaleString() || 0;
+    document.getElementById('stat-failed').textContent = (stats.failed + stats.cancelled)?.toLocaleString() || 0;
+    document.getElementById('stat-emails-today').textContent = stats.emails_today?.toLocaleString() || 0;
+}
+
+function updateOrgFilter(orgs) {
+    const select = document.getElementById('orgFilter');
+    const current = select.value;
+    select.innerHTML = '<option value="">All Organizations</option>' + 
+        orgs.map(o => `<option value="${o.id}" ${current === o.id ? 'selected' : ''}>${o.name} (${o.count})</option>`).join('');
+}
+
+function updateActiveCampaigns(active) {
+    const section = document.getElementById('active-campaigns-section');
+    const grid = document.getElementById('active-campaigns-grid');
+    
+    if (!active || active.length === 0) {
+        section.classList.add('hidden');
+        return;
+    }
+    
+    section.classList.remove('hidden');
+    grid.innerHTML = active.map(c => `
+        <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h3 class="font-semibold text-gray-900">${c.name || 'Untitled'}</h3>
+                    <p class="text-sm text-gray-600">${c.org_name || 'Unknown Org'}</p>
+                </div>
+                <span class="px-2 py-1 bg-green-500 text-white text-xs rounded-full animate-pulse">SENDING</span>
+            </div>
+            <div class="mb-2">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-600">Progress</span>
+                    <span class="font-medium">${c.sent?.toLocaleString() || 0} / ${c.total?.toLocaleString() || 0} (${c.percent || 0}%)</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-500" style="width: ${c.percent || 0}%"></div>
+                </div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-500">
+                <span><i class="fas fa-tachometer-alt mr-1"></i> ${c.rate || 0} eps</span>
+                <span><i class="fas fa-clock mr-1"></i> ETA: ${c.eta || 'Calculating...'}</span>
+                <span><i class="fas fa-times-circle mr-1 text-red-500"></i> ${c.failed || 0} failed</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function applyFilters() {
+    const dateFilter = document.getElementById('dateFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    const orgFilter = document.getElementById('orgFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const sortBy = document.getElementById('sortBy').value;
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
+    const monthAgo = new Date(today); monthAgo.setMonth(monthAgo.getMonth() - 1);
+    
+    filteredCampaigns = campaigns.filter(c => {
+        // Date filter
+        if (dateFilter !== 'all') {
+            const created = new Date(c.created_at);
+            if (dateFilter === 'today' && created < today) return false;
+            if (dateFilter === 'yesterday' && (created < yesterday || created >= today)) return false;
+            if (dateFilter === 'week' && created < weekAgo) return false;
+            if (dateFilter === 'month' && created < monthAgo) return false;
+        }
+        
+        // Status filter
+        if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+        
+        // Org filter
+        if (orgFilter && c.organization_id !== orgFilter) return false;
+        
+        // Search
+        if (search) {
+            const searchStr = `${c.name || ''} ${c.subject || ''} ${c.org_name || ''} ${c.user_email || ''}`.toLowerCase();
+            if (!searchStr.includes(search)) return false;
+        }
+        
+        return true;
+    });
+    
+    // Sort
+    const [sortField, sortDir] = sortBy.split('_');
+    filteredCampaigns.sort((a, b) => {
+        let valA, valB;
+        switch (sortField) {
+            case 'name': valA = (a.name || '').toLowerCase(); valB = (b.name || '').toLowerCase(); break;
+            case 'org': valA = (a.org_name || '').toLowerCase(); valB = (b.org_name || '').toLowerCase(); break;
+            case 'sent': valA = a.sent || 0; valB = b.sent || 0; break;
+            case 'created': valA = new Date(a.created_at); valB = new Date(b.created_at); break;
+            default: valA = new Date(a.created_at); valB = new Date(b.created_at);
+        }
+        if (sortDir === 'asc') return valA > valB ? 1 : -1;
+        return valA < valB ? 1 : -1;
+    });
+    
+    currentPage = 1;
+    renderTable();
+}
+
+function renderTable() {
+    const tbody = document.getElementById('campaignsBody');
+    const start = (currentPage - 1) * perPage;
+    const end = start + perPage;
+    const pageData = filteredCampaigns.slice(start, end);
+    
+    document.getElementById('showing-count').textContent = filteredCampaigns.length;
+    document.getElementById('current-page').textContent = currentPage;
+    document.getElementById('total-pages').textContent = Math.ceil(filteredCampaigns.length / perPage) || 1;
+    document.getElementById('prev-btn').disabled = currentPage === 1;
+    document.getElementById('next-btn').disabled = end >= filteredCampaigns.length;
+    
+    if (pageData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-12 text-center text-gray-500">No campaigns found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = pageData.map(c => {
+        const percent = c.total > 0 ? Math.round((c.sent / c.total) * 100) : 0;
+        const statusColors = {
+            draft: 'bg-yellow-100 text-yellow-700',
+            queued: 'bg-blue-100 text-blue-700',
+            sending: 'bg-green-100 text-green-700',
+            completed: 'bg-emerald-100 text-emerald-700',
+            paused: 'bg-gray-100 text-gray-700',
+            failed: 'bg-red-100 text-red-700',
+            cancelled: 'bg-red-100 text-red-700'
+        };
+        
+        return `
+        <tr class="hover:bg-gray-50 ${selectedIds.has(c.id) ? 'bg-orange-50' : ''}" data-id="${c.id}">
+            <td class="px-4 py-3">
+                <input type="checkbox" class="row-check w-4 h-4 rounded" value="${c.id}" 
+                       ${selectedIds.has(c.id) ? 'checked' : ''} onchange="toggleSelection('${c.id}')">
+            </td>
+            <td class="px-4 py-3">
+                <div class="font-medium text-gray-900">${c.name || 'Untitled'}</div>
+                ${c.subject ? `<div class="text-xs text-gray-500 mt-0.5 truncate max-w-xs">${c.subject}</div>` : ''}
+            </td>
+            <td class="px-4 py-3">
+                <div class="text-sm text-gray-900">${c.org_name || 'Unknown'}</div>
+                <div class="text-xs text-gray-500">${c.user_email || ''}</div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[c.status] || 'bg-gray-100 text-gray-700'}">
+                    ${c.status === 'sending' ? '<i class="fas fa-circle text-green-500 animate-pulse mr-1" style="font-size:6px"></i>' : ''}
+                    ${c.status?.charAt(0).toUpperCase() + c.status?.slice(1) || 'Unknown'}
+                </span>
+            </td>
+            <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                    <div class="flex-1 min-w-[100px]">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span>${(c.sent || 0).toLocaleString()}</span>
+                            <span class="text-gray-500">${(c.total || 0).toLocaleString()}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="h-2 rounded-full ${c.status === 'sending' ? 'bg-green-500' : 'bg-blue-500'}" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-medium ${percent >= 100 ? 'text-green-600' : 'text-gray-500'}">${percent}%</span>
+                </div>
+            </td>
+            <td class="px-4 py-3">
+                <div class="flex gap-3 text-xs">
+                    <span class="text-green-600" title="Opened"><i class="fas fa-envelope-open mr-1"></i>${(c.opened || 0).toLocaleString()}</span>
+                    <span class="text-blue-600" title="Clicked"><i class="fas fa-mouse-pointer mr-1"></i>${(c.clicked || 0).toLocaleString()}</span>
+                    <span class="text-red-600" title="Failed"><i class="fas fa-times mr-1"></i>${(c.failed || 0).toLocaleString()}</span>
+                </div>
+            </td>
+            <td class="px-4 py-3">
+                <div class="text-sm text-gray-900">${formatDate(c.created_at)}</div>
+                <div class="text-xs text-gray-500">${formatTime(c.created_at)}</div>
+            </td>
+            <td class="px-4 py-3">
+                <div class="flex gap-1">
+                    ${c.status === 'sending' ? `<button onclick="pauseCampaign('${c.id}')" class="p-1.5 text-yellow-600 hover:bg-yellow-50 rounded" title="Pause"><i class="fas fa-pause"></i></button>` : ''}
+                    ${c.status === 'paused' ? `<button onclick="resumeCampaign('${c.id}')" class="p-1.5 text-green-600 hover:bg-green-50 rounded" title="Resume"><i class="fas fa-play"></i></button>` : ''}
+                    <button onclick="viewCampaign('${c.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="View"><i class="fas fa-eye"></i></button>
+                    ${['draft', 'failed', 'cancelled'].includes(c.status) ? `<button onclick="deleteCampaign('${c.id}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+function prevPage() { if (currentPage > 1) { currentPage--; renderTable(); } }
+function nextPage() { if (currentPage * perPage < filteredCampaigns.length) { currentPage++; renderTable(); } }
+
+function sortTable(field) {
+    const select = document.getElementById('sortBy');
+    const current = select.value;
+    if (current.startsWith(field)) {
+        select.value = current.endsWith('asc') ? `${field}_desc` : `${field}_asc`;
+    } else {
+        select.value = `${field}_desc`;
+    }
+    applyFilters();
+}
+
+function toggleSelection(id) {
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else selectedIds.add(id);
+    updateBulkActions();
+    renderTable();
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('selectAll').checked;
+    const start = (currentPage - 1) * perPage;
+    const end = start + perPage;
+    filteredCampaigns.slice(start, end).forEach(c => {
+        if (checked) selectedIds.add(c.id);
+        else selectedIds.delete(c.id);
+    });
+    updateBulkActions();
+    renderTable();
+}
+
+function updateBulkActions() {
+    const bulkDiv = document.getElementById('bulkActions');
+    document.getElementById('selectedCount').textContent = selectedIds.size;
+    bulkDiv.classList.toggle('hidden', selectedIds.size === 0);
+}
+
+function clearSelection() {
+    selectedIds.clear();
+    document.getElementById('selectAll').checked = false;
+    updateBulkActions();
+    renderTable();
+}
+
+async function bulkAction(action) {
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} ${selectedIds.size} campaigns?`)) return;
+    
+    for (const id of selectedIds) {
+        await fetch(`/hub/api/campaigns/${id}/${action}`, { method: 'POST' });
+    }
+    clearSelection();
+    loadData();
+}
+
+async function pauseCampaign(id) {
+    await fetch(`/hub/api/campaigns/${id}/pause`, { method: 'POST' });
+    loadData();
+}
+
+async function resumeCampaign(id) {
+    await fetch(`/hub/api/campaigns/${id}/resume`, { method: 'POST' });
+    loadData();
+}
+
+function viewCampaign(id) {
+    window.open(`/hub/campaign/${id}`, '_blank');
+}
+
+async function deleteCampaign(id) {
+    if (!confirm('Delete this campaign?')) return;
+    await fetch(`/hub/api/campaigns/${id}`, { method: 'DELETE' });
+    loadData();
+}
+
+function showClearDraftsModal() { document.getElementById('clearDraftsModal').classList.remove('hidden'); }
+function hideClearDraftsModal() { document.getElementById('clearDraftsModal').classList.add('hidden'); }
+
+async function clearDrafts() {
+    await fetch('/hub/api/campaigns/clear-drafts', { method: 'POST' });
+    hideClearDraftsModal();
+    loadData();
+}
+</script>
+{% endblock %}

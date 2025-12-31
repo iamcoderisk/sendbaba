@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Advertise on SendBaba Mail - 4 Million Views for $5/mo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+:root{--c:#f86d31;--cd:#e55a1f;--cl:#fff5f0;--g1:#667eea;--g2:#764ba2}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#fff;min-height:100vh}
+
+/* Hero Section */
+.hero{background:linear-gradient(135deg,#1e293b 0%,#0f172a 50%,#1a1a2e 100%);padding:80px 20px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(248,109,49,.1) 0%,transparent 50%);animation:pulse 15s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+
+.hero-content{position:relative;z-index:1;max-width:900px;margin:0 auto}
+.badge{display:inline-block;background:linear-gradient(135deg,var(--c),var(--cd));padding:8px 20px;border-radius:50px;font-size:13px;font-weight:600;margin-bottom:24px;animation:bounce 2s infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+
+.hero h1{font-size:clamp(32px,6vw,56px);font-weight:800;line-height:1.2;margin-bottom:20px}
+.hero h1 span{background:linear-gradient(135deg,var(--c),#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:clamp(16px,2.5vw,20px);color:#94a3b8;max-width:600px;margin:0 auto 32px;line-height:1.6}
+
+.stats{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;margin-bottom:40px}
+.stat{text-align:center}
+.stat-num{font-size:clamp(28px,5vw,42px);font-weight:800;background:linear-gradient(135deg,var(--c),#fbbf24);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-label{font-size:14px;color:#64748b;margin-top:4px}
+
+.cta-btn{display:inline-flex;align-items:center;gap:12px;background:linear-gradient(135deg,var(--c),var(--cd));color:#fff;padding:18px 40px;border-radius:60px;font-size:18px;font-weight:700;text-decoration:none;transition:.3s;box-shadow:0 10px 40px rgba(248,109,49,.4)}
+.cta-btn:hover{transform:translateY(-3px);box-shadow:0 15px 50px rgba(248,109,49,.5)}
+
+/* Features */
+.features{padding:80px 20px;background:#1e293b}
+.section-title{text-align:center;font-size:clamp(24px,4vw,36px);font-weight:700;margin-bottom:50px}
+.section-title span{color:var(--c)}
+
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1200px;margin:0 auto}
+.feature-card{background:linear-gradient(145deg,#2d3748,#1a202c);border-radius:24px;padding:32px;text-align:center;border:1px solid #374151;transition:.3s}
+.feature-card:hover{transform:translateY(-8px);border-color:var(--c);box-shadow:0 20px 40px rgba(0,0,0,.3)}
+.feature-icon{width:70px;height:70px;background:linear-gradient(135deg,var(--c),var(--cd));border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 20px}
+.feature-card h3{font-size:20px;margin-bottom:12px}
+.feature-card p{color:#94a3b8;font-size:15px;line-height:1.6}
+
+/* Pricing */
+.pricing{padding:80px 20px;background:#0f172a}
+.pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;max-width:1000px;margin:0 auto}
+
+.price-card{background:linear-gradient(145deg,#1e293b,#0f172a);border-radius:24px;padding:40px 32px;text-align:center;border:2px solid #334155;position:relative;transition:.3s}
+.price-card:hover{border-color:var(--c);transform:scale(1.02)}
+.price-card.popular{border-color:var(--c);background:linear-gradient(145deg,#2d1f1a,#1e293b)}
+.price-card.popular::before{content:'🔥 MOST POPULAR';position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--c),var(--cd));padding:8px 24px;border-radius:50px;font-size:12px;font-weight:700}
+
+.plan-name{font-size:24px;font-weight:700;margin-bottom:8px}
+.plan-price{font-size:48px;font-weight:800;margin:20px 0}
+.plan-price span{font-size:18px;color:#64748b;font-weight:400}
+.plan-views{color:var(--c);font-size:18px;font-weight:600;margin-bottom:24px}
+.plan-features{list-style:none;margin-bottom:32px;text-align:left}
+.plan-features li{padding:12px 0;border-bottom:1px solid #334155;display:flex;align-items:center;gap:12px;color:#cbd5e1}
+.plan-features li i{color:#10b981;font-size:16px}
+.plan-features li.disabled{color:#64748b}
+.plan-features li.disabled i{color:#64748b}
+
+.plan-btn{width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:.3s}
+.plan-btn.primary{background:linear-gradient(135deg,var(--c),var(--cd));color:#fff}
+.plan-btn.primary:hover{box-shadow:0 10px 30px rgba(248,109,49,.4)}
+.plan-btn.secondary{background:#334155;color:#fff}
+.plan-btn.secondary:hover{background:#475569}
+
+/* How It Works */
+.how-it-works{padding:80px 20px;background:#1e293b}
+.steps{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;max-width:1000px;margin:0 auto}
+.step{flex:1;min-width:200px;max-width:280px;text-align:center;padding:30px 20px;position:relative}
+.step-num{width:50px;height:50px;background:linear-gradient(135deg,var(--c),var(--cd));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;margin:0 auto 20px}
+.step h4{font-size:18px;margin-bottom:10px}
+.step p{color:#94a3b8;font-size:14px}
+.step::after{content:'→';position:absolute;right:-10px;top:50px;font-size:24px;color:#475569}
+.step:last-child::after{display:none}
+
+/* Form Modal */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}
+.modal-box{background:#1e293b;border-radius:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+.modal-head{padding:24px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center}
+.modal-head h3{font-size:22px}
+.modal-close{width:40px;height:40px;border:none;background:#334155;border-radius:50%;color:#fff;cursor:pointer;font-size:18px}
+.modal-body{padding:24px}
+.form-group{margin-bottom:20px}
+.form-group label{display:block;font-size:14px;font-weight:600;margin-bottom:8px;color:#cbd5e1}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:14px 16px;border:2px solid #334155;border-radius:12px;background:#0f172a;color:#fff;font-size:15px;outline:none;transition:.2s}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--c)}
+.form-group textarea{min-height:100px;resize:vertical}
+.submit-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--c),var(--cd));border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.3s}
+.submit-btn:hover{box-shadow:0 10px 30px rgba(248,109,49,.4)}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed}
+
+/* Testimonials */
+.testimonials{padding:80px 20px;background:#0f172a}
+.testimonial-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px;max-width:1200px;margin:0 auto}
+.testimonial{background:#1e293b;border-radius:20px;padding:32px;border:1px solid #334155}
+.testimonial-text{font-size:16px;line-height:1.7;color:#cbd5e1;margin-bottom:20px;font-style:italic}
+.testimonial-author{display:flex;align-items:center;gap:14px}
+.testimonial-av{width:50px;height:50px;background:linear-gradient(135deg,var(--c),var(--cd));border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700}
+.testimonial-info h5{font-size:15px;margin-bottom:2px}
+.testimonial-info p{font-size:13px;color:#64748b}
+
+/* FAQ */
+.faq{padding:80px 20px;background:#1e293b}
+.faq-list{max-width:700px;margin:0 auto}
+.faq-item{background:#0f172a;border-radius:16px;margin-bottom:12px;overflow:hidden;border:1px solid #334155}
+.faq-q{padding:20px 24px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:16px}
+.faq-q i{transition:.3s;color:var(--c)}
+.faq-item.open .faq-q i{transform:rotate(180deg)}
+.faq-a{padding:0 24px;max-height:0;overflow:hidden;transition:.3s;color:#94a3b8;line-height:1.7}
+.faq-item.open .faq-a{padding:0 24px 20px;max-height:300px}
+
+/* Footer */
+.footer{padding:40px 20px;background:#0f172a;text-align:center;border-top:1px solid #1e293b}
+.footer-logo{font-size:24px;font-weight:800;margin-bottom:16px}
+.footer-logo span{color:var(--c)}
+.footer p{color:#64748b;font-size:14px}
+.footer-links{margin-top:20px;display:flex;justify-content:center;gap:24px}
+.footer-links a{color:#94a3b8;text-decoration:none;font-size:14px}
+.footer-links a:hover{color:var(--c)}
+
+/* Mobile */
+@media(max-width:768px){
+    .hero{padding:60px 20px}
+    .stats{gap:24px}
+    .step::after{display:none}
+    .steps{flex-direction:column;align-items:center}
+    .step{max-width:100%}
+    .pricing-grid{grid-template-columns:1fr}
+}
+
+/* Toast */
+.toast-box{position:fixed;top:20px;right:20px;z-index:9999}
+.toast{padding:16px 24px;border-radius:12px;color:#fff;font-weight:500;margin-bottom:10px;animation:slideIn .3s}
+.toast.success{background:linear-gradient(135deg,#10b981,#059669)}
+.toast.error{background:linear-gradient(135deg,#ef4444,#dc2626)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+    </style>
+</head>
+<body>
+    <div class="toast-box" id="toast-box"></div>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="badge">🚀 Limited Time Offer</div>
+            <h1>Reach <span>4 Million Users</span> for Just <span>$5/month</span></h1>
+            <p>Advertise your business directly in SendBaba Mail. Get your brand in front of thousands of engaged users every single day.</p>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-num">4M+</div>
+                    <div class="stat-label">Monthly Impressions</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-num">50K+</div>
+                    <div class="stat-label">Active Users</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-num">12%</div>
+                    <div class="stat-label">Avg. Click Rate</div>
+                </div>
+            </div>
+            
+            <a href="#pricing" class="cta-btn">
+                <i class="fas fa-rocket"></i> Start Advertising Now
+            </a>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+        <h2 class="section-title">Why Advertise on <span>SendBaba</span>?</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-eye"></i></div>
+                <h3>Maximum Visibility</h3>
+                <p>Your ad appears directly in the mailbox sidebar where users spend hours reading emails.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-bullseye"></i></div>
+                <h3>Targeted Audience</h3>
+                <p>Reach business professionals, entrepreneurs, and decision-makers who actively use email.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                <h3>Real-Time Analytics</h3>
+                <p>Track impressions, clicks, and conversions with our detailed analytics dashboard.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i class="fas fa-wallet"></i></div>
+                <h3>Affordable Pricing</h3>
+                <p>Starting at just $5/month, get massive exposure without breaking the bank.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing" id="pricing">
+        <h2 class="section-title">Simple, <span>Transparent</span> Pricing</h2>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <div class="plan-name">Starter</div>
+                <div class="plan-price">$5<span>/month</span></div>
+                <div class="plan-views">Up to 4 Million Views</div>
+                <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> Sidebar banner ad</li>
+                    <li><i class="fas fa-check"></i> Mobile & desktop display</li>
+                    <li><i class="fas fa-check"></i> Basic analytics</li>
+                    <li><i class="fas fa-check"></i> Link to your website</li>
+                    <li class="disabled"><i class="fas fa-times"></i> Priority placement</li>
+                    <li class="disabled"><i class="fas fa-times"></i> Custom design support</li>
+                </ul>
+                <button class="plan-btn secondary" onclick="openAdForm('starter')">Get Started</button>
+            </div>
+            
+            <div class="price-card popular">
+                <div class="plan-name">Professional</div>
+                <div class="plan-price">$15<span>/month</span></div>
+                <div class="plan-views">Up to 10 Million Views</div>
+                <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> Premium banner placement</li>
+                    <li><i class="fas fa-check"></i> Mobile & desktop display</li>
+                    <li><i class="fas fa-check"></i> Advanced analytics</li>
+                    <li><i class="fas fa-check"></i> Link to your website</li>
+                    <li><i class="fas fa-check"></i> Priority placement</li>
+                    <li><i class="fas fa-check"></i> A/B testing</li>
+                </ul>
+                <button class="plan-btn primary" onclick="openAdForm('professional')">Get Started</button>
+            </div>
+            
+            <div class="price-card">
+                <div class="plan-name">Enterprise</div>
+                <div class="plan-price">$49<span>/month</span></div>
+                <div class="plan-views">Unlimited Views</div>
+                <ul class="plan-features">
+                    <li><i class="fas fa-check"></i> Multiple ad placements</li>
+                    <li><i class="fas fa-check"></i> Mobile & desktop display</li>
+                    <li><i class="fas fa-check"></i> Full analytics suite</li>
+                    <li><i class="fas fa-check"></i> Custom landing pages</li>
+                    <li><i class="fas fa-check"></i> Dedicated support</li>
+                    <li><i class="fas fa-check"></i> Custom design included</li>
+                </ul>
+                <button class="plan-btn secondary" onclick="openAdForm('enterprise')">Contact Sales</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <h2 class="section-title">How It <span>Works</span></h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <h4>Create Your Ad</h4>
+                <p>Fill out the simple form with your business details and ad content.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <h4>Make Payment</h4>
+                <p>Choose your plan and complete secure payment via card or bank transfer.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <h4>Go Live!</h4>
+                <p>Your ad goes live within 24 hours and reaches thousands instantly.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials">
+        <h2 class="section-title">What Our <span>Advertisers</span> Say</h2>
+        <div class="testimonial-grid">
+            <div class="testimonial">
+                <p class="testimonial-text">"We saw a 300% increase in website traffic within the first week. The ROI is incredible for just $5/month!"</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-av">JO</div>
+                    <div class="testimonial-info">
+                        <h5>John Okafor</h5>
+                        <p>CEO, TechStartup Nigeria</p>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial">
+                <p class="testimonial-text">"The targeting is spot-on. Our B2B software found the perfect audience among SendBaba's professional users."</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-av">AM</div>
+                    <div class="testimonial-info">
+                        <h5>Amara Mensah</h5>
+                        <p>Marketing Director, CloudSoft</p>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial">
+                <p class="testimonial-text">"Best advertising investment we've made. Simple setup, great analytics, and amazing results!"</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-av">KB</div>
+                    <div class="testimonial-info">
+                        <h5>Kwame Boateng</h5>
+                        <p>Founder, E-commerce Hub</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq">
+        <h2 class="section-title">Frequently Asked <span>Questions</span></h2>
+        <div class="faq-list">
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    How quickly will my ad go live?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-a">Your ad will be reviewed and go live within 24 hours of payment confirmation. Most ads are approved within a few hours.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    What ad formats do you support?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-a">We support banner ads with title, description, and a link to your website. Image uploads are available on Professional and Enterprise plans.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    Can I cancel anytime?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-a">Yes! All plans are month-to-month with no long-term commitment. Cancel anytime from your dashboard.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    What payment methods do you accept?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-a">We accept all major cards (Visa, Mastercard), bank transfers, and mobile money. Nigerian users can pay via Korapay.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="toggleFaq(this)">
+                    How do I track my ad performance?
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+                <div class="faq-a">You'll get access to a real-time dashboard showing impressions, clicks, click-through rate, and more.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-logo">Send<span>Baba</span></div>
+        <p>The email platform built for Africa and beyond.</p>
+        <div class="footer-links">
+            <a href="/">Back to Mail</a>
+            <a href="mailto:ads@sendbaba.com">Contact Us</a>
+            <a href="#">Terms</a>
+            <a href="#">Privacy</a>
+        </div>
+    </footer>
+
+    <!-- Ad Form Modal -->
+    <div class="modal" id="ad-modal">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h3>🚀 Create Your Ad</h3>
+                <button class="modal-close" onclick="closeAdForm()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="ad-form" onsubmit="submitAd(event)">
+                    <input type="hidden" id="ad-plan" value="starter">
+                    
+                    <div class="form-group">
+                        <label>Business Name *</label>
+                        <input type="text" id="ad-business" placeholder="Your Company Ltd" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email Address *</label>
+                        <input type="email" id="ad-email" placeholder="you@company.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Website URL</label>
+                        <input type="url" id="ad-website" placeholder="https://yoursite.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Ad Title * (max 50 chars)</label>
+                        <input type="text" id="ad-title" placeholder="Check Out Our Amazing Product!" maxlength="50" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Ad Description (max 100 chars)</label>
+                        <textarea id="ad-description" placeholder="Brief description of your offer..." maxlength="100"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Selected Plan</label>
+                        <select id="ad-plan-select">
+                            <option value="starter">Starter - $5/month</option>
+                            <option value="professional">Professional - $15/month</option>
+                            <option value="enterprise">Enterprise - $49/month</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn" id="submit-btn">
+                        <i class="fas fa-paper-plane"></i> Submit & Proceed to Payment
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+function toast(msg, type) {
+    var box = document.getElementById('toast-box');
+    var t = document.createElement('div');
+    t.className = 'toast ' + (type || 'success');
+    t.textContent = msg;
+    box.appendChild(t);
+    setTimeout(function() { t.remove(); }, 4000);
+}
+
+function toggleFaq(el) {
+    el.parentElement.classList.toggle('open');
+}
+
+function openAdForm(plan) {
+    document.getElementById('ad-plan').value = plan;
+    document.getElementById('ad-plan-select').value = plan;
+    document.getElementById('ad-modal').classList.add('show');
+}
+
+function closeAdForm() {
+    document.getElementById('ad-modal').classList.remove('show');
+}
+
+function submitAd(e) {
+    e.preventDefault();
+    
+    var btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    
+    var data = {
+        business_name: document.getElementById('ad-business').value,
+        email: document.getElementById('ad-email').value,
+        website: document.getElementById('ad-website').value,
+        ad_title: document.getElementById('ad-title').value,
+        ad_description: document.getElementById('ad-description').value,
+        plan: document.getElementById('ad-plan-select').value
+    };
+    
+    fetch('/api/ads/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) {
+            toast('Ad campaign created! Redirecting to payment...', 'success');
+            closeAdForm();
+            // TODO: Redirect to payment page
+            setTimeout(function() {
+                toast('Payment integration coming soon. We will contact you at ' + data.email, 'success');
+            }, 2000);
+        } else {
+            toast(d.error || 'Failed to create ad', 'error');
+        }
+    })
+    .catch(function() {
+        toast('Network error. Please try again.', 'error');
+    })
+    .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit & Proceed to Payment';
+    });
+}
+
+// Close modal on outside click
+document.getElementById('ad-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAdForm();
+});
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.querySelector(this.getAttribute('href'));
+        if (target) target.scrollIntoView({behavior: 'smooth'});
+    });
+});
+    </script>
+</body>
+</html>

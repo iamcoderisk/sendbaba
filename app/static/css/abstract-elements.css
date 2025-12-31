@@ -1,0 +1,167 @@
+/* ============================================
+   SENDBABA ABSTRACT DESIGN ELEMENTS
+   ============================================ */
+
+/* Grid Pattern Background */
+.bg-grid-pattern {
+    background-image: 
+        linear-gradient(rgba(247, 96, 31, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(247, 96, 31, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+}
+
+/* Dot Pattern Background */
+.bg-dot-pattern {
+    background-image: radial-gradient(rgba(247, 96, 31, 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+/* Large Dot Pattern */
+.bg-dot-pattern-lg {
+    background-image: radial-gradient(rgba(247, 96, 31, 0.08) 2px, transparent 2px);
+    background-size: 40px 40px;
+}
+
+/* Diagonal Lines */
+.bg-diagonal-lines {
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(247, 96, 31, 0.03) 10px,
+        rgba(247, 96, 31, 0.03) 11px
+    );
+}
+
+/* Circular Gradient Orbs */
+.orb-orange {
+    background: radial-gradient(circle, rgba(247, 96, 31, 0.15) 0%, transparent 70%);
+}
+.orb-orange-soft {
+    background: radial-gradient(circle, rgba(247, 96, 31, 0.08) 0%, transparent 60%);
+}
+
+/* Abstract Shape Classes */
+.abstract-circle {
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(247, 96, 31, 0.1), rgba(248, 112, 54, 0.05));
+}
+
+.abstract-ring {
+    border-radius: 50%;
+    border: 2px solid rgba(247, 96, 31, 0.15);
+    background: transparent;
+}
+
+.abstract-square {
+    background: linear-gradient(135deg, rgba(247, 96, 31, 0.08), transparent);
+    transform: rotate(45deg);
+}
+
+/* Decorative Corner Elements */
+.corner-decoration-tl::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle at top left, rgba(247, 96, 31, 0.1) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.corner-decoration-br::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle at bottom right, rgba(247, 96, 31, 0.08) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* Floating Elements Animation */
+.float-element {
+    animation: abstractFloat 6s ease-in-out infinite;
+}
+.float-element-delayed {
+    animation: abstractFloat 6s ease-in-out infinite;
+    animation-delay: -3s;
+}
+
+@keyframes abstractFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-10px) rotate(2deg); }
+    50% { transform: translateY(-20px) rotate(0deg); }
+    75% { transform: translateY(-10px) rotate(-2deg); }
+}
+
+/* Morphing Blob */
+.morph-blob {
+    animation: morphBlob 8s ease-in-out infinite;
+}
+
+@keyframes morphBlob {
+    0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+    25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+    50% { border-radius: 50% 60% 30% 60% / 30% 40% 70% 60%; }
+    75% { border-radius: 60% 40% 60% 30% / 70% 30% 50% 60%; }
+}
+
+/* Pulsing Ring */
+.pulse-ring {
+    animation: pulseRing 3s ease-out infinite;
+}
+
+@keyframes pulseRing {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    50% { transform: scale(1); opacity: 0.4; }
+    100% { transform: scale(1.2); opacity: 0; }
+}
+
+/* Rotating Element */
+.rotate-slow {
+    animation: rotateSlow 20s linear infinite;
+}
+
+@keyframes rotateSlow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Section Specific Decorations */
+.section-decorated {
+    position: relative;
+    overflow: hidden;
+}
+
+.section-decorated::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    right: -100px;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(247, 96, 31, 0.05) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.section-decorated::after {
+    content: '';
+    position: absolute;
+    bottom: -50px;
+    left: -50px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(247, 96, 31, 0.03) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* Hide abstracts on mobile for performance */
+@media (max-width: 768px) {
+    .abstract-decorations,
+    .hide-on-mobile {
+        display: none !important;
+    }
+}

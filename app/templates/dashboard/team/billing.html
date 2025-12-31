@@ -1,0 +1,134 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Usage & Billing - SendBaba{% endblock %}
+{% block page_title %}Usage & Billing{% endblock %}
+{% block page_subtitle %}Monitor your email usage and billing{% endblock %}
+
+{% block extra_css %}
+<style>
+:root { --primary: #F97316; --primary-dark: #EA580C; --primary-light: #FFF7ED; --primary-glow: rgba(249, 115, 22, 0.25); }
+.billing-hero { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); border-radius: 24px; padding: 32px; color: white; margin-bottom: 28px; position: relative; overflow: hidden; }
+.billing-hero::before { content: ''; position: absolute; top: -50%; right: -20%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); border-radius: 50%; }
+.billing-hero h2 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+.billing-hero .plan-badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+.usage-bar-container { background: rgba(255,255,255,0.2); border-radius: 10px; height: 16px; overflow: hidden; margin: 16px 0; }
+.usage-bar-fill { height: 100%; background: white; border-radius: 10px; transition: width 0.5s ease; }
+.usage-stats { display: flex; gap: 32px; margin-top: 20px; flex-wrap: wrap; }
+.usage-stat { text-align: center; }
+.usage-stat-value { font-size: 24px; font-weight: 800; }
+.usage-stat-label { font-size: 13px; opacity: 0.9; }
+.billing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 28px; }
+.billing-card { background: white; border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; transition: all 0.3s; }
+.billing-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.08); transform: translateY(-3px); }
+.billing-card-header { padding: 20px 24px; background: #FAFAFA; border-bottom: 1px solid #E5E7EB; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 10px; }
+.billing-card-header i { color: var(--primary); }
+.billing-card-body { padding: 24px; }
+.dept-usage-item { display: flex; align-items: center; padding: 14px 0; border-bottom: 1px solid #F3F4F6; }
+.dept-usage-item:last-child { border-bottom: none; }
+.dept-usage-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 14px; font-size: 16px; }
+.dept-usage-info { flex: 1; }
+.dept-usage-name { font-weight: 600; color: #111827; margin-bottom: 4px; }
+.dept-usage-bar { height: 6px; background: #E5E7EB; border-radius: 3px; overflow: hidden; }
+.dept-usage-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-dark)); border-radius: 3px; }
+.dept-usage-count { font-size: 14px; font-weight: 600; color: #374151; margin-left: 16px; white-space: nowrap; }
+.member-usage-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #F3F4F6; }
+.member-usage-item:last-child { border-bottom: none; }
+.member-avatar { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px; margin-right: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+.member-info { flex: 1; }
+.member-name { font-weight: 600; color: #111827; font-size: 14px; }
+.member-dept { font-size: 12px; color: #6B7280; }
+.member-count { font-weight: 600; color: #374151; }
+.empty-state { text-align: center; padding: 40px 20px; color: #6B7280; }
+.empty-state i { font-size: 40px; color: #D1D5DB; margin-bottom: 16px; display: block; }
+.quick-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.quick-stat { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E5E7EB; text-align: center; transition: all 0.3s; }
+.quick-stat:hover { border-color: var(--primary); box-shadow: 0 8px 20px var(--primary-glow); }
+.quick-stat-value { font-size: 24px; font-weight: 800; color: var(--primary); }
+.quick-stat-label { font-size: 13px; color: #6B7280; margin-top: 4px; }
+.back-link { display: inline-flex; align-items: center; gap: 8px; color: #6B7280; text-decoration: none; font-weight: 500; margin-bottom: 20px; transition: color 0.2s; }
+.back-link:hover { color: var(--primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <a href="{{ url_for('team.index') }}" class="back-link"><i class="fas fa-arrow-left"></i> Back to Team</a>
+    <div class="billing-hero">
+        <h2>{{ org_info.name or 'Your Organization' }}</h2>
+        <span class="plan-badge"><i class="fas fa-crown mr-2"></i>{{ (org_info.plan or 'free')|capitalize }} Plan</span>
+        <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span>Email Usage This Month</span>
+                {% set usage_pct = (org_info.emails_used_this_month / org_info.monthly_email_limit * 100) if org_info.monthly_email_limit > 0 else 0 %}
+                <span>{{ '{:,}'.format(org_info.emails_used_this_month|default(0)|int) }} / {{ '{:,}'.format(org_info.monthly_email_limit|default(10000)|int) }}</span>
+            </div>
+            <div class="usage-bar-container">
+                {% set usage_capped = usage_pct if usage_pct <= 100 else 100 %}
+                <div class="usage-bar-fill" style="width: {{ usage_capped }}%;"></div>
+            </div>
+        </div>
+        <div class="usage-stats">
+            <div class="usage-stat"><div class="usage-stat-value">{{ '{:,}'.format(org_info.emails_used_this_month|default(0)|int) }}</div><div class="usage-stat-label">Emails Sent</div></div>
+            <div class="usage-stat"><div class="usage-stat-value">{{ '{:,}'.format(org_info.monthly_email_limit|default(10000)|int) }}</div><div class="usage-stat-label">Monthly Limit</div></div>
+            <div class="usage-stat"><div class="usage-stat-value">${{ '%.2f'|format(org_info.emails_used_this_month|default(0) * org_info.price_per_email|default(0.001)) }}</div><div class="usage-stat-label">Est. Cost</div></div>
+        </div>
+    </div>
+    <div class="quick-stats">
+        <div class="quick-stat"><div class="quick-stat-value">{{ dept_usage|length }}</div><div class="quick-stat-label">Departments</div></div>
+        <div class="quick-stat"><div class="quick-stat-value">{{ member_usage|length }}</div><div class="quick-stat-label">Active Members</div></div>
+        <div class="quick-stat"><div class="quick-stat-value">${{ '%.4f'|format(org_info.price_per_email|default(0.001)) }}</div><div class="quick-stat-label">Per Email</div></div>
+        <div class="quick-stat">{% set remaining = org_info.monthly_email_limit|default(10000) - org_info.emails_used_this_month|default(0) %}<div class="quick-stat-value">{{ '{:,}'.format(remaining|int if remaining > 0 else 0) }}</div><div class="quick-stat-label">Remaining</div></div>
+    </div>
+    <div class="billing-grid">
+        <div class="billing-card">
+            <div class="billing-card-header"><i class="fas fa-building"></i> Department Usage</div>
+            <div class="billing-card-body">
+                {% if dept_usage %}
+                    {% for dept in dept_usage %}
+                    <div class="dept-usage-item">
+                        <div class="dept-usage-icon" style="background: {{ dept.color }}22; color: {{ dept.color }};"><i class="fas fa-building"></i></div>
+                        <div class="dept-usage-info">
+                            <div class="dept-usage-name">{{ dept.name }}</div>
+                            {% set dept_pct = (dept.emails_sent / dept.email_quota * 100) if dept.email_quota > 0 else 0 %}
+                            {% set dept_pct_capped = dept_pct if dept_pct <= 100 else 100 %}
+                            <div class="dept-usage-bar"><div class="dept-usage-fill" style="width: {{ dept_pct_capped }}%;"></div></div>
+                        </div>
+                        <div class="dept-usage-count">{{ '{:,}'.format(dept.emails_sent|default(0)|int) }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state"><i class="fas fa-building"></i><p>No department usage data yet</p></div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="billing-card">
+            <div class="billing-card-header"><i class="fas fa-users"></i> Top Senders</div>
+            <div class="billing-card-body">
+                {% if member_usage %}
+                    {% for member in member_usage %}
+                    <div class="member-usage-item">
+                        <div class="member-avatar">{{ member.name[0]|upper if member.name else 'U' }}</div>
+                        <div class="member-info"><div class="member-name">{{ member.name or 'Unknown' }}</div><div class="member-dept">{{ member.department or 'Unassigned' }}</div></div>
+                        <div class="member-count">{{ '{:,}'.format(member.emails_sent|default(0)|int) }}</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state"><i class="fas fa-users"></i><p>No sender data yet</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="billing-card">
+        <div class="billing-card-header"><i class="fas fa-receipt"></i> Billing History</div>
+        <div class="billing-card-body">
+            {% if billing_history %}
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead><tr style="border-bottom: 2px solid #E5E7EB;"><th style="text-align: left; padding: 12px 0; color: #6B7280; font-size: 12px;">DATE</th><th style="text-align: left; padding: 12px 0; color: #6B7280; font-size: 12px;">DESCRIPTION</th><th style="text-align: right; padding: 12px 0; color: #6B7280; font-size: 12px;">AMOUNT</th><th style="text-align: right; padding: 12px 0; color: #6B7280; font-size: 12px;">STATUS</th></tr></thead>
+                    <tbody>{% for item in billing_history %}<tr style="border-bottom: 1px solid #F3F4F6;"><td style="padding: 14px 0;">{{ item.date }}</td><td style="padding: 14px 0;">{{ item.description }}</td><td style="padding: 14px 0; text-align: right; font-weight: 600;">${{ '%.2f'|format(item.amount|default(0)) }}</td><td style="padding: 14px 0; text-align: right;"><span style="background: #D1FAE5; color: #065F46; padding: 4px 12px; border-radius: 12px; font-size: 12px;">{{ item.status or 'Paid' }}</span></td></tr>{% endfor %}</tbody>
+                </table>
+            {% else %}
+                <div class="empty-state"><i class="fas fa-receipt"></i><p>No billing history yet</p><p style="font-size: 13px; margin-top: 8px;">Your billing records will appear here.</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

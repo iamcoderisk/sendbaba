@@ -1,0 +1,213 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Admin - Template Management{% endblock %}
+{% block page_title %}Template Management{% endblock %}
+{% block page_subtitle %}Create, edit, and manage email templates for all users{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.stats-row { display: flex; gap: 16px; margin-bottom: 24px; }
+.stat-card { background: white; border-radius: 8px; padding: 16px 20px; border: 1px solid #e2e8f0; flex: 1; }
+.stat-card .num { font-size: 28px; font-weight: 700; color: #1e293b; }
+.stat-card .label { font-size: 13px; color: #64748b; }
+
+.filters { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-input { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; }
+.filter-input:focus { outline: none; border-color: #F97316; }
+
+.templates-table { width: 100%; background: white; border-radius: 8px; border: 1px solid #e2e8f0; border-collapse: collapse; }
+.templates-table th, .templates-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.templates-table th { background: #f8fafc; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+.templates-table tr:hover { background: #fafafa; }
+.templates-table tr:last-child td { border-bottom: none; }
+
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-system { background: #DBEAFE; color: #1D4ED8; }
+.badge-user { background: #F3F4F6; color: #374151; }
+.badge-active { background: #D1FAE5; color: #065F46; }
+.badge-hidden { background: #FEE2E2; color: #991B1B; }
+.badge-json { background: #E0E7FF; color: #3730A3; }
+
+.actions { display: flex; gap: 6px; }
+.btn-sm { padding: 6px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 4px; }
+.btn-edit { background: #EFF6FF; color: #1D4ED8; }
+.btn-edit:hover { background: #DBEAFE; }
+.btn-hide { background: #FEF3C7; color: #92400E; }
+.btn-hide:hover { background: #FDE68A; }
+.btn-delete { background: #FEE2E2; color: #991B1B; }
+.btn-delete:hover { background: #FECACA; }
+.btn-dup { background: #F3F4F6; color: #374151; }
+.btn-dup:hover { background: #E5E7EB; }
+
+.btn-primary { background: #F97316; color: white; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.btn-primary:hover { background: #EA580C; }
+
+.empty-state { text-align: center; padding: 60px 20px; color: #64748b; }
+.empty-state i { font-size: 48px; opacity: 0.3; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <div>
+        <h1 style="font-size: 24px; font-weight: 700; margin: 0;">Email Templates</h1>
+        <p style="color: #64748b; margin: 4px 0 0;">{{ total }} templates in the system</p>
+    </div>
+    <a href="{{ url_for('admin_templates.create_template') }}" class="btn-primary">
+        <i class="fas fa-plus"></i> Create Template
+    </a>
+</div>
+
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="num">{{ total }}</div>
+        <div class="label">Total Templates</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">{{ templates|selectattr('organization_id', 'equalto', 'system')|list|length }}</div>
+        <div class="label">System Templates</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">{{ templates|selectattr('has_json')|list|length }}</div>
+        <div class="label">With JSON Editor</div>
+    </div>
+    <div class="stat-card">
+        <div class="num">{{ templates|selectattr('is_hidden')|list|length }}</div>
+        <div class="label">Hidden</div>
+    </div>
+</div>
+
+<div class="filters">
+    <input type="text" class="filter-input" id="searchInput" placeholder="Search templates..." style="width: 250px;">
+    <select class="filter-input" id="categoryFilter">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat }}">{{ cat|title }}</option>
+        {% endfor %}
+    </select>
+    <select class="filter-input" id="statusFilter">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="hidden">Hidden</option>
+        <option value="json">Has JSON</option>
+    </select>
+</div>
+
+{% if templates %}
+<table class="templates-table" id="templatesTable">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Updated</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in templates %}
+        <tr data-name="{{ t.name|lower }}" data-category="{{ t.category }}" data-hidden="{{ t.is_hidden }}" data-json="{{ t.has_json }}">
+            <td>
+                <strong>{{ t.name }}</strong>
+                {% if t.subject %}<br><small style="color:#64748b;">{{ t.subject[:50] }}{% if t.subject|length > 50 %}...{% endif %}</small>{% endif %}
+            </td>
+            <td><span class="badge badge-user">{{ t.category|title if t.category else 'Uncategorized' }}</span></td>
+            <td>
+                {% if t.organization_id == 'system' %}<span class="badge badge-system">System</span>{% else %}<span class="badge badge-user">User</span>{% endif %}
+                {% if t.has_json %}<span class="badge badge-json">JSON</span>{% endif %}
+            </td>
+            <td>
+                {% if t.is_hidden %}<span class="badge badge-hidden">Hidden</span>{% else %}<span class="badge badge-active">Active</span>{% endif %}
+            </td>
+            <td>{{ t.updated_at.strftime('%b %d, %Y') if t.updated_at else '-' }}</td>
+            <td>
+                <div class="actions">
+                    <a href="{{ url_for('admin_templates.edit_template', template_id=t.uuid or t.id) }}" class="btn-sm btn-edit"><i class="fas fa-edit"></i></a>
+                    <button class="btn-sm btn-hide" onclick="toggleHide('{{ t.uuid or t.id }}', {{ 'false' if t.is_hidden else 'true' }})" title="{{ 'Show' if t.is_hidden else 'Hide' }}">
+                        <i class="fas fa-{{ 'eye' if t.is_hidden else 'eye-slash' }}"></i>
+                    </button>
+                    <button class="btn-sm btn-dup" onclick="duplicateTemplate('{{ t.uuid or t.id }}')" title="Duplicate"><i class="fas fa-copy"></i></button>
+                    <button class="btn-sm btn-delete" onclick="deleteTemplate('{{ t.uuid or t.id }}', '{{ t.name }}')" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <i class="fas fa-file-alt"></i>
+    <h3>No Templates Yet</h3>
+    <p>Create your first template to get started</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Filter functionality
+document.getElementById('searchInput').addEventListener('input', filterTable);
+document.getElementById('categoryFilter').addEventListener('change', filterTable);
+document.getElementById('statusFilter').addEventListener('change', filterTable);
+
+function filterTable() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    document.querySelectorAll('#templatesTable tbody tr').forEach(row => {
+        const name = row.dataset.name;
+        const cat = row.dataset.category;
+        const hidden = row.dataset.hidden === 'True';
+        const hasJson = row.dataset.json === 'True';
+        
+        let show = true;
+        if (search && !name.includes(search)) show = false;
+        if (category && cat !== category) show = false;
+        if (status === 'active' && hidden) show = false;
+        if (status === 'hidden' && !hidden) show = false;
+        if (status === 'json' && !hasJson) show = false;
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+async function toggleHide(id, hide) {
+    try {
+        const r = await fetch('/admin/templates/api/toggle-visibility', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({template_id: id, is_hidden: hide})
+        });
+        if (r.ok) location.reload();
+        else alert('Error updating template');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+async function duplicateTemplate(id) {
+    try {
+        const r = await fetch('/admin/templates/api/duplicate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({template_id: id})
+        });
+        if (r.ok) location.reload();
+        else alert('Error duplicating template');
+    } catch(e) { alert('Error: ' + e); }
+}
+
+async function deleteTemplate(id, name) {
+    if (!confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+    try {
+        const r = await fetch('/admin/templates/api/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({template_id: id})
+        });
+        if (r.ok) location.reload();
+        else alert('Error deleting template');
+    } catch(e) { alert('Error: ' + e); }
+}
+</script>
+{% endblock %}

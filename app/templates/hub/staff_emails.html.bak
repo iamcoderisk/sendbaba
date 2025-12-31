@@ -1,0 +1,253 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'staff_emails' %}
+
+{% block title %}Staff Emails{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div>
+        <h1 class="text-xl lg:text-2xl font-bold text-gray-800">Staff Emails</h1>
+        <p class="text-gray-500 text-sm">Manage internal SendBaba staff email accounts (@sendbaba.com)</p>
+    </div>
+    <button onclick="openAddModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+        <i class="fas fa-plus mr-2"></i>Add Staff
+    </button>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Total Staff</p>
+                <p id="stat-total" class="text-xl lg:text-3xl font-bold text-gray-800">0</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-users text-blue-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Active</p>
+                <p id="stat-active" class="text-xl lg:text-3xl font-bold text-green-600">0</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-check-circle text-green-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Suspended</p>
+                <p id="stat-suspended" class="text-xl lg:text-3xl font-bold text-yellow-600">0</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-pause-circle text-yellow-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 lg:p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-gray-500 text-xs lg:text-sm">Storage Used</p>
+                <p id="stat-storage" class="text-xl lg:text-3xl font-bold text-purple-600">0 MB</p>
+            </div>
+            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <i class="fas fa-database text-purple-600"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Staff Table -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="p-4 lg:p-6 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h2 class="font-semibold text-gray-800">Staff Accounts</h2>
+        <input type="text" id="search" placeholder="Search staff..." onkeyup="filterTable()" 
+               class="px-4 py-2 border rounded-lg text-sm w-full sm:w-64">
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 lg:px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Staff</th>
+                    <th class="px-4 lg:px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                    <th class="px-4 lg:px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Role</th>
+                    <th class="px-4 lg:px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Emails</th>
+                    <th class="px-4 lg:px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Storage</th>
+                    <th class="px-4 lg:px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th class="px-4 lg:px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="staff-table" class="divide-y divide-gray-100">
+                <tr><td colspan="7" class="px-6 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Staff Modal -->
+<div id="add-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-lg font-bold mb-4"><i class="fas fa-user-plus text-blue-600 mr-2"></i>Add Staff Email</h3>
+        <form id="add-form" onsubmit="addStaff(event)">
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input type="text" name="first_name" required class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input type="text" name="last_name" required class="w-full px-3 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <div class="flex">
+                    <input type="text" name="username" required placeholder="john.doe" class="flex-1 px-3 py-2 border rounded-l-lg">
+                    <span class="px-3 py-2 bg-gray-100 border border-l-0 rounded-r-lg text-gray-600 text-sm">@sendbaba.com</span>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Recovery Email</label>
+                <input type="email" name="recovery_email" required class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select name="role" class="w-full px-3 py-2 border rounded-lg">
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                    <option value="support">Support</option>
+                </select>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeAddModal()" class="flex-1 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let staffList = [];
+
+document.addEventListener('DOMContentLoaded', loadStaff);
+
+async function loadStaff() {
+    try {
+        const r = await fetch('/hub/api/staff-emails');
+        const data = await r.json();
+        if (data.success) {
+            staffList = data.staff || [];
+            renderTable(staffList);
+            updateStats(data.stats || {});
+        } else {
+            showEmpty();
+        }
+    } catch(e) {
+        console.error(e);
+        showEmpty();
+    }
+}
+
+function showEmpty() {
+    document.getElementById('staff-table').innerHTML = '<tr><td colspan="7" class="px-6 py-12 text-center text-gray-400">No staff accounts yet</td></tr>';
+}
+
+function updateStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total || 0;
+    document.getElementById('stat-active').textContent = stats.active || 0;
+    document.getElementById('stat-suspended').textContent = stats.suspended || 0;
+    document.getElementById('stat-storage').textContent = (stats.total_storage || 0).toFixed(1) + ' MB';
+}
+
+function renderTable(data) {
+    const tbody = document.getElementById('staff-table');
+    if (!data || data.length === 0) { showEmpty(); return; }
+    
+    tbody.innerHTML = data.map(s => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 lg:px-6 py-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                        ${(s.name || s.email || 'S')[0].toUpperCase()}
+                    </div>
+                    <span class="font-medium text-gray-800 text-sm">${s.name || 'No name'}</span>
+                </div>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-gray-600 font-mono text-xs lg:text-sm">${s.email}</td>
+            <td class="px-4 lg:px-6 py-4 hidden md:table-cell">
+                <span class="px-2 py-1 rounded-full text-xs ${s.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}">${s.role || 'staff'}</span>
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-gray-600 text-sm hidden lg:table-cell">${s.emails_sent || 0}</td>
+            <td class="px-4 lg:px-6 py-4 text-gray-600 text-sm hidden lg:table-cell">${(s.storage_used_mb || 0).toFixed(1)} MB</td>
+            <td class="px-4 lg:px-6 py-4">
+                ${s.is_active === false ? 
+                    '<span class="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-700">Suspended</span>' : 
+                    '<span class="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">Active</span>'}
+            </td>
+            <td class="px-4 lg:px-6 py-4 text-right">
+                ${s.is_active === false ? 
+                    `<button onclick="updateStatus(${s.id}, true)" class="text-green-600 hover:text-green-800 mr-2" title="Activate"><i class="fas fa-play"></i></button>` :
+                    `<button onclick="updateStatus(${s.id}, false)" class="text-yellow-600 hover:text-yellow-800 mr-2" title="Suspend"><i class="fas fa-pause"></i></button>`}
+                <button onclick="resetPassword(${s.id})" class="text-purple-600 hover:text-purple-800 mr-2" title="Reset Password"><i class="fas fa-key"></i></button>
+                <button onclick="deleteStaff(${s.id})" class="text-red-600 hover:text-red-800" title="Delete"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterTable() {
+    const q = document.getElementById('search').value.toLowerCase();
+    const filtered = staffList.filter(s => (s.name || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
+    renderTable(filtered);
+}
+
+function openAddModal() { document.getElementById('add-modal').classList.remove('hidden'); document.getElementById('add-modal').classList.add('flex'); }
+function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); document.getElementById('add-modal').classList.remove('flex'); }
+
+async function addStaff(e) {
+    e.preventDefault();
+    const form = e.target;
+    const r = await fetch('/hub/api/staff-emails', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            first_name: form.first_name.value,
+            last_name: form.last_name.value,
+            username: form.username.value,
+            recovery_email: form.recovery_email.value,
+            role: form.role.value
+        })
+    });
+    const data = await r.json();
+    if (data.success) { closeAddModal(); form.reset(); loadStaff(); alert('Staff created! Credentials sent to recovery email.'); }
+    else { alert('Error: ' + data.error); }
+}
+
+async function updateStatus(id, active) {
+    await fetch(`/hub/api/staff-emails/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status: active ? 'active' : 'suspended'}) });
+    loadStaff();
+}
+
+async function resetPassword(id) {
+    if (!confirm('Reset password?')) return;
+    const r = await fetch(`/hub/api/staff-emails/${id}/reset-password`, { method: 'POST' });
+    const data = await r.json();
+    if (data.success) alert('Password reset! Sent to recovery email.');
+    else alert('Error: ' + data.error);
+}
+
+async function deleteStaff(id) {
+    if (!confirm('Delete this staff account?')) return;
+    await fetch(`/hub/api/staff-emails/${id}`, { method: 'DELETE' });
+    loadStaff();
+}
+</script>
+{% endblock %}

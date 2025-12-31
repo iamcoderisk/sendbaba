@@ -92,10 +92,35 @@ def create_campaign():
 @campaign_bp.route('/campaigns/templates')
 @login_required
 def select_template():
-    """Select template page"""
-    return render_template('dashboard/campaigns/templates.html')
-
-
+    """Select template page - loads templates from database"""
+    from sqlalchemy import text
+    
+    templates = []
+    try:
+        result = db.session.execute(text("""
+            SELECT COALESCE(uuid, id::text) as id, name, category, subject, description, icon, html_content
+            FROM email_templates 
+            WHERE organization_id = 'system' OR organization_id = :org_id
+            ORDER BY category, name
+        """), {'org_id': current_user.organization_id})
+        
+        for row in result:
+            templates.append({
+                'id': row[0],
+                'name': row[1],
+                'category': row[2],
+                'subject': row[3],
+                'description': row[4] or '',
+                'icon': row[5] or 'fas fa-envelope',
+                'html_content': row[6]
+            })
+    except Exception as e:
+        print(f"Error loading templates: {e}")
+    
+    categories = list(set([t['category'] for t in templates]))
+    categories.sort()
+    
+    return render_template('dashboard/campaigns/templates.html', templates=templates, categories=categories)
 @campaign_bp.route('/campaigns/design')
 @campaign_bp.route('/campaigns/design/<template_id>')
 @login_required
@@ -160,6 +185,53 @@ def design_campaign(template_id='blank'):
         except Exception as e:
             logger.warning(f"Error getting contacts: {e}")
         
+        # Get all templates from database for template picker
+        all_templates = []
+        try:
+            tmpl_result = db.session.execute(text("""
+                SELECT COALESCE(uuid, id::text) as id, name, category, subject, description, icon, html_content
+                FROM email_templates 
+                WHERE organization_id = 'system' OR organization_id = :org_id
+                ORDER BY category, name
+            """), {'org_id': current_user.organization_id})
+            
+            for row in tmpl_result:
+                all_templates.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'category': row[2],
+                    'subject': row[3],
+                    'description': row[4] or '',
+                    'icon': row[5] or 'fas fa-envelope',
+                    'html_content': row[6]
+                })
+        except Exception as e:
+            logger.warning(f"Error loading domains: {e}")
+        except Exception as e:
+            logger.warning(f"Error loading templates: {e}")
+
+        # Get verified domains for the organization
+        verified_domains = []
+        try:
+            domains_result = db.session.execute(text("""
+                SELECT COALESCE(domain, domain_name) as domain, COALESCE(is_verified, dns_verified, false), COALESCE(dns_verified, false), COALESCE(dns_verified, false)
+                FROM domains
+                WHERE organization_id = :org_id AND (is_verified = TRUE OR dns_verified = TRUE)
+                ORDER BY domain
+            """), {'org_id': current_user.organization_id})
+            for row in domains_result:
+                verified_domains.append({
+                    'domain': row[0],
+                    'verified': row[1],
+                    'dkim_verified': row[2],
+                    'spf_verified': row[3]
+                })
+        except Exception as e:
+            logger.warning(f"Error loading domains: {e}")
+        
+        template_categories = list(set([t['category'] for t in all_templates]))
+        template_categories.sort()
+        
         return render_template('dashboard/campaigns/design.html',
             template_id=template_id,
             campaign_name=campaign_name,
@@ -171,7 +243,9 @@ def design_campaign(template_id='blank'):
             campaign_preview_text=campaign_preview_text,
             template_html=template_html,
             contacts_count=contacts_count,
-            domains=[]
+            domains=verified_domains,
+            all_templates=all_templates,
+            template_categories=template_categories
         )
         
     except Exception as e:
@@ -217,12 +291,24 @@ def view_campaign(campaign_id):
 
 
 def get_template_html(template_id):
-    """Get pre-built template HTML"""
+    """Get template HTML from database"""
+    from sqlalchemy import text
+    try:
+        # Try to load from database first
+        result = db.session.execute(text("""
+            SELECT html_content FROM email_templates WHERE id::text = :id OR uuid = :id
+        """), {'id': template_id})
+        row = result.fetchone()
+        if row and row[0]:
+            return row[0]
+    except Exception as e:
+        logger.warning(f"Error loading template {template_id}: {e}")
+    
+    # Fallback to basic templates
     templates = {
-        'welcome': '''<div style="padding:40px 20px;background:#f0fdf4;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><div style="padding:40px;text-align:center;"><div style="font-size:48px;margin-bottom:20px;">👋</div><h1 style="color:#1e293b;font-size:28px;margin-bottom:15px;">Welcome, {{first_name}}!</h1><p style="color:#475569;line-height:1.6;margin-bottom:25px;">We're thrilled to have you join our community.</p><a href="#" style="display:inline-block;background:#22c55e;color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:bold;">Get Started</a></div></div></div>''',
-        'newsletter': '''<div style="padding:40px 20px;background:#f8fafc;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><div style="background:#3b82f6;padding:30px;text-align:center;"><h1 style="color:white;margin:0;font-size:28px;">Your Newsletter</h1></div><div style="padding:30px;"><h2 style="color:#1e293b;font-size:22px;margin-bottom:15px;">Hello {{first_name}},</h2><p style="color:#475569;line-height:1.6;margin-bottom:20px;">Welcome to our newsletter! Here are the latest updates.</p><a href="#" style="display:inline-block;background:#3b82f6;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Read More</a></div></div></div>''',
-        'promotional': '''<div style="padding:40px 20px;background:#fff7ed;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);"><div style="background:linear-gradient(135deg,#f97316,#ef4444);padding:40px;text-align:center;"><h1 style="color:white;margin:0;font-size:42px;font-weight:bold;">50% OFF</h1><p style="color:rgba(255,255,255,0.9);font-size:18px;margin-top:10px;">Limited Time Offer!</p></div><div style="padding:30px;text-align:center;"><h2 style="color:#1e293b;font-size:24px;margin-bottom:15px;">Hey {{first_name}}!</h2><p style="color:#475569;line-height:1.6;margin-bottom:25px;">Dont miss our biggest sale. Use code <strong>SAVE50</strong> at checkout.</p><a href="#" style="display:inline-block;background:#f97316;color:white;padding:16px 40px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:18px;">Shop Now</a></div></div></div>''',
-        'simple': '''<div style="padding:40px 20px;"><div style="max-width:600px;margin:0 auto;"><p style="color:#1e293b;font-size:16px;line-height:1.8;margin-bottom:20px;">Hi {{first_name}},</p><p style="color:#475569;font-size:16px;line-height:1.8;margin-bottom:20px;">I wanted to reach out to share some thoughts with you.</p><p style="color:#475569;font-size:16px;line-height:1.8;margin-bottom:30px;">Best regards,<br>Your Name</p></div></div>'''
+        'blank': '',
+        'welcome': '<div style="padding:40px 20px;background:#f0fdf4;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;padding:40px;text-align:center;"><h1 style="color:#1e293b;">Welcome!</h1><p style="color:#475569;">Thanks for joining us.</p></div></div>',
+        'newsletter': '<div style="padding:40px 20px;background:#f8fafc;"><div style="max-width:600px;margin:0 auto;background:white;border-radius:8px;"><div style="background:#3b82f6;padding:30px;text-align:center;"><h1 style="color:white;margin:0;">Newsletter</h1></div><div style="padding:30px;"><p style="color:#475569;">Your content here.</p></div></div></div>'
     }
     return templates.get(template_id, '')
 
@@ -254,7 +340,7 @@ def api_save_draft():
             {
                 'id': campaign_id, 'org_id': current_user.organization_id,
                 'name': data.get('name', 'Untitled'), 'subject': data.get('subject', ''),
-                'html': data.get('html', ''), 'from_name': data.get('from_name', ''),
+                'html': data.get('html_content', data.get('html', '')), 'from_name': data.get('from_name', ''),
                 'from_email': data.get('from_email', ''), 'reply_to': data.get('reply_to', ''),
                 'preview_text': data.get('preview_text', '')
             }
@@ -602,3 +688,135 @@ def api_campaign_progress(campaign_id):
     except Exception as e:
         logger.error(f"Campaign progress error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@campaign_bp.route('/campaigns/api/template/<template_id>')
+@login_required
+def get_template_json(template_id):
+    """Get template JSON data"""
+    from flask import jsonify
+    try:
+        result = db.session.execute(text("""
+            SELECT uuid, name, subject, html_content, json_data, preheader
+            FROM email_templates 
+            WHERE uuid = :id OR id::text = :id
+            LIMIT 1
+        """), {'id': template_id})
+        row = result.fetchone()
+        
+        if row:
+            return jsonify({
+                'uuid': row[0],
+                'name': row[1],
+                'subject': row[2],
+                'html_content': row[3],
+                'json_data': row[4],
+                'preheader': row[5]
+            })
+        return jsonify({'error': 'Template not found'}), 404
+    except Exception as e:
+        logger.error(f"Error getting template: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+
+
+@campaign_bp.route('/api/upload-image', methods=['POST'])
+@login_required
+def api_upload_image():
+    """Upload image for email campaigns"""
+    import os
+    import uuid
+    from werkzeug.utils import secure_filename
+    
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'No image file provided'}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    # Check allowed extensions
+    allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed:
+        return jsonify({'success': False, 'error': f'Invalid file type. Allowed: {", ".join(allowed)}'}), 400
+    
+    # Check file size (max 5MB)
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > 5 * 1024 * 1024:
+        return jsonify({'success': False, 'error': 'File too large. Max 5MB'}), 400
+    
+    # Create upload directory
+    upload_dir = os.path.join(current_app.root_path, '..', 'static', 'uploads', 'campaigns')
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Generate unique filename
+    filename = f"{uuid.uuid4().hex[:12]}_{secure_filename(file.filename)}"
+    filepath = os.path.join(upload_dir, filename)
+    
+    try:
+        file.save(filepath)
+        # Return URL
+        url = f"/static/uploads/campaigns/{filename}"
+        return jsonify({'success': True, 'url': url, 'filename': filename})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@campaign_bp.route('/campaigns/recipients')
+@login_required
+def campaign_recipients():
+    """Select recipients page before sending"""
+    campaign_id = request.args.get('campaign_id')
+    if not campaign_id:
+        flash('Campaign ID required', 'error')
+        return redirect(url_for('campaigns.list_campaigns'))
+    
+    try:
+        html_col = get_html_column()
+        result = db.session.execute(
+            text(f"""SELECT id, name, subject, {html_col}, from_name, from_email, reply_to, preview_text, status
+                FROM campaigns WHERE id = :id AND organization_id = :org_id"""),
+            {'id': campaign_id, 'org_id': current_user.organization_id}
+        )
+        row = result.fetchone()
+        if not row:
+            flash('Campaign not found', 'error')
+            return redirect(url_for('campaigns.list_campaigns'))
+        
+        campaign = {
+            'id': row[0], 'name': row[1], 'subject': row[2], 'html_body': row[3],
+            'from_name': row[4], 'from_email': row[5], 'reply_to': row[6],
+            'preview_text': row[7], 'status': row[8]
+        }
+        
+        # Get contacts count
+        contacts_result = db.session.execute(
+            text("SELECT COUNT(*) FROM contacts WHERE organization_id = :org_id AND status = 'active'"),
+            {'org_id': current_user.organization_id}
+        )
+        contacts_count = contacts_result.scalar() or 0
+        
+        # Get segments
+        segments = []
+        try:
+            seg_result = db.session.execute(
+                text("SELECT id, name, contact_count FROM segments WHERE organization_id = :org_id ORDER BY name"),
+                {'org_id': current_user.organization_id}
+            )
+            for s in seg_result:
+                segments.append({'id': s[0], 'name': s[1], 'count': s[2] or 0})
+        except:
+            pass
+        
+        return render_template('dashboard/campaigns/recipients.html',
+            campaign=campaign,
+            contacts_count=contacts_count,
+            segments=segments
+        )
+    except Exception as e:
+        logger.error(f"Recipients page error: {e}", exc_info=True)
+        flash('Error loading campaign', 'error')
+        return redirect(url_for('campaigns.list_campaigns'))

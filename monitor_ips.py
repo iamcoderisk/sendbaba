@@ -9,7 +9,7 @@ import sys
 from datetime import datetime, timedelta
 from tabulate import tabulate
 
-REDIS_URL = 'redis://:SendBaba2024SecureRedis@localhost:6379/0'
+REDIS_URL = 'redis://:SendBabaRedis2024!@localhost:6379/0'
 
 IPS = {
     '156.67.29.186': 'Main Server',

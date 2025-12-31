@@ -493,7 +493,7 @@ class ProfessionalSMTPRelay:
                 logger.info(f"📤 {mx_server}")
                 
                 # Connect
-                smtp = smtplib.SMTP(mx_server, 25, timeout=30)
+                smtp = smtplib.SMTP(mx_server, 25, timeout=30, source_address=(tracked_ip, 0) if tracked_ip else None)
                 smtp.ehlo(self.hostname)
                 
                 # TLS

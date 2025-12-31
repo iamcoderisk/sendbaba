@@ -1,0 +1,2807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#f86d31">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SendBaba">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="SendBaba">
+    <meta name="msapplication-TileColor" content="#f86d31">
+    <meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
+    
+    <!-- Mobile App CSS -->
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SendBaba Mail - Secure Email</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/realtime.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js">
+// Discard compose
+function discardCompose() {
+    document.getElementById('compose-to').value = '';
+    document.getElementById('compose-subject').value = '';
+    document.getElementById('compose-body').value = '';
+    closeCompose();
+    showToast('Message discarded', 'info');
+}
+
+// Toggle live chat
+function toggleLiveChat() {
+    const toggle = document.getElementById('chat-toggle');
+    const knob = document.getElementById('chat-toggle-knob');
+    const isActive = toggle.dataset.active === 'true';
+    
+    if (isActive) {
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+    } else {
+        toggle.style.background = '#10b981';
+        knob.style.left = '20px';
+        toggle.dataset.active = 'true';
+        
+        // Open live chat window
+        openLiveChatWindow();
+    }
+}
+
+// Open live chat window
+function openLiveChatWindow() {
+    const toEmail = document.getElementById('compose-to').value;
+    if (!toEmail) {
+        showToast('Enter a recipient email first', 'error');
+        // Reset toggle
+        const toggle = document.getElementById('chat-toggle');
+        const knob = document.getElementById('chat-toggle-knob');
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+        return;
+    }
+    
+    // Create or show chat window
+    let chatWindow = document.getElementById('live-chat-window');
+    let overlay = document.getElementById('live-chat-overlay');
+    
+    if (!chatWindow) {
+        createLiveChatWindow();
+        chatWindow = document.getElementById('live-chat-window');
+        overlay = document.getElementById('live-chat-overlay');
+    }
+    
+    // Set recipient
+    const name = toEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\w/g, l => l.toUpperCase());
+    document.getElementById('chat-recipient-name').textContent = name;
+    document.getElementById('chat-avatar').textContent = name[0].toUpperCase();
+    document.getElementById('chat-avatar').style.background = getColorForEmail(toEmail);
+    window.currentChatUser = toEmail;
+    
+    overlay.classList.add('open');
+    chatWindow.classList.add('open');
+    document.getElementById('chat-input').focus();
+}
+
+// Create live chat window
+function createLiveChatWindow() {
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'live-chat-overlay';
+    overlay.className = 'chat-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) closeLiveChatWindow(); };
+    
+    // Chat window
+    const chatWindow = document.createElement('div');
+    chatWindow.id = 'live-chat-window';
+    chatWindow.className = 'live-chat-window';
+    chatWindow.innerHTML = `
+        <div class="chat-header" style="background:linear-gradient(135deg,#f86d31,#e55a1f);padding:12px 16px;display:flex;align-items:center;gap:12px;color:white;">
+            <div id="chat-avatar" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-weight:600;">?</div>
+            <div style="flex:1;">
+                <div id="chat-recipient-name" style="font-weight:600;font-size:15px;">Select Contact</div>
+                <div style="font-size:12px;opacity:0.9;display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;background:#4ade80;border-radius:50%;"></span> Online</div>
+            </div>
+            <button onclick="closeLiveChatWindow()" style="width:36px;height:36px;border:none;background:rgba(255,255,255,0.15);color:white;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chat-messages" style="flex:1;padding:16px;overflow-y:auto;background:#e5ddd5;display:flex;flex-direction:column;gap:4px;">
+            <div style="text-align:center;margin:16px 0;"><span style="background:#e1e7eb;color:#54656f;padding:6px 14px;border-radius:8px;font-size:12px;">Today</span></div>
+        </div>
+        <div style="background:#f0f2f5;padding:10px 12px;display:flex;align-items:center;gap:8px;">
+            <button onclick="chatAddEmoji()" style="width:40px;height:40px;border:none;background:transparent;color:#54656f;border-radius:50%;cursor:pointer;font-size:18px;"><i class="fas fa-smile"></i></button>
+            <div style="flex:1;background:white;border-radius:24px;display:flex;align-items:center;padding:0 12px;">
+                <input type="text" id="chat-input" placeholder="Type a message" style="flex:1;border:none;padding:10px 0;font-size:14px;outline:none;background:transparent;" onkeypress="if(event.key==='Enter')sendChatMsg()">
+            </div>
+            <button onclick="sendChatMsg()" style="width:44px;height:44px;border:none;background:linear-gradient(135deg,#f86d31,#e55a1f);color:white;border-radius:50%;cursor:pointer;font-size:18px;box-shadow:0 4px 12px rgba(248,109,49,0.35);"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(chatWindow);
+}
+
+// Close live chat
+function closeLiveChatWindow() {
+    document.getElementById('live-chat-overlay')?.classList.remove('open');
+    document.getElementById('live-chat-window')?.classList.remove('open');
+    // Reset toggle
+    const toggle = document.getElementById('chat-toggle');
+    const knob = document.getElementById('chat-toggle-knob');
+    if (toggle && knob) {
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+    }
+}
+
+// Send chat message
+async function sendChatMsg() {
+    const input = document.getElementById('chat-input');
+    const content = input.value.trim();
+    if (!content || !window.currentChatUser) return;
+    
+    input.value = '';
+    
+    // Add to UI
+    addChatBubble(content, true);
+    
+    // Send to server
+    try {
+        await fetch('/api/chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ to: window.currentChatUser, content: content })
+        });
+    } catch(e) {}
+}
+
+// Add chat bubble
+function addChatBubble(content, isSent) {
+    const container = document.getElementById('chat-messages');
+    const bubble = document.createElement('div');
+    bubble.style.cssText = `max-width:80%;padding:8px 12px;border-radius:8px;font-size:14px;line-height:1.4;align-self:${isSent ? 'flex-end' : 'flex-start'};background:${isSent ? '#dcf8c6' : 'white'};`;
+    
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    bubble.innerHTML = `${escapeHtml(content)}<div style="font-size:10px;color:#667781;margin-top:4px;text-align:right;">${time} ${isSent ? '<i class="fas fa-check-double" style="color:#53bdeb;"></i>' : ''}</div>`;
+    
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+}
+
+// Chat emoji
+function chatAddEmoji() {
+    const emojis = ['😀','😊','👍','❤️','🎉','✨','🔥','💯','👏','🙏'];
+    const input = document.getElementById('chat-input');
+    input.value += emojis[Math.floor(Math.random() * emojis.length)];
+    input.focus();
+}
+
+// Helper for colors
+function getColorForEmail(email) {
+    const colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b'];
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) hash += email.charCodeAt(i);
+    return colors[hash % colors.length];
+}
+
+// Helper for escaping
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Hide send menu when clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('compose-send-menu');
+    if (menu && !e.target.closest('.compose-send-wrapper')) {
+        menu.style.display = 'none';
+    }
+});
+
+
+// Open Live Chat in popup window
+function openLiveChatPopup() {
+    const toEmail = document.getElementById('compose-to').value.trim();
+    if (!toEmail) {
+        showToast('Enter a recipient email first', 'error');
+        document.getElementById('compose-to').focus();
+        return;
+    }
+    
+    // Open chat in new popup window
+    const width = 420;
+    const height = 600;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    
+    const chatUrl = '/chat?with=' + encodeURIComponent(toEmail);
+    window.open(chatUrl, 'SendBabaChat', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no`);
+}
+
+
+// ========== CHAT HISTORY FUNCTIONS ==========
+
+// Open chat history panel
+function openChatHistory() {
+    document.getElementById('chat-history-overlay').style.display = 'flex';
+    loadChatHistory();
+}
+
+// Close chat history
+function closeChatHistory() {
+    document.getElementById('chat-history-overlay').style.display = 'none';
+}
+
+// Load chat conversations
+async function loadChatHistory() {
+    const container = document.getElementById('chat-history-list');
+    
+    try {
+        const r = await fetch('/api/chat/conversations', { credentials: 'same-origin' });
+        const data = await r.json();
+        
+        if (data.success && data.conversations && data.conversations.length > 0) {
+            container.innerHTML = data.conversations.map(conv => {
+                const initial = conv.with_email[0].toUpperCase();
+                const name = conv.with_name || conv.with_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const unread = conv.unread_count > 0 ? `<span style="background:#ef4444;color:white;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;">${conv.unread_count}</span>` : '';
+                const time = formatChatTime(conv.last_message_at);
+                const preview = conv.last_message ? (conv.last_message.length > 35 ? conv.last_message.substring(0,35) + '...' : conv.last_message) : 'No messages yet';
+                
+                return `
+                    <div onclick="openChat('${conv.with_email}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;border-radius:12px;transition:background 0.15s;margin-bottom:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+                        <div style="width:48px;height:48px;border-radius:50%;background:${getAvatarColor(conv.with_email)};display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:18px;flex-shrink:0;">${initial}</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                                <span style="font-weight:600;font-size:14px;color:#1f2937;">${escapeHtml(name)}</span>
+                                <span style="font-size:11px;color:#9ca3af;">${time}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;">
+                                <span style="font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(preview)}</span>
+                                ${unread}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:#6b7280;">
+                    <i class="fas fa-comments" style="font-size:48px;margin-bottom:16px;opacity:0.3;display:block;"></i>
+                    <div style="font-size:16px;font-weight:600;margin-bottom:4px;">No chats yet</div>
+                    <div style="font-size:13px;">Start a conversation from compose</div>
+                </div>
+            `;
+        }
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Failed to load chats</div>';
+    }
+}
+
+// Open chat window
+function openChat(email) {
+    closeChatHistory();
+    const width = 420;
+    const height = 600;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    window.open('/chat?with=' + encodeURIComponent(email), 'SendBabaChat_' + email.replace(/[^a-z0-9]/gi, ''), `width=${width},height=${height},left=${left},top=${top},resizable=yes`);
+}
+
+// Start new chat
+function startNewChat() {
+    closeChatHistory();
+    const email = prompt('Enter email address to chat with:');
+    if (email && email.includes('@')) {
+        openChat(email);
+    } else if (email) {
+        showToast('Please enter a valid email', 'error');
+    }
+}
+
+// Format chat time
+function formatChatTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Now';
+    if (diff < 3600000) return Math.floor(diff/60000) + 'm';
+    if (diff < 86400000) return Math.floor(diff/3600000) + 'h';
+    if (diff < 604800000) return Math.floor(diff/86400000) + 'd';
+    return date.toLocaleDateString();
+}
+
+// Get avatar color
+function getAvatarColor(email) {
+    const colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#84cc16'];
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) hash += email.charCodeAt(i);
+    return colors[hash % colors.length];
+}
+
+// Check for unread chats periodically
+async function checkUnreadChats() {
+    try {
+        const r = await fetch('/api/chat/unread-count', { credentials: 'same-origin' });
+        const data = await r.json();
+        const dot = document.getElementById('chat-dot');
+        if (dot) {
+            dot.style.display = data.count > 0 ? 'block' : 'none';
+        }
+    } catch(e) {}
+}
+
+// Check unread chats every 30 seconds
+setInterval(checkUnreadChats, 30000);
+checkUnreadChats();
+
+</script>
+    <style>
+        :root {
+            --primary: #f86d31;
+            --primary-light: #ff8a5c;
+            --primary-dark: #e55a1f;
+            --primary-bg: #fff8f5;
+            --sidebar-dark: #1a1d21;
+            --sidebar-hover: #2d3136;
+            --white: #ffffff;
+            --border: #e5e7eb;
+            --border-light: #f3f4f6;
+            --text-dark: #1f2937;
+            --text-medium: #4b5563;
+            --text-light: #9ca3af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --encrypted: #8b5cf6;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fa;
+            color: var(--text-dark);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .app { display: flex; height: 100vh; }
+        
+        /* Left Navigation */
+        .nav-sidebar {
+            width: 72px;
+            background: var(--sidebar-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px 0;
+            flex-shrink: 0;
+        }
+        
+        .logo {
+            width: 44px;
+            height: 44px;
+            background: var(--primary);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .logo:hover { transform: scale(1.05); }
+        .logo i { color: white; font-size: 18px; }
+        
+        .compose-fab {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(248, 109, 49, 0.4);
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .compose-fab:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(248, 109, 49, 0.5);
+        }
+        
+        .compose-fab i { color: white; font-size: 18px; }
+        
+        .nav-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            width: 100%;
+        }
+        
+        .nav-item {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            position: relative;
+            border: none;
+            background: transparent;
+        }
+        
+        .nav-item:hover { color: #d1d5db; background: var(--sidebar-hover); }
+        .nav-item.active { color: var(--primary); }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 28px;
+            background: var(--primary);
+            border-radius: 0 3px 3px 0;
+        }
+        
+        .nav-item i { font-size: 18px; margin-bottom: 4px; }
+        .nav-item span { font-size: 9px; font-weight: 500; }
+        
+        .nav-item .badge {
+            position: absolute;
+            top: 6px;
+            right: 14px;
+            min-width: 18px;
+            height: 18px;
+            background: var(--danger);
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .nav-spacer { flex: 1; }
+        
+        /* Folder Sidebar */
+        .folder-sidebar {
+            width: 230px;
+            background: var(--white);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .account-box { padding: 16px; border-bottom: 1px solid var(--border-light); }
+        
+        .account-select {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--border-light);
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        
+        .account-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ec4899);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .account-info { flex: 1; min-width: 0; }
+        .account-name { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+        .account-email { font-size: 11px; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .folder-list { flex: 1; padding: 12px 8px; overflow-y: auto; }
+        
+        .folder-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+            color: var(--text-medium);
+        }
+        
+        .folder-item:hover { background: var(--border-light); color: var(--text-dark); }
+        .folder-item.active { background: var(--primary-bg); color: var(--primary); font-weight: 500; }
+        
+        .folder-item i { width: 18px; margin-right: 10px; font-size: 14px; }
+        .folder-item span { flex: 1; font-size: 13px; }
+        
+        .folder-item .count {
+            min-width: 20px;
+            height: 20px;
+            background: var(--primary);
+            color: white;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
+        }
+        
+        .folder-divider { height: 1px; background: var(--border-light); margin: 12px 12px; }
+        .folder-section { padding: 6px 12px; font-size: 10px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        /* Security Badge */
+        .security-badge {
+            margin: 12px;
+            padding: 12px;
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border-radius: 12px;
+            border: 1px solid #86efac;
+        }
+        
+        .security-badge-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 4px;
+        }
+        
+        .security-badge-text { font-size: 10px; color: #15803d; }
+        
+        /* Ad Space */
+        .ad-space {
+            margin: 0 12px 12px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .ad-space:hover { transform: scale(1.02); }
+        
+        .ad-label { padding: 6px 12px; background: rgba(0,0,0,0.05); font-size: 9px; color: #92400e; font-weight: 600; text-transform: uppercase; }
+        .ad-content { padding: 12px; font-size: 12px; color: #78350f; }
+        .ad-content strong { display: block; margin-bottom: 4px; }
+        
+        /* Email List */
+        .email-list-panel {
+            width: 380px;
+            background: var(--white);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .list-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .search-box { flex: 1; position: relative; }
+        
+        .search-box input {
+            width: 100%;
+            padding: 9px 12px 9px 36px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 13px;
+            background: var(--border-light);
+            transition: all 0.2s;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(248, 109, 49, 0.1);
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            font-size: 13px;
+        }
+        
+        .list-toolbar {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fafafa;
+        }
+        
+        .toolbar-left { display: flex; align-items: center; gap: 8px; }
+        .toolbar-right { display: flex; align-items: center; gap: 4px; }
+        
+        .toolbar-btn {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        
+        .toolbar-btn:hover { background: var(--border); color: var(--text-dark); }
+        
+        .pagination-info { font-size: 12px; color: var(--text-light); }
+        
+        .email-list { flex: 1; overflow-y: auto; }
+        .email-list::-webkit-scrollbar { width: 6px; }
+        .email-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+        
+        .email-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-light);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .email-item:hover { background: #f9fafb; }
+        .email-item.active { background: var(--primary-bg); border-left: 3px solid var(--primary); }
+        .email-item.unread { background: #fffbeb; }
+        .email-item.unread:hover { background: #fef3c7; }
+        .email-item.unread .email-sender { font-weight: 700; }
+        .email-item.unread .email-subject { font-weight: 600; color: var(--text-dark); }
+        
+        .email-checkbox {
+            margin-right: 10px;
+            margin-top: 4px;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        
+        .email-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .email-content { flex: 1; min-width: 0; }
+        
+        .email-row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+        
+        .email-sender {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .email-sender .e2e { color: var(--encrypted); font-size: 10px; }
+        
+        .email-time { font-size: 11px; color: var(--text-light); }
+        
+        .email-subject {
+            font-size: 13px;
+            color: var(--text-medium);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+        
+        .email-preview {
+            font-size: 12px;
+            color: var(--text-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .email-tags { display: flex; gap: 4px; margin-top: 6px; }
+        
+        .email-tag {
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .email-tag.attachment { background: #dbeafe; color: #1d4ed8; }
+        .email-tag.encrypted { background: #f3e8ff; color: #7c3aed; }
+        
+        .email-star {
+            color: var(--border);
+            cursor: pointer;
+            margin-left: 8px;
+            font-size: 14px;
+        }
+        
+        .email-star:hover { color: var(--warning); }
+        .email-star.active { color: var(--warning); }
+        
+        /* Email View */
+        .email-view-panel {
+            flex: 1;
+            background: #f3f4f6;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .view-toolbar {
+            padding: 12px 20px;
+            background: white;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .view-actions { display: flex; gap: 6px; }
+        
+        .view-btn {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-medium);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s;
+        }
+        
+        .view-btn:hover { border-color: var(--text-light); color: var(--text-dark); }
+        .view-btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+        .view-btn.primary:hover { background: var(--primary-dark); }
+        
+        .email-view-content { flex: 1; overflow-y: auto; padding: 20px; }
+        
+        .email-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        
+        .email-card-header { padding: 20px; border-bottom: 1px solid var(--border-light); }
+        
+        .email-subject-line {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .e2e-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
+            color: #7c3aed;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 20px;
+        }
+        
+        .sender-row { display: flex; align-items: center; gap: 12px; }
+        
+        .sender-avatar-lg {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .sender-info { flex: 1; }
+        .sender-name { font-size: 14px; font-weight: 600; color: var(--text-dark); }
+        .sender-email { font-size: 12px; color: var(--text-light); }
+        
+        .email-datetime { font-size: 12px; color: var(--text-light); text-align: right; }
+        
+        .email-body {
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-dark);
+        }
+        
+        .email-body a { color: var(--primary); }
+        
+        /* Reply Box */
+        .reply-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        
+        .reply-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        
+        .reply-header i { color: var(--primary); }
+        
+        .reply-header .e2e-indicator {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            color: var(--encrypted);
+            font-weight: 500;
+        }
+        
+        .reply-body { padding: 16px 20px; }
+        
+        .reply-body textarea {
+            width: 100%;
+            min-height: 120px;
+            border: none;
+            resize: none;
+            font-size: 14px;
+            font-family: inherit;
+            line-height: 1.6;
+            color: var(--text-dark);
+        }
+        
+        .reply-body textarea:focus { outline: none; }
+        .reply-body textarea::placeholder { color: var(--text-light); }
+        
+        .reply-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #fafafa;
+        }
+        
+        .reply-tool {
+            width: 34px;
+            height: 34px;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .reply-tool:hover { background: white; color: var(--text-dark); }
+        
+        .reply-send {
+            margin-left: auto;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .reply-send:hover { box-shadow: 0 4px 15px rgba(248, 109, 49, 0.4); transform: translateY(-1px); }
+        
+        /* Inbox Ad */
+        .inbox-ad {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .inbox-ad:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        
+        .inbox-ad-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary-bg), #fef3c7);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .inbox-ad-content { flex: 1; }
+        .inbox-ad-title { font-size: 14px; font-weight: 600; color: var(--text-dark); margin-bottom: 2px; }
+        .inbox-ad-text { font-size: 12px; color: var(--text-medium); }
+        .inbox-ad-label { font-size: 10px; color: var(--text-light); background: var(--border-light); padding: 2px 8px; border-radius: 4px; }
+        
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px;
+        }
+        
+        .empty-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .empty-icon i { font-size: 48px; color: #6ee7b7; }
+        
+        .empty-title { font-size: 18px; font-weight: 600; color: var(--text-dark); margin-bottom: 6px; }
+        .empty-text { font-size: 14px; color: var(--text-light); }
+        
+        /* Top Bar */
+        .top-bar {
+            position: absolute;
+            top: 12px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10;
+        }
+        
+        .top-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            background: white;
+            color: var(--text-light);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: all 0.15s;
+            position: relative;
+        }
+        
+        .top-btn:hover { color: var(--text-dark); box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+        
+        .top-btn .dot {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        
+        .user-menu { position: relative; }
+        
+        .user-menu-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 14px 6px 6px;
+            background: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: all 0.15s;
+        }
+        
+        .user-menu-btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+        
+        .user-menu-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ec4899);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .user-menu-text { font-size: 13px; font-weight: 500; color: var(--text-dark); }
+        .user-menu-btn i { color: var(--text-light); font-size: 10px; }
+        
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            width: 220px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+            overflow: hidden;
+        }
+        
+        .user-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0); }
+        
+        .user-dropdown-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-light);
+            text-align: center;
+        }
+        
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), #ec4899);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 auto 8px;
+        }
+        
+        .user-dropdown-name { font-size: 14px; font-weight: 600; color: var(--text-dark); }
+        .user-dropdown-email { font-size: 12px; color: var(--text-light); }
+        
+        .user-dropdown-menu { padding: 8px; }
+        
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-medium);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-decoration: none;
+        }
+        
+        .user-dropdown-item:hover { background: var(--border-light); color: var(--text-dark); }
+        .user-dropdown-item i { width: 18px; color: var(--text-light); }
+        .user-dropdown-item.danger { color: var(--danger); }
+        .user-dropdown-item.danger i { color: var(--danger); }
+        
+        /* Compose Modal */
+        .compose-modal {
+            position: fixed;
+            bottom: 0;
+            right: 24px;
+            width: 600px;
+            background: white;
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 -4px 40px rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+            max-height: 80vh;
+        }
+        
+        .compose-modal.active { display: flex; animation: slideUp 0.25s ease; }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .compose-header {
+            padding: 12px 16px;
+            background: var(--sidebar-dark);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .compose-header h3 { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .compose-header h3 .e2e { color: #a78bfa; font-size: 12px; }
+        
+        .compose-header-btns { display: flex; gap: 4px; }
+        
+        .compose-header-btns button {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .compose-header-btns button:hover { background: rgba(255,255,255,0.2); }
+        
+        .compose-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .compose-field {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        
+        .compose-field label { width: 50px; font-size: 13px; color: var(--text-light); font-weight: 500; }
+        .compose-field input { flex: 1; border: none; font-size: 14px; font-family: inherit; }
+        .compose-field input:focus { outline: none; }
+        
+        .compose-toolbar {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            background: #fafafa;
+        }
+        
+        .compose-tool {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            color: var(--text-medium);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        
+        .compose-tool:hover { background: white; color: var(--text-dark); }
+        .compose-tool.active { background: var(--primary-bg); color: var(--primary); }
+        
+        .compose-divider { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
+        
+        .template-dropdown { position: relative; margin-left: auto; }
+        
+        .template-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-medium);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .template-btn:hover { border-color: var(--primary); color: var(--primary); }
+        
+        .template-menu {
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            margin-bottom: 8px;
+            width: 200px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            display: none;
+            overflow: hidden;
+        }
+        
+        .template-menu.open { display: block; }
+        
+        .template-item {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: var(--text-medium);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .template-item:hover { background: var(--border-light); color: var(--text-dark); }
+        .template-item i { color: var(--text-light); width: 16px; }
+        
+        .compose-editor { flex: 1; padding: 16px; overflow-y: auto; min-height: 200px; }
+        
+        .compose-editor textarea {
+            width: 100%;
+            height: 100%;
+            min-height: 180px;
+            border: none;
+            resize: none;
+            font-size: 14px;
+            font-family: inherit;
+            line-height: 1.6;
+            color: var(--text-dark);
+        }
+        
+        .compose-editor textarea:focus { outline: none; }
+        
+        .compose-footer {
+            padding: 12px 16px;
+            background: #fafafa;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .compose-footer .e2e-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--encrypted);
+            background: #f3e8ff;
+            padding: 6px 10px;
+            border-radius: 20px;
+        }
+        
+        .compose-send {
+            margin-left: auto;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .compose-send:hover { box-shadow: 0 4px 15px rgba(248, 109, 49, 0.4); }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--sidebar-dark);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 2000;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        
+        /* New Email Banner */
+        .new-email-banner {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-80px);
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            z-index: 100;
+            opacity: 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(248, 109, 49, 0.4);
+        }
+        
+        .new-email-banner.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        
+        /* Side Panels */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: white;
+            box-shadow: -4px 0 30px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .side-panel.open { right: 0; }
+        
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .panel-header h3 { font-size: 18px; font-weight: 700; }
+        
+        .panel-close {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: var(--border-light);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-medium);
+        }
+        
+        .panel-content { flex: 1; overflow-y: auto; padding: 20px; }
+        
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        @media (max-width: 1200px) {
+            .folder-sidebar { width: 200px; }
+            .email-list-panel { width: 320px; }
+        }
+        
+        @media (max-width: 992px) {
+            .folder-sidebar { display: none; }
+            .email-list-panel { flex: 1; }
+            .email-view-panel {
+                position: fixed;
+                left: 72px;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+            .email-view-panel.open { transform: translateX(0); }
+        }
+    </style>
+    
+    <style>
+        /* Hide old sidebar on desktop - added by fix script */
+        @media (min-width: 769px) {
+            .sidebar:not(.app-sidebar),
+            .nav-sidebar,
+            .email-sidebar,
+            .left-sidebar,
+            .folder-list,
+            .sidebar-nav,
+            .mail-sidebar,
+            aside.sidebar,
+            .folders-panel,
+            .navigation-panel,
+            .email-folders {
+                display: none !important;
+            }
+            
+            .app, .email-app, .mail-app {
+                display: block !important;
+                margin-left: 64px !important;
+            }
+            
+            .app.sidebar-expanded, 
+            .email-app.sidebar-expanded,
+            .app-container.sidebar-expanded {
+                margin-left: 324px !important;
+            }
+        }
+    </style>
+    
+<body>
+    <div class="app">
+        <!-- Left Navigation -->
+        <nav class="nav-sidebar">
+            <div class="logo" onclick="window.location.href='/'">
+                <i class="fas fa-paper-plane"></i>
+            </div>
+            
+            <button class="compose-fab" onclick="openCompose()" title="Compose">
+                <i class="fas fa-pen"></i>
+            </button>
+            
+            <div class="nav-menu">
+                <button class="nav-item active" data-view="mail" title="Mail">
+                    <i class="fas fa-envelope"></i>
+                    <span>Mail</span>
+                    <span class="badge" id="nav-badge" style="display:none;">0</span>
+                </button>
+                <button class="nav-item" onclick="showPanel('calendar')" title="Calendar">
+                    <i class="fas fa-calendar"></i>
+                    <span>Calendar</span>
+                </button>
+                <button class="nav-item" onclick="showPanel('contacts')" title="Contacts">
+                    <i class="fas fa-users"></i>
+                    <span>Contacts</span>
+                </button>
+                <button class="nav-item" onclick="showPanel('files')" title="Files">
+                    <i class="fas fa-folder"></i>
+                    <span>Files</span>
+                </button>
+            </div>
+            
+            <div class="nav-spacer"></div>
+            
+            <div class="nav-menu">
+                <a href="/settings" class="nav-item" title="Settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+        </nav>
+        
+        <!-- Folder Sidebar -->
+        <aside class="folder-sidebar">
+            <div class="account-box">
+                <div class="account-select">
+                    <div class="account-avatar">{{ name[0]|upper if name else 'U' }}</div>
+                    <div class="account-info">
+                        <div class="account-name">{{ name or 'User' }}</div>
+                        <div class="account-email">{{ user }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="folder-list">
+                <div class="folder-item active" data-folder="inbox" onclick="loadFolder('inbox')">
+                    <i class="fas fa-inbox"></i>
+                    <span>Inbox</span>
+                    <div class="count" id="count-inbox" style="display:none;">0</div>
+                </div>
+                <div class="folder-item" data-folder="sent" onclick="loadFolder('sent')">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Sent</span>
+                </div>
+                <div class="folder-item" data-folder="starred" onclick="loadFolder('starred')">
+                    <i class="fas fa-star"></i>
+                    <span>Starred</span>
+                </div>
+                <div class="folder-item" data-folder="drafts" onclick="loadFolder('drafts')">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Drafts</span>
+                </div>
+                <div class="folder-item" data-folder="spam" onclick="loadFolder('spam')">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>Spam</span>
+                </div>
+                <div class="folder-item" data-folder="trash" onclick="loadFolder('trash')">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Trash</span>
+                </div>
+                
+                <div class="folder-divider"></div>
+                
+                <div class="folder-section">Labels</div>
+                <div class="folder-item">
+                    <i class="fas fa-circle" style="color: #3b82f6; font-size: 8px;"></i>
+                    <span>Work</span>
+                </div>
+                <div class="folder-item">
+                    <i class="fas fa-circle" style="color: #10b981; font-size: 8px;"></i>
+                    <span>Personal</span>
+                </div>
+            </div>
+            
+            <div class="security-badge">
+                <div class="security-badge-title">
+                    <i class="fas fa-shield-alt"></i> End-to-End Encrypted
+                </div>
+                <div class="security-badge-text">Your emails are fully encrypted</div>
+            </div>
+            
+            <div class="ad-space" onclick="window.open('https://sendbaba.com/advertise')">
+                <div class="ad-label">Sponsored</div>
+                <div class="ad-content">
+                    <strong>🚀 Grow Your Business</strong>
+                    Advertise on SendBaba Mail
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Email List -->
+        <section class="email-list-panel">
+            <div class="list-header">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Search emails..." onkeyup="handleSearch(event)">
+                </div>
+            </div>
+            
+            <div class="list-toolbar">
+                <div class="toolbar-left">
+                    <input type="checkbox" id="select-all" onclick="toggleSelectAll()">
+                    <button class="toolbar-btn" onclick="refreshEmails()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+                    <button class="toolbar-btn" onclick="archiveSelected()" title="Archive"><i class="fas fa-archive"></i></button>
+                    <button class="toolbar-btn" onclick="deleteSelected()" title="Delete"><i class="fas fa-trash"></i></button>
+                </div>
+                <div class="toolbar-right">
+                    <span class="pagination-info" id="pagination-info">1-50</span>
+                    <button class="toolbar-btn" onclick="prevPage()"><i class="fas fa-chevron-left"></i></button>
+                    <button class="toolbar-btn" onclick="nextPage()"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+            
+            <div class="email-list" id="email-list">
+                <div class="empty-state"><div class="spinner"></div></div>
+            </div>
+        </section>
+        
+        <!-- Email View -->
+        <section class="email-view-panel" id="email-view-panel">
+            <div class="top-bar">
+                <button class="top-btn" onclick="openChatHistory()" title="Live Chats" style="position:relative;">
+                    <i class="fas fa-comments"></i>
+                    <span class="dot" id="chat-dot" style="display:none;position:absolute;top:8px;right:8px;width:8px;height:8px;background:#ef4444;border-radius:50%;"></span>
+                </button>
+                <button class="top-btn" onclick="showPanel('notifications')" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="dot" id="notif-dot" style="display:none;"></span>
+                </button>
+                <div class="user-menu">
+                    <button class="user-menu-btn" onclick="toggleUserMenu()">
+                        <div class="user-menu-avatar">{{ name[0]|upper if name else 'U' }}</div>
+                        <span class="user-menu-text">My account</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="user-dropdown" id="user-dropdown">
+                        <div class="user-dropdown-header">
+                            <div class="user-dropdown-avatar">{{ name[0]|upper if name else 'U' }}</div>
+                            <div class="user-dropdown-name">{{ name or 'User' }}</div>
+                            <div class="user-dropdown-email">{{ user }}</div>
+                        </div>
+                        <div class="user-dropdown-menu">
+                            <a href="/settings" class="user-dropdown-item"><i class="fas fa-user"></i> Profile</a>
+                            <a href="/settings#security" class="user-dropdown-item"><i class="fas fa-shield-alt"></i> Security</a>
+                            <a href="/settings#domains" class="user-dropdown-item"><i class="fas fa-globe"></i> Domains</a>
+                            <a href="/settings#team" class="user-dropdown-item"><i class="fas fa-users"></i> Team</a>
+                            <div class="user-dropdown-item" onclick="showHelp()"><i class="fas fa-question-circle"></i> Help</div>
+                            <a href="/logout" class="user-dropdown-item danger"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="email-view">
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-envelope-open"></i></div>
+                    <div class="empty-title">No message selected</div>
+                    <div class="empty-text">Select an email to read</div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Compose Modal -->
+    <div class="compose-modal" id="compose-modal">
+        <div class="compose-header">
+            <h3><i class="fas fa-pen"></i> New Message <span class="e2e"><i class="fas fa-lock"></i> E2E</span></h3>
+            <div class="live-chat-toggle" onclick="openLiveChatPopup()" style="display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:12px;padding:6px 12px;background:rgba(255,255,255,0.15);border-radius:20px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+                <i class="fas fa-comments" style="font-size:14px;"></i>
+                <span style="font-size:12px;font-weight:500;">Live Chat</span>
+            </div>
+            <div class="compose-header-btns">
+                <button onclick="minimizeCompose()" title="Minimize"><i class="fas fa-minus"></i></button>
+                <button onclick="maximizeCompose()" title="Maximize"><i class="fas fa-expand"></i></button>
+                <button onclick="closeCompose()" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+        <div class="compose-body">
+            <div class="compose-field">
+                <label>To</label>
+                <input type="email" id="compose-to" placeholder="recipient@example.com">
+            </div>
+            <div class="compose-field">
+                <label>Cc</label>
+                <input type="text" id="compose-cc">
+            </div>
+            <div class="compose-field">
+                <label>Subject</label>
+                <input type="text" id="compose-subject">
+            </div>
+            
+            <div class="compose-toolbar">
+                <button class="compose-tool" onclick="formatText('bold')" title="Bold"><i class="fas fa-bold"></i></button>
+                <button class="compose-tool" onclick="formatText('italic')" title="Italic"><i class="fas fa-italic"></i></button>
+                <button class="compose-tool" onclick="formatText('underline')" title="Underline"><i class="fas fa-underline"></i></button>
+                <button class="compose-tool" onclick="formatText('strikethrough')" title="Strikethrough"><i class="fas fa-strikethrough"></i></button>
+                <div class="compose-divider"></div>
+                <button class="compose-tool" onclick="formatText('list')" title="List"><i class="fas fa-list-ul"></i></button>
+                <button class="compose-tool" onclick="formatText('numbered')" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                <div class="compose-divider"></div>
+                <button class="compose-tool" onclick="formatText('link')" title="Insert Link"><i class="fas fa-link"></i></button>
+                <button class="compose-tool" onclick="formatText('image')" title="Insert Image"><i class="fas fa-image"></i></button>
+                <button class="compose-tool" onclick="attachFile()" title="Attach File"><i class="fas fa-paperclip"></i></button>
+                
+                <div class="template-dropdown">
+                    <button class="template-btn" onclick="toggleTemplateMenu()">
+                        <i class="fas fa-file-alt"></i> Templates <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="template-menu" id="template-menu">
+                        <div class="template-item" onclick="loadTemplate('welcome')"><i class="fas fa-hand-wave"></i> Welcome Email</div>
+                        <div class="template-item" onclick="loadTemplate('followup')"><i class="fas fa-reply"></i> Follow-up</div>
+                        <div class="template-item" onclick="loadTemplate('meeting')"><i class="fas fa-calendar"></i> Meeting Request</div>
+                        <div class="template-item" onclick="loadTemplate('thanks')"><i class="fas fa-heart"></i> Thank You</div>
+                        <div class="template-item" onclick="loadTemplate('intro')"><i class="fas fa-handshake"></i> Introduction</div>
+                        <div class="template-item" onclick="saveAsTemplate()"><i class="fas fa-plus"></i> Save as Template</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="compose-editor">
+                <textarea id="compose-body" placeholder="Write your message..."></textarea>
+            </div>
+        </div>
+        <div class="compose-footer">
+            <div class="e2e-status">
+                <i class="fas fa-lock"></i> End-to-End Encrypted
+            </div>
+            <div class="compose-send-wrapper" style="margin-left:auto;position:relative;">
+                <div class="compose-send-menu" id="compose-send-menu" style="position:absolute;bottom:100%;right:0;margin-bottom:8px;background:white;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.2);padding:6px;display:none;flex-direction:column;min-width:150px;z-index:100;">
+                    <button onclick="sendEmail()" style="padding:10px 14px;border:none;background:transparent;color:#10b981;font-size:13px;font-weight:500;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:10px;text-align:left;" onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='transparent'"><i class="fas fa-paper-plane"></i> Send Now</button>
+                    <button onclick="saveDraft();closeCompose();" style="padding:10px 14px;border:none;background:transparent;color:#6b7280;font-size:13px;font-weight:500;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:10px;text-align:left;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'"><i class="fas fa-save"></i> Save Draft</button>
+                    <button onclick="discardCompose()" style="padding:10px 14px;border:none;background:transparent;color:#ef4444;font-size:13px;font-weight:500;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:10px;text-align:left;" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'"><i class="fas fa-trash"></i> Discard</button>
+                </div>
+                <button class="compose-send" onclick="sendEmail()" onmouseenter="document.getElementById('compose-send-menu').style.display='flex'" style="width:48px;height:48px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Side Panels -->
+    <div class="side-panel" id="panel-contacts">
+        <div class="panel-header">
+            <h3><i class="fas fa-users" style="color:var(--primary);margin-right:8px;"></i>Contacts</h3>
+            <button class="panel-close" onclick="closePanel('contacts')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="panel-content" id="contacts-content"></div>
+    </div>
+    
+    <div class="side-panel" id="panel-calendar">
+        <div class="panel-header">
+            <h3><i class="fas fa-calendar" style="color:var(--primary);margin-right:8px;"></i>Calendar</h3>
+            <button class="panel-close" onclick="closePanel('calendar')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="panel-content" id="calendar-content"></div>
+    </div>
+    
+    <div class="side-panel" id="panel-files">
+        <div class="panel-header">
+            <h3><i class="fas fa-folder" style="color:var(--primary);margin-right:8px;"></i>Files</h3>
+            <button class="panel-close" onclick="closePanel('files')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="panel-content" id="files-content"></div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message">Message</span>
+    </div>
+    
+    <!-- New Email Banner -->
+    <div class="new-email-banner" id="new-email-banner" onclick="loadNewEmails()">
+        <i class="fas fa-envelope"></i>
+        <span id="new-email-text">1 new email</span>
+    </div>
+
+<script>
+// State
+let currentFolder = 'inbox';
+let currentEmail = null;
+let emails = [];
+let currentPage = 1;
+let totalEmails = 0;
+let lastEmailId = 0;
+
+const colors = ['#f86d31', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#6366f1'];
+const getColor = s => colors[[...s].reduce((a,c) => a + c.charCodeAt(0), 0) % colors.length];
+
+// Templates
+const templates = {
+    welcome: { subject: 'Welcome to our team!', body: 'Hi [Name],\n\nWelcome to the team! We\'re excited to have you on board.\n\nHere\'s what you need to know to get started:\n• Your first week schedule is attached\n• Please complete your profile setup\n• Join our team channel for updates\n\nLooking forward to working with you!\n\nBest regards' },
+    followup: { subject: 'Following up on our conversation', body: 'Hi [Name],\n\nI wanted to follow up on our recent conversation about [topic].\n\nHave you had a chance to review the materials I sent? I\'d love to hear your thoughts.\n\nLet me know if you have any questions.\n\nBest regards' },
+    meeting: { subject: 'Meeting Request: [Topic]', body: 'Hi [Name],\n\nI\'d like to schedule a meeting to discuss [topic].\n\nWould any of these times work for you?\n• [Date/Time Option 1]\n• [Date/Time Option 2]\n• [Date/Time Option 3]\n\nPlease let me know your availability.\n\nBest regards' },
+    thanks: { subject: 'Thank you!', body: 'Hi [Name],\n\nThank you so much for [reason].\n\nI really appreciate your [help/time/support]. It made a real difference.\n\nPlease let me know if there\'s anything I can do to return the favor.\n\nBest regards' },
+    intro: { subject: 'Introduction: [Your Name] <> [Their Name]', body: 'Hi [Name],\n\nI hope this email finds you well. I wanted to reach out and introduce myself.\n\nMy name is [Your Name], and I [brief background].\n\nI\'d love to connect and learn more about your work in [their field].\n\nWould you be open to a brief call sometime this week?\n\nBest regards' }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadFolder('inbox');
+    loadCounts();
+    startPolling();
+    requestNotificationPermission();
+    
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.user-menu')) document.getElementById('user-dropdown').classList.remove('open');
+        if (!e.target.closest('.template-dropdown')) document.getElementById('template-menu').classList.remove('open');
+    });
+});
+
+function toggleUserMenu() { event.stopPropagation(); document.getElementById('user-dropdown').classList.toggle('open'); }
+function toggleTemplateMenu() { event.stopPropagation(); document.getElementById('template-menu').classList.toggle('open'); }
+
+function loadTemplate(name) {
+    const t = templates[name];
+    if (t) { document.getElementById('compose-subject').value = t.subject; document.getElementById('compose-body').value = t.body; openCompose(); }
+    document.getElementById('template-menu').classList.remove('open');
+}
+
+function saveAsTemplate() { showToast('Template saved!', 'success'); document.getElementById('template-menu').classList.remove('open'); }
+
+function formatText(type) {
+    const textarea = document.getElementById('compose-body');
+    const start = textarea.selectionStart, end = textarea.selectionEnd;
+    const text = textarea.value, selected = text.substring(start, end);
+    let formatted = selected;
+    switch(type) {
+        case 'bold': formatted = `**${selected}**`; break;
+        case 'italic': formatted = `*${selected}*`; break;
+        case 'underline': formatted = `_${selected}_`; break;
+        case 'strikethrough': formatted = `~~${selected}~~`; break;
+        case 'list': formatted = `• ${selected}`; break;
+        case 'numbered': formatted = `1. ${selected}`; break;
+        case 'link': const url = prompt('Enter URL:'); if (url) formatted = `[${selected || 'Link'}](${url})`; break;
+    }
+    textarea.value = text.substring(0, start) + formatted + text.substring(end);
+    textarea.focus();
+}
+
+function attachFile() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.multiple = true;
+    input.onchange = (e) => { const files = Array.from(e.target.files); showToast(`${files.length} file(s) attached`, 'success'); };
+    input.click();
+}
+
+async function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
+}
+
+function startPolling() { setInterval(checkNewEmails, 15000); setInterval(loadCounts, 30000); }
+
+async function checkNewEmails() {
+    if (currentFolder !== 'inbox') return;
+    try {
+        const r = await fetch(`/api/emails?folder=inbox&check_new=1&last_id=${lastEmailId}`, {credentials: 'same-origin'});
+        const data = await r.json();
+        if (data.success && data.new_count > 0) showNewEmailBanner(data.new_count, data.latest_email);
+    } catch(e) {}
+}
+
+function showNewEmailBanner(count, email) {
+    document.getElementById('new-email-text').textContent = count === 1 ? '1 new email' : count + ' new emails';
+    document.getElementById('new-email-banner').classList.add('show');
+    if (Notification.permission === 'granted' && email) new Notification('New Email', { body: `${email.from_name || email.from_email}: ${email.subject || '(no subject)'}`, icon: '/static/images/logo.png' });
+    setTimeout(() => document.getElementById('new-email-banner').classList.remove('show'), 6000);
+}
+
+function loadNewEmails() { document.getElementById('new-email-banner').classList.remove('show'); loadFolder('inbox'); }
+
+async function loadCounts() {
+    try {
+        const r = await fetch('/api/counts', {credentials: 'same-origin'});
+        const data = await r.json();
+        if (data.success) {
+            updateCount('inbox', data.counts.inbox_unread);
+            const badge = document.getElementById('nav-badge');
+            if (data.counts.inbox_unread > 0) { badge.textContent = data.counts.inbox_unread > 99 ? '99+' : data.counts.inbox_unread; badge.style.display = 'flex'; }
+            else { badge.style.display = 'none'; }
+        }
+    } catch(e) {}
+}
+
+function updateCount(folder, count) {
+    const el = document.getElementById('count-' + folder);
+    if (el) { if (count > 0) { el.textContent = count; el.style.display = 'flex'; } else { el.style.display = 'none'; } }
+}
+
+async function loadFolder(folder, search = '') {
+    currentFolder = folder; currentEmail = null; currentPage = 1;
+    document.querySelectorAll('.folder-item').forEach(el => el.classList.remove('active'));
+    document.querySelector(`[data-folder="${folder}"]`)?.classList.add('active');
+    document.getElementById('email-view-panel').classList.remove('open');
+    document.getElementById('email-list').innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+    document.getElementById('email-view').innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fas fa-envelope-open"></i></div><div class="empty-title">No message selected</div><div class="empty-text">Select an email to read</div></div>';
+    await fetchEmails(folder, search);
+}
+
+async function fetchEmails(folder, search = '') {
+    try {
+        let url = `/api/emails?folder=${folder}&page=${currentPage}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        const r = await fetch(url, {credentials: 'same-origin'});
+        const data = await r.json();
+        if (data.success) { emails = data.emails; totalEmails = data.total || emails.length; if (emails.length > 0) lastEmailId = Math.max(...emails.map(e => e.id)); renderEmailList(); }
+    } catch(e) { document.getElementById('email-list').innerHTML = '<div class="empty-state"><div class="empty-icon" style="background:#fef2f2;"><i class="fas fa-exclamation-circle" style="color:#fca5a5;"></i></div><div class="empty-title">Failed to load</div></div>'; }
+}
+
+function renderEmailList() {
+    const container = document.getElementById('email-list');
+    if (!emails || emails.length === 0) { container.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fas fa-inbox"></i></div><div class="empty-title">No emails</div><div class="empty-text">Your ' + currentFolder + ' is empty</div></div>'; return; }
+    
+    let html = '';
+    if (currentFolder === 'inbox' && currentPage === 1) {
+        html += '<div class="inbox-ad" onclick="window.open(\'https://sendbaba.com/campaigns\')"><div class="inbox-ad-icon">📧</div><div class="inbox-ad-content"><div class="inbox-ad-title">Launch email campaigns that convert</div><div class="inbox-ad-text">Reach millions with SendBaba\'s campaign tools</div></div><span class="inbox-ad-label">Ad</span></div>';
+    }
+    
+    html += emails.map(e => {
+        const name = e.from_name || e.from_email?.split('@')[0] || 'Unknown';
+        const initial = name[0].toUpperCase();
+        const color = getColor(name);
+        const time = formatDate(e.received_at);
+        const preview = (e.preview || e.body_text || '').substring(0, 80);
+        return `<div class="email-item ${e.is_read ? '' : 'unread'} ${currentEmail === e.id ? 'active' : ''}" data-id="${e.id}" onclick="viewEmail(${e.id})">
+            <input type="checkbox" class="email-checkbox" onclick="event.stopPropagation()">
+            <div class="email-avatar" style="background:${color}">${initial}</div>
+            <div class="email-content">
+                <div class="email-row1"><span class="email-sender">${escapeHtml(name)} <span class="e2e" title="End-to-End Encrypted"><i class="fas fa-lock"></i></span></span><span class="email-time">${time}</span></div>
+                <div class="email-subject">${escapeHtml(e.subject || '(no subject)')}</div>
+                <div class="email-preview">${escapeHtml(preview)}</div>
+                <div class="email-tags"><span class="email-tag encrypted"><i class="fas fa-lock"></i> Encrypted</span>${e.has_attachments ? '<span class="email-tag attachment"><i class="fas fa-paperclip"></i></span>' : ''}</div>
+            </div>
+            <i class="fa${e.is_starred ? 's' : 'r'} fa-star email-star ${e.is_starred ? 'active' : ''}" onclick="event.stopPropagation(); toggleStar(${e.id})"></i>
+        </div>`;
+    }).join('');
+    container.innerHTML = html;
+    document.getElementById('pagination-info').textContent = `${(currentPage-1)*50+1}-${Math.min(currentPage*50, totalEmails)}`;
+}
+
+function escapeHtml(text) { if (!text) return ''; const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr), now = new Date(), diff = now - d;
+    if (diff < 60000) return 'Now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+    if (diff < 86400000 && d.getDate() === now.getDate()) return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    if (diff < 604800000) return d.toLocaleDateString([], {weekday: 'short'});
+    return d.toLocaleDateString([], {month: 'short', day: 'numeric'});
+}
+
+async function viewEmail(id) {
+    currentEmail = id;
+    document.querySelectorAll('.email-item').forEach(el => { el.classList.remove('active'); if (parseInt(el.dataset.id) === id) { el.classList.add('active'); el.classList.remove('unread'); } });
+    document.getElementById('email-view-panel').classList.add('open');
+    document.getElementById('email-view').innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+    try {
+        const r = await fetch(`/api/email/${id}`, {credentials: 'same-origin'});
+        const data = await r.json();
+        if (data.success) { renderEmailView(data.email); loadCounts(); }
+    } catch(e) { document.getElementById('email-view').innerHTML = '<div class="empty-state"><div class="empty-title">Failed to load</div></div>'; }
+}
+
+function renderEmailView(email) {
+    const name = email.from_name || email.from_email?.split('@')[0] || 'Unknown';
+    const color = getColor(name);
+    const date = new Date(email.received_at);
+    const dateStr = date.toLocaleDateString('en-US', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+    const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    
+    document.getElementById('email-view').innerHTML = `
+        <div class="view-toolbar"><div class="view-actions">
+            <button class="view-btn" onclick="document.getElementById('email-view-panel').classList.remove('open')" id="back-btn" style="display:none;"><i class="fas fa-arrow-left"></i></button>
+            <button class="view-btn primary" onclick="replyEmail()"><i class="fas fa-reply"></i> Reply</button>
+            <button class="view-btn" onclick="forwardEmail()"><i class="fas fa-share"></i> Forward</button>
+            <button class="view-btn" onclick="archiveEmail()"><i class="fas fa-archive"></i></button>
+            <button class="view-btn" onclick="deleteEmail()"><i class="fas fa-trash"></i></button>
+        </div></div>
+        <div class="email-view-content">
+            <div class="inbox-ad" onclick="window.open('https://sendbaba.com/security')"><div class="inbox-ad-icon">🔒</div><div class="inbox-ad-content"><div class="inbox-ad-title">Your privacy matters to us</div><div class="inbox-ad-text">Learn about our zero-scanning policy</div></div><span class="inbox-ad-label">Info</span></div>
+            <div class="email-card"><div class="email-card-header">
+                <h1 class="email-subject-line">${escapeHtml(email.subject || '(no subject)')}<span class="e2e-badge"><i class="fas fa-lock"></i> E2E Encrypted</span></h1>
+                <div class="sender-row"><div class="sender-avatar-lg" style="background:${color}">${name[0].toUpperCase()}</div><div class="sender-info"><div class="sender-name">${escapeHtml(name)}</div><div class="sender-email">to ${email.to_email}</div></div><div class="email-datetime"><div>${dateStr}</div><div>${timeStr}</div></div></div>
+            </div><div class="email-body">${email.body_html || (email.body_text ? email.body_text.replace(/\n/g, '<br>') : '<em style="color:var(--text-light);">No content</em>')}</div></div>
+            <div class="reply-card"><div class="reply-header"><i class="fas fa-reply"></i> Reply<span class="e2e-indicator"><i class="fas fa-lock"></i> E2E Encrypted</span></div><div class="reply-body"><textarea id="reply-text" placeholder="Write your encrypted reply..."></textarea></div><div class="reply-footer"><button class="reply-tool" title="Bold"><i class="fas fa-bold"></i></button><button class="reply-tool" title="Italic"><i class="fas fa-italic"></i></button><button class="reply-tool" title="Link"><i class="fas fa-link"></i></button><button class="reply-tool" title="Attach"><i class="fas fa-paperclip"></i></button><button class="reply-send" onclick="sendReply(${email.id})"><i class="fas fa-lock"></i> Send Encrypted</button></div></div>
+        </div>`;
+    if (window.innerWidth < 992) document.getElementById('back-btn').style.display = 'flex';
+}
+
+async function toggleStar(id) { try { await fetch(`/api/email/${id}/star`, {method: 'POST', credentials: 'same-origin'}); const email = emails.find(e => e.id === id); if (email) email.is_starred = !email.is_starred; renderEmailList(); } catch(e) {} }
+
+async function deleteEmail() { if (!currentEmail) return; try { await fetch(`/api/email/${currentEmail}/move`, { method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'same-origin', body: JSON.stringify({folder: 'trash'}) }); showToast('Moved to trash', 'success'); loadFolder(currentFolder); } catch(e) { showToast('Error', 'error'); } }
+
+async function archiveEmail() { showToast('Archived', 'success'); }
+
+let searchTimeout;
+function handleSearch(e) { clearTimeout(searchTimeout); const q = e.target.value.trim(); if (e.key === 'Enter') { fetchEmails(currentFolder, q); return; } searchTimeout = setTimeout(() => { if (q.length >= 2 || q.length === 0) { currentPage = 1; fetchEmails(currentFolder, q); } }, 400); }
+
+function refreshEmails() { loadFolder(currentFolder); loadCounts(); showToast('Refreshed', 'success'); }
+function toggleSelectAll() { const checked = document.getElementById('select-all').checked; document.querySelectorAll('.email-checkbox').forEach(cb => cb.checked = checked); }
+function deleteSelected() { const count = document.querySelectorAll('.email-checkbox:checked').length; if (count > 0) showToast(`${count} emails deleted`, 'success'); }
+function archiveSelected() { const count = document.querySelectorAll('.email-checkbox:checked').length; if (count > 0) showToast(`${count} emails archived`, 'success'); }
+function prevPage() { if (currentPage > 1) { currentPage--; fetchEmails(currentFolder); } }
+function nextPage() { currentPage++; fetchEmails(currentFolder); }
+
+function openCompose(replyTo = null) { if (replyTo) { document.getElementById('compose-to').value = replyTo.from_email || ''; document.getElementById('compose-subject').value = 'Re: ' + (replyTo.subject || ''); } document.getElementById('compose-modal').classList.add('active'); document.getElementById('compose-to').focus(); }
+function closeCompose() { document.getElementById('compose-modal').classList.remove('active'); }
+function minimizeCompose() {}
+function maximizeCompose() {}
+
+async function sendEmail() {
+    const to = document.getElementById('compose-to').value;
+    const cc = document.getElementById('compose-cc').value;
+    const subject = document.getElementById('compose-subject').value;
+    const body = document.getElementById('compose-body').value;
+    if (!to) { showToast('Please enter a recipient', 'error'); return; }
+    try {
+        const r = await fetch('/api/send', { method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'same-origin', body: JSON.stringify({to, cc, subject, body, encrypted: true}) });
+        const data = await r.json();
+        if (data.success) { closeCompose(); document.getElementById('compose-to').value = ''; document.getElementById('compose-cc').value = ''; document.getElementById('compose-subject').value = ''; document.getElementById('compose-body').value = ''; showToast('Email sent securely!', 'success'); }
+        else { showToast('Error: ' + data.error, 'error'); }
+    } catch(e) { showToast('Error sending email', 'error'); }
+}
+
+async function sendReply(replyToId) {
+    const body = document.getElementById('reply-text').value;
+    if (!body.trim()) { showToast('Please write a message', 'error'); return; }
+    const email = emails.find(e => e.id === replyToId);
+    if (!email) return;
+    try {
+        const r = await fetch('/api/send', { method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'same-origin', body: JSON.stringify({ to: email.from_email, subject: 'Re: ' + (email.subject || ''), body: body, reply_to_id: replyToId, encrypted: true }) });
+        const data = await r.json();
+        if (data.success) { showToast('Reply sent securely!', 'success'); document.getElementById('reply-text').value = ''; }
+        else { showToast('Error: ' + data.error, 'error'); }
+    } catch(e) { showToast('Error', 'error'); }
+}
+
+function replyEmail() { const email = emails.find(e => e.id === currentEmail); if (email) openCompose(email); }
+function forwardEmail() { const email = emails.find(e => e.id === currentEmail); if (email) { document.getElementById('compose-to').value = ''; document.getElementById('compose-subject').value = 'Fwd: ' + (email.subject || ''); document.getElementById('compose-body').value = '\n\n---\nForwarded message'; document.getElementById('compose-modal').classList.add('active'); } }
+
+function saveDraft() { showToast('Draft saved', 'success'); }
+function scheduleSend() { showToast('Schedule send coming soon!', 'info'); }
+
+function showPanel(name) { document.getElementById('panel-' + name).classList.add('open'); if (name === 'calendar') renderCalendar(); if (name === 'contacts') loadContacts(); if (name === 'files') loadFiles(); }
+function closePanel(name) { document.getElementById('panel-' + name).classList.remove('open'); }
+function renderCalendar() { const now = new Date(); const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']; document.getElementById('calendar-content').innerHTML = '<div style="text-align:center;margin-bottom:20px;"><h4 style="font-size:16px;font-weight:600;">' + monthNames[now.getMonth()] + ' ' + now.getFullYear() + '</h4></div><p style="color:var(--text-light);text-align:center;">Calendar coming soon!</p>'; }
+async function loadContacts() { document.getElementById('contacts-content').innerHTML = '<p style="color:var(--text-light);text-align:center;">Loading contacts...</p>'; }
+function loadFiles() { document.getElementById('files-content').innerHTML = '<p style="color:var(--text-light);text-align:center;">No files yet</p>'; }
+function showHelp() { showToast('Help center coming soon!', 'info'); }
+
+function showToast(message, type = 'success') { const toast = document.getElementById('toast'); document.getElementById('toast-message').textContent = message; toast.className = 'toast ' + type + ' show'; setTimeout(() => toast.classList.remove('show'), 3000); }
+
+// Discard compose
+function discardCompose() {
+    document.getElementById('compose-to').value = '';
+    document.getElementById('compose-subject').value = '';
+    document.getElementById('compose-body').value = '';
+    closeCompose();
+    showToast('Message discarded', 'info');
+}
+
+// Toggle live chat
+function toggleLiveChat() {
+    const toggle = document.getElementById('chat-toggle');
+    const knob = document.getElementById('chat-toggle-knob');
+    const isActive = toggle.dataset.active === 'true';
+    
+    if (isActive) {
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+    } else {
+        toggle.style.background = '#10b981';
+        knob.style.left = '20px';
+        toggle.dataset.active = 'true';
+        
+        // Open live chat window
+        openLiveChatWindow();
+    }
+}
+
+// Open live chat window
+function openLiveChatWindow() {
+    const toEmail = document.getElementById('compose-to').value;
+    if (!toEmail) {
+        showToast('Enter a recipient email first', 'error');
+        // Reset toggle
+        const toggle = document.getElementById('chat-toggle');
+        const knob = document.getElementById('chat-toggle-knob');
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+        return;
+    }
+    
+    // Create or show chat window
+    let chatWindow = document.getElementById('live-chat-window');
+    let overlay = document.getElementById('live-chat-overlay');
+    
+    if (!chatWindow) {
+        createLiveChatWindow();
+        chatWindow = document.getElementById('live-chat-window');
+        overlay = document.getElementById('live-chat-overlay');
+    }
+    
+    // Set recipient
+    const name = toEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\w/g, l => l.toUpperCase());
+    document.getElementById('chat-recipient-name').textContent = name;
+    document.getElementById('chat-avatar').textContent = name[0].toUpperCase();
+    document.getElementById('chat-avatar').style.background = getColorForEmail(toEmail);
+    window.currentChatUser = toEmail;
+    
+    overlay.classList.add('open');
+    chatWindow.classList.add('open');
+    document.getElementById('chat-input').focus();
+}
+
+// Create live chat window
+function createLiveChatWindow() {
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'live-chat-overlay';
+    overlay.className = 'chat-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) closeLiveChatWindow(); };
+    
+    // Chat window
+    const chatWindow = document.createElement('div');
+    chatWindow.id = 'live-chat-window';
+    chatWindow.className = 'live-chat-window';
+    chatWindow.innerHTML = `
+        <div class="chat-header" style="background:linear-gradient(135deg,#f86d31,#e55a1f);padding:12px 16px;display:flex;align-items:center;gap:12px;color:white;">
+            <div id="chat-avatar" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-weight:600;">?</div>
+            <div style="flex:1;">
+                <div id="chat-recipient-name" style="font-weight:600;font-size:15px;">Select Contact</div>
+                <div style="font-size:12px;opacity:0.9;display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;background:#4ade80;border-radius:50%;"></span> Online</div>
+            </div>
+            <button onclick="closeLiveChatWindow()" style="width:36px;height:36px;border:none;background:rgba(255,255,255,0.15);color:white;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chat-messages" style="flex:1;padding:16px;overflow-y:auto;background:#e5ddd5;display:flex;flex-direction:column;gap:4px;">
+            <div style="text-align:center;margin:16px 0;"><span style="background:#e1e7eb;color:#54656f;padding:6px 14px;border-radius:8px;font-size:12px;">Today</span></div>
+        </div>
+        <div style="background:#f0f2f5;padding:10px 12px;display:flex;align-items:center;gap:8px;">
+            <button onclick="chatAddEmoji()" style="width:40px;height:40px;border:none;background:transparent;color:#54656f;border-radius:50%;cursor:pointer;font-size:18px;"><i class="fas fa-smile"></i></button>
+            <div style="flex:1;background:white;border-radius:24px;display:flex;align-items:center;padding:0 12px;">
+                <input type="text" id="chat-input" placeholder="Type a message" style="flex:1;border:none;padding:10px 0;font-size:14px;outline:none;background:transparent;" onkeypress="if(event.key==='Enter')sendChatMsg()">
+            </div>
+            <button onclick="sendChatMsg()" style="width:44px;height:44px;border:none;background:linear-gradient(135deg,#f86d31,#e55a1f);color:white;border-radius:50%;cursor:pointer;font-size:18px;box-shadow:0 4px 12px rgba(248,109,49,0.35);"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(chatWindow);
+}
+
+// Close live chat
+function closeLiveChatWindow() {
+    document.getElementById('live-chat-overlay')?.classList.remove('open');
+    document.getElementById('live-chat-window')?.classList.remove('open');
+    // Reset toggle
+    const toggle = document.getElementById('chat-toggle');
+    const knob = document.getElementById('chat-toggle-knob');
+    if (toggle && knob) {
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+    }
+}
+
+// Send chat message
+async function sendChatMsg() {
+    const input = document.getElementById('chat-input');
+    const content = input.value.trim();
+    if (!content || !window.currentChatUser) return;
+    
+    input.value = '';
+    
+    // Add to UI
+    addChatBubble(content, true);
+    
+    // Send to server
+    try {
+        await fetch('/api/chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ to: window.currentChatUser, content: content })
+        });
+    } catch(e) {}
+}
+
+// Add chat bubble
+function addChatBubble(content, isSent) {
+    const container = document.getElementById('chat-messages');
+    const bubble = document.createElement('div');
+    bubble.style.cssText = `max-width:80%;padding:8px 12px;border-radius:8px;font-size:14px;line-height:1.4;align-self:${isSent ? 'flex-end' : 'flex-start'};background:${isSent ? '#dcf8c6' : 'white'};`;
+    
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    bubble.innerHTML = `${escapeHtml(content)}<div style="font-size:10px;color:#667781;margin-top:4px;text-align:right;">${time} ${isSent ? '<i class="fas fa-check-double" style="color:#53bdeb;"></i>' : ''}</div>`;
+    
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+}
+
+// Chat emoji
+function chatAddEmoji() {
+    const emojis = ['😀','😊','👍','❤️','🎉','✨','🔥','💯','👏','🙏'];
+    const input = document.getElementById('chat-input');
+    input.value += emojis[Math.floor(Math.random() * emojis.length)];
+    input.focus();
+}
+
+// Helper for colors
+function getColorForEmail(email) {
+    const colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b'];
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) hash += email.charCodeAt(i);
+    return colors[hash % colors.length];
+}
+
+// Helper for escaping
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Hide send menu when clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('compose-send-menu');
+    if (menu && !e.target.closest('.compose-send-wrapper')) {
+        menu.style.display = 'none';
+    }
+});
+
+
+// Open Live Chat in popup window
+function openLiveChatPopup() {
+    const toEmail = document.getElementById('compose-to').value.trim();
+    if (!toEmail) {
+        showToast('Enter a recipient email first', 'error');
+        document.getElementById('compose-to').focus();
+        return;
+    }
+    
+    // Open chat in new popup window
+    const width = 420;
+    const height = 600;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    
+    const chatUrl = '/chat?with=' + encodeURIComponent(toEmail);
+    window.open(chatUrl, 'SendBabaChat', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no`);
+}
+
+
+// ========== CHAT HISTORY FUNCTIONS ==========
+
+// Open chat history panel
+function openChatHistory() {
+    document.getElementById('chat-history-overlay').style.display = 'flex';
+    loadChatHistory();
+}
+
+// Close chat history
+function closeChatHistory() {
+    document.getElementById('chat-history-overlay').style.display = 'none';
+}
+
+// Load chat conversations
+async function loadChatHistory() {
+    const container = document.getElementById('chat-history-list');
+    
+    try {
+        const r = await fetch('/api/chat/conversations', { credentials: 'same-origin' });
+        const data = await r.json();
+        
+        if (data.success && data.conversations && data.conversations.length > 0) {
+            container.innerHTML = data.conversations.map(conv => {
+                const initial = conv.with_email[0].toUpperCase();
+                const name = conv.with_name || conv.with_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const unread = conv.unread_count > 0 ? `<span style="background:#ef4444;color:white;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;">${conv.unread_count}</span>` : '';
+                const time = formatChatTime(conv.last_message_at);
+                const preview = conv.last_message ? (conv.last_message.length > 35 ? conv.last_message.substring(0,35) + '...' : conv.last_message) : 'No messages yet';
+                
+                return `
+                    <div onclick="openChat('${conv.with_email}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;border-radius:12px;transition:background 0.15s;margin-bottom:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+                        <div style="width:48px;height:48px;border-radius:50%;background:${getAvatarColor(conv.with_email)};display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:18px;flex-shrink:0;">${initial}</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                                <span style="font-weight:600;font-size:14px;color:#1f2937;">${escapeHtml(name)}</span>
+                                <span style="font-size:11px;color:#9ca3af;">${time}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;">
+                                <span style="font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(preview)}</span>
+                                ${unread}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:#6b7280;">
+                    <i class="fas fa-comments" style="font-size:48px;margin-bottom:16px;opacity:0.3;display:block;"></i>
+                    <div style="font-size:16px;font-weight:600;margin-bottom:4px;">No chats yet</div>
+                    <div style="font-size:13px;">Start a conversation from compose</div>
+                </div>
+            `;
+        }
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Failed to load chats</div>';
+    }
+}
+
+// Open chat window
+function openChat(email) {
+    closeChatHistory();
+    const width = 420;
+    const height = 600;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    window.open('/chat?with=' + encodeURIComponent(email), 'SendBabaChat_' + email.replace(/[^a-z0-9]/gi, ''), `width=${width},height=${height},left=${left},top=${top},resizable=yes`);
+}
+
+// Start new chat
+function startNewChat() {
+    closeChatHistory();
+    const email = prompt('Enter email address to chat with:');
+    if (email && email.includes('@')) {
+        openChat(email);
+    } else if (email) {
+        showToast('Please enter a valid email', 'error');
+    }
+}
+
+// Format chat time
+function formatChatTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Now';
+    if (diff < 3600000) return Math.floor(diff/60000) + 'm';
+    if (diff < 86400000) return Math.floor(diff/3600000) + 'h';
+    if (diff < 604800000) return Math.floor(diff/86400000) + 'd';
+    return date.toLocaleDateString();
+}
+
+// Get avatar color
+function getAvatarColor(email) {
+    const colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#84cc16'];
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) hash += email.charCodeAt(i);
+    return colors[hash % colors.length];
+}
+
+// Check for unread chats periodically
+async function checkUnreadChats() {
+    try {
+        const r = await fetch('/api/chat/unread-count', { credentials: 'same-origin' });
+        const data = await r.json();
+        const dot = document.getElementById('chat-dot');
+        if (dot) {
+            dot.style.display = data.count > 0 ? 'block' : 'none';
+        }
+    } catch(e) {}
+}
+
+// Check unread chats every 30 seconds
+setInterval(checkUnreadChats, 30000);
+checkUnreadChats();
+
+</script>
+<script src="/static/js/realtime.js">
+// Discard compose
+function discardCompose() {
+    document.getElementById('compose-to').value = '';
+    document.getElementById('compose-subject').value = '';
+    document.getElementById('compose-body').value = '';
+    closeCompose();
+    showToast('Message discarded', 'info');
+}
+
+// Toggle live chat
+function toggleLiveChat() {
+    const toggle = document.getElementById('chat-toggle');
+    const knob = document.getElementById('chat-toggle-knob');
+    const isActive = toggle.dataset.active === 'true';
+    
+    if (isActive) {
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+    } else {
+        toggle.style.background = '#10b981';
+        knob.style.left = '20px';
+        toggle.dataset.active = 'true';
+        
+        // Open live chat window
+        openLiveChatWindow();
+    }
+}
+
+// Open live chat window
+function openLiveChatWindow() {
+    const toEmail = document.getElementById('compose-to').value;
+    if (!toEmail) {
+        showToast('Enter a recipient email first', 'error');
+        // Reset toggle
+        const toggle = document.getElementById('chat-toggle');
+        const knob = document.getElementById('chat-toggle-knob');
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+        return;
+    }
+    
+    // Create or show chat window
+    let chatWindow = document.getElementById('live-chat-window');
+    let overlay = document.getElementById('live-chat-overlay');
+    
+    if (!chatWindow) {
+        createLiveChatWindow();
+        chatWindow = document.getElementById('live-chat-window');
+        overlay = document.getElementById('live-chat-overlay');
+    }
+    
+    // Set recipient
+    const name = toEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\w/g, l => l.toUpperCase());
+    document.getElementById('chat-recipient-name').textContent = name;
+    document.getElementById('chat-avatar').textContent = name[0].toUpperCase();
+    document.getElementById('chat-avatar').style.background = getColorForEmail(toEmail);
+    window.currentChatUser = toEmail;
+    
+    overlay.classList.add('open');
+    chatWindow.classList.add('open');
+    document.getElementById('chat-input').focus();
+}
+
+// Create live chat window
+function createLiveChatWindow() {
+    // Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'live-chat-overlay';
+    overlay.className = 'chat-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) closeLiveChatWindow(); };
+    
+    // Chat window
+    const chatWindow = document.createElement('div');
+    chatWindow.id = 'live-chat-window';
+    chatWindow.className = 'live-chat-window';
+    chatWindow.innerHTML = `
+        <div class="chat-header" style="background:linear-gradient(135deg,#f86d31,#e55a1f);padding:12px 16px;display:flex;align-items:center;gap:12px;color:white;">
+            <div id="chat-avatar" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-weight:600;">?</div>
+            <div style="flex:1;">
+                <div id="chat-recipient-name" style="font-weight:600;font-size:15px;">Select Contact</div>
+                <div style="font-size:12px;opacity:0.9;display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;background:#4ade80;border-radius:50%;"></span> Online</div>
+            </div>
+            <button onclick="closeLiveChatWindow()" style="width:36px;height:36px;border:none;background:rgba(255,255,255,0.15);color:white;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chat-messages" style="flex:1;padding:16px;overflow-y:auto;background:#e5ddd5;display:flex;flex-direction:column;gap:4px;">
+            <div style="text-align:center;margin:16px 0;"><span style="background:#e1e7eb;color:#54656f;padding:6px 14px;border-radius:8px;font-size:12px;">Today</span></div>
+        </div>
+        <div style="background:#f0f2f5;padding:10px 12px;display:flex;align-items:center;gap:8px;">
+            <button onclick="chatAddEmoji()" style="width:40px;height:40px;border:none;background:transparent;color:#54656f;border-radius:50%;cursor:pointer;font-size:18px;"><i class="fas fa-smile"></i></button>
+            <div style="flex:1;background:white;border-radius:24px;display:flex;align-items:center;padding:0 12px;">
+                <input type="text" id="chat-input" placeholder="Type a message" style="flex:1;border:none;padding:10px 0;font-size:14px;outline:none;background:transparent;" onkeypress="if(event.key==='Enter')sendChatMsg()">
+            </div>
+            <button onclick="sendChatMsg()" style="width:44px;height:44px;border:none;background:linear-gradient(135deg,#f86d31,#e55a1f);color:white;border-radius:50%;cursor:pointer;font-size:18px;box-shadow:0 4px 12px rgba(248,109,49,0.35);"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(chatWindow);
+}
+
+// Close live chat
+function closeLiveChatWindow() {
+    document.getElementById('live-chat-overlay')?.classList.remove('open');
+    document.getElementById('live-chat-window')?.classList.remove('open');
+    // Reset toggle
+    const toggle = document.getElementById('chat-toggle');
+    const knob = document.getElementById('chat-toggle-knob');
+    if (toggle && knob) {
+        toggle.style.background = 'rgba(255,255,255,0.2)';
+        knob.style.left = '2px';
+        toggle.dataset.active = 'false';
+    }
+}
+
+// Send chat message
+async function sendChatMsg() {
+    const input = document.getElementById('chat-input');
+    const content = input.value.trim();
+    if (!content || !window.currentChatUser) return;
+    
+    input.value = '';
+    
+    // Add to UI
+    addChatBubble(content, true);
+    
+    // Send to server
+    try {
+        await fetch('/api/chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ to: window.currentChatUser, content: content })
+        });
+    } catch(e) {}
+}
+
+// Add chat bubble
+function addChatBubble(content, isSent) {
+    const container = document.getElementById('chat-messages');
+    const bubble = document.createElement('div');
+    bubble.style.cssText = `max-width:80%;padding:8px 12px;border-radius:8px;font-size:14px;line-height:1.4;align-self:${isSent ? 'flex-end' : 'flex-start'};background:${isSent ? '#dcf8c6' : 'white'};`;
+    
+    const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    bubble.innerHTML = `${escapeHtml(content)}<div style="font-size:10px;color:#667781;margin-top:4px;text-align:right;">${time} ${isSent ? '<i class="fas fa-check-double" style="color:#53bdeb;"></i>' : ''}</div>`;
+    
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+}
+
+// Chat emoji
+function chatAddEmoji() {
+    const emojis = ['😀','😊','👍','❤️','🎉','✨','🔥','💯','👏','🙏'];
+    const input = document.getElementById('chat-input');
+    input.value += emojis[Math.floor(Math.random() * emojis.length)];
+    input.focus();
+}
+
+// Helper for colors
+function getColorForEmail(email) {
+    const colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b'];
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) hash += email.charCodeAt(i);
+    return colors[hash % colors.length];
+}
+
+// Helper for escaping
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Hide send menu when clicking outside
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('compose-send-menu');
+    if (menu && !e.target.closest('.compose-send-wrapper')) {
+        menu.style.display = 'none';
+    }
+});
+
+
+// Open Live Chat in popup window
+function openLiveChatPopup() {
+    const toEmail = document.getElementById('compose-to').value.trim();
+    if (!toEmail) {
+        showToast('Enter a recipient email first', 'error');
+        document.getElementById('compose-to').focus();
+        return;
+    }
+    
+    // Open chat in new popup window
+    const width = 420;
+    const height = 600;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    
+    const chatUrl = '/chat?with=' + encodeURIComponent(toEmail);
+    window.open(chatUrl, 'SendBabaChat', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no`);
+}
+
+
+// ========== CHAT HISTORY FUNCTIONS ==========
+
+// Open chat history panel
+function openChatHistory() {
+    document.getElementById('chat-history-overlay').style.display = 'flex';
+    loadChatHistory();
+}
+
+// Close chat history
+function closeChatHistory() {
+    document.getElementById('chat-history-overlay').style.display = 'none';
+}
+
+// Load chat conversations
+async function loadChatHistory() {
+    const container = document.getElementById('chat-history-list');
+    
+    try {
+        const r = await fetch('/api/chat/conversations', { credentials: 'same-origin' });
+        const data = await r.json();
+        
+        if (data.success && data.conversations && data.conversations.length > 0) {
+            container.innerHTML = data.conversations.map(conv => {
+                const initial = conv.with_email[0].toUpperCase();
+                const name = conv.with_name || conv.with_email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const unread = conv.unread_count > 0 ? `<span style="background:#ef4444;color:white;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;">${conv.unread_count}</span>` : '';
+                const time = formatChatTime(conv.last_message_at);
+                const preview = conv.last_message ? (conv.last_message.length > 35 ? conv.last_message.substring(0,35) + '...' : conv.last_message) : 'No messages yet';
+                
+                return `
+                    <div onclick="openChat('${conv.with_email}')" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;border-radius:12px;transition:background 0.15s;margin-bottom:4px;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+                        <div style="width:48px;height:48px;border-radius:50%;background:${getAvatarColor(conv.with_email)};display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:18px;flex-shrink:0;">${initial}</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+                                <span style="font-weight:600;font-size:14px;color:#1f2937;">${escapeHtml(name)}</span>
+                                <span style="font-size:11px;color:#9ca3af;">${time}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;">
+                                <span style="font-size:13px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(preview)}</span>
+                                ${unread}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = `
+                <div style="text-align:center;padding:60px 20px;color:#6b7280;">
+                    <i class="fas fa-comments" style="font-size:48px;margin-bottom:16px;opacity:0.3;display:block;"></i>
+                    <div style="font-size:16px;font-weight:600;margin-bottom:4px;">No chats yet</div>
+                    <div style="font-size:13px;">Start a conversation from compose</div>
+                </div>
+            `;
+        }
+    } catch(e) {
+        container.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">Failed to load chats</div>';
+    }
+}
+
+// Open chat window
+function openChat(email) {
+    closeChatHistory();
+    const width = 420;
+    const height = 600;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    window.open('/chat?with=' + encodeURIComponent(email), 'SendBabaChat_' + email.replace(/[^a-z0-9]/gi, ''), `width=${width},height=${height},left=${left},top=${top},resizable=yes`);
+}
+
+// Start new chat
+function startNewChat() {
+    closeChatHistory();
+    const email = prompt('Enter email address to chat with:');
+    if (email && email.includes('@')) {
+        openChat(email);
+    } else if (email) {
+        showToast('Please enter a valid email', 'error');
+    }
+}
+
+// Format chat time
+function formatChatTime(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Now';
+    if (diff < 3600000) return Math.floor(diff/60000) + 'm';
+    if (diff < 86400000) return Math.floor(diff/3600000) + 'h';
+    if (diff < 604800000) return Math.floor(diff/86400000) + 'd';
+    return date.toLocaleDateString();
+}
+
+// Get avatar color
+function getAvatarColor(email) {
+    const colors = ['#f86d31','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#84cc16'];
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) hash += email.charCodeAt(i);
+    return colors[hash % colors.length];
+}
+
+// Check for unread chats periodically
+async function checkUnreadChats() {
+    try {
+        const r = await fetch('/api/chat/unread-count', { credentials: 'same-origin' });
+        const data = await r.json();
+        const dot = document.getElementById('chat-dot');
+        if (dot) {
+            dot.style.display = data.count > 0 ? 'block' : 'none';
+        }
+    } catch(e) {}
+}
+
+// Check unread chats every 30 seconds
+setInterval(checkUnreadChats, 30000);
+checkUnreadChats();
+
+</script>
+
+    <!-- Chat History Modal -->
+    <div class="chat-history-overlay" id="chat-history-overlay" onclick="if(event.target===this)closeChatHistory()" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center;">
+        <div class="chat-history-modal" style="width:420px;max-height:80vh;background:white;border-radius:16px;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,0.3);display:flex;flex-direction:column;">
+            <div style="padding:16px 20px;background:linear-gradient(135deg,#f86d31,#e55a1f);color:white;display:flex;align-items:center;gap:12px;">
+                <i class="fas fa-comments" style="font-size:20px;"></i>
+                <span style="font-size:16px;font-weight:600;flex:1;">Live Chats</span>
+                <button onclick="closeChatHistory()" style="width:32px;height:32px;border:none;background:rgba(255,255,255,0.2);color:white;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="chat-history-list" style="flex:1;overflow-y:auto;padding:8px;">
+                <div style="text-align:center;padding:40px;color:#6b7280;">
+                    <i class="fas fa-spinner fa-spin" style="font-size:24px;margin-bottom:12px;display:block;"></i>
+                    Loading chats...
+                </div>
+            </div>
+            <div style="padding:12px 16px;border-top:1px solid #e5e7eb;background:#f9fafb;">
+                <button onclick="startNewChat()" style="width:100%;padding:12px;background:linear-gradient(135deg,#f86d31,#e55a1f);color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                    <i class="fas fa-plus"></i> New Chat
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Mobile App JS -->
+    
+    <!-- Ad Banner (above search in email list) -->
+    <!-- This is injected via JS into the appropriate location -->
+    
+    <!-- Floating Action Button (Compose) -->
+    <button class="fab-compose" onclick="openCompose()" title="Compose">
+        <i class="fas fa-pen"></i>
+    </button>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav-item active" data-tab="inbox" onclick="switchTab('inbox')">
+            <i class="fas fa-inbox"></i>
+            <span>Inbox</span>
+            <span class="bottom-nav-badge" id="inbox-badge" style="display:none;">0</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="sent" onclick="switchTab('sent')">
+            <i class="fas fa-paper-plane"></i>
+            <span>Sent</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="drafts" onclick="switchTab('drafts')">
+            <i class="fas fa-file-alt"></i>
+            <span>Drafts</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="tools" onclick="switchTab('tools')">
+            <i class="fas fa-th-large"></i>
+            <span>Tools</span>
+        </button>
+        <button class="bottom-nav-item" data-tab="settings" onclick="switchTab('settings')">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+        </button>
+    </nav>
+    
+    <!-- PWA Install Banner -->
+    <div class="pwa-install-banner" id="pwa-install-banner">
+        <button class="pwa-install-close" onclick="hideInstallBanner()">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="pwa-install-icon">
+            <i class="fas fa-paper-plane"></i>
+        </div>
+        <div class="pwa-install-content">
+            <div class="pwa-install-title">Install SendBaba</div>
+            <div class="pwa-install-desc">Add to home screen for quick access</div>
+        </div>
+        <button class="pwa-install-btn" onclick="installPWA()">Install</button>
+    </div>
+
+    
+    <script>
+        // Remove old sidebar elements on desktop
+        (function() {
+            if (window.innerWidth > 768) {
+                const oldSidebars = document.querySelectorAll('.sidebar:not(.app-sidebar), .nav-sidebar, .email-sidebar, .left-sidebar, .folder-list, .sidebar-nav, .mail-sidebar, .folders-panel');
+                oldSidebars.forEach(el => {
+                    if (el && !el.classList.contains('app-sidebar')) {
+                        el.style.display = 'none';
+                    }
+                });
+            }
+        })();
+    </script>
+    
+</html>

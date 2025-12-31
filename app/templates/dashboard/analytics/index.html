@@ -5,7 +5,6 @@
 
 {% block extra_css %}
 <style>
-.analytics-grid { display: grid; gap: 1rem; }
 .stat-card {
     background: white;
     border: 1px solid #e5e7eb;
@@ -26,34 +25,8 @@
     justify-content: center;
     font-size: 20px;
 }
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1f2937;
-    line-height: 1;
-}
-.stat-label {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin-top: 0.25rem;
-}
-.queue-card {
-    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    border-radius: 16px;
-    padding: 1.25rem;
-    color: white;
-}
-.queue-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #F97316;
-}
-.chart-card {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 1.5rem;
-}
+.stat-value { font-size: 2rem; font-weight: 700; color: #1f2937; line-height: 1; }
+.stat-label { font-size: 0.875rem; color: #6b7280; margin-top: 0.25rem; }
 .period-btn {
     padding: 0.5rem 1rem;
     border-radius: 8px;
@@ -65,58 +38,34 @@
     background: #f3f4f6;
     color: #6b7280;
 }
-.period-btn.active {
-    background: #F97316;
-    color: white;
+.period-btn.active { background: #F97316; color: white; }
+.period-btn:hover:not(.active) { background: #e5e7eb; }
+.progress-ring { transform: rotate(-90deg); }
+.chart-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 1.5rem;
 }
-.period-btn:hover:not(.active) {
-    background: #e5e7eb;
+.live-dot {
+    width: 8px; height: 8px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
 }
-.funnel-bar {
-    height: 8px;
-    background: #f3f4f6;
-    border-radius: 4px;
-    overflow: hidden;
-}
-.funnel-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.8s ease;
-}
-.mini-stat {
-    background: #f9fafb;
-    border-radius: 12px;
-    padding: 1rem;
-    text-align: center;
-}
-.campaign-row {
-    padding: 0.75rem;
-    border-radius: 8px;
-    transition: background 0.2s;
-}
-.campaign-row:hover {
-    background: #fff7ed;
-}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.failed-row:hover { background: #fef2f2; }
 .status-badge {
     padding: 4px 10px;
     border-radius: 20px;
     font-size: 11px;
     font-weight: 600;
 }
-.status-badge.sending { background: #fef3c7; color: #92400e; }
-.status-badge.completed { background: #dcfce7; color: #166534; }
-.status-badge.sent { background: #dcfce7; color: #166534; }
-.status-badge.failed { background: #fee2e2; color: #991b1b; }
-.live-dot {
-    width: 8px;
-    height: 8px;
-    background: #22c55e;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-}
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+.campaign-progress-card {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-radius: 16px;
+    padding: 1.5rem;
+    color: white;
 }
 </style>
 {% endblock %}
@@ -130,7 +79,7 @@
                 <span class="live-dot"></span>
                 Live
             </div>
-            <span class="text-sm text-gray-500">Updated just now</span>
+            <span class="text-sm text-gray-500">Auto-updates every 10s</span>
         </div>
         
         <div class="flex items-center gap-2">
@@ -140,116 +89,115 @@
                 <button onclick="changePeriod('30d')" class="period-btn {{ 'active' if period == '30d' }}">30d</button>
                 <button onclick="changePeriod('90d')" class="period-btn {{ 'active' if period == '90d' }}">90d</button>
             </div>
-            <button onclick="exportData()" class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
+            <button onclick="refreshData()" class="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
+                <i class="fas fa-sync-alt" id="refresh-icon"></i> Refresh
+            </button>
+            <button onclick="exportData()" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 flex items-center gap-2">
                 <i class="fas fa-download"></i> Export
             </button>
         </div>
     </div>
 
-    <!-- Queue Status (Dark Cards) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="queue-card">
-            <div class="flex items-center gap-2 mb-2">
-                <i class="fas fa-clock text-orange-400"></i>
-                <span class="text-gray-400 text-sm">Pending</span>
-            </div>
-            <div class="queue-value">{{ "{:,}".format(queue_stats.pending|default(0)) }}</div>
-        </div>
-        <div class="queue-card">
-            <div class="flex items-center gap-2 mb-2">
-                <i class="fas fa-spinner text-blue-400"></i>
-                <span class="text-gray-400 text-sm">Processing</span>
-            </div>
-            <div class="queue-value">{{ "{:,}".format(queue_stats.processing|default(0)) }}</div>
-        </div>
-        <div class="queue-card">
-            <div class="flex items-center gap-2 mb-2">
-                <i class="fas fa-check text-green-400"></i>
-                <span class="text-gray-400 text-sm">Sent Today</span>
-            </div>
-            <div class="queue-value">{{ "{:,}".format(queue_stats.completed_today|default(0)) }}</div>
-        </div>
-        <div class="queue-card">
-            <div class="flex items-center gap-2 mb-2">
-                <i class="fas fa-times text-red-400"></i>
-                <span class="text-gray-400 text-sm">Failed Today</span>
-            </div>
-            <div class="queue-value">{{ "{:,}".format(queue_stats.failed_today|default(0)) }}</div>
-        </div>
+    <!-- Active Campaign Progress (if any sending) -->
+    <div id="active-campaign-section" class="hidden">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+            Active Campaign
+        </h2>
+        <div id="active-campaign-card"></div>
     </div>
 
-    <!-- Main Stats -->
+    <!-- Main Stats - Total Sent vs Total Contacts -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
+        <!-- Total Sent / Total Contacts -->
+        <div class="stat-card col-span-2 lg:col-span-1">
+            <div class="flex items-center justify-between mb-2">
                 <div class="stat-icon bg-orange-100">
                     <i class="fas fa-paper-plane text-orange-500"></i>
                 </div>
+                <span class="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full" id="send-percent">0%</span>
             </div>
-            <div class="stat-value">{{ "{:,}".format(overview.total_sent|default(0)) }}</div>
-            <div class="stat-label">Total Sent</div>
-            <div class="text-xs text-gray-400 mt-1">{{ "{:,}".format(overview.avg_daily|default(0)|int) }}/day avg</div>
+            <div class="stat-value" id="stat-sent">{{ "{:,}".format(overview.total_sent|default(0)) }}</div>
+            <div class="stat-label">Sent of <span id="stat-total-contacts" class="font-semibold text-gray-900">{{ "{:,}".format(overview.total_contacts|default(0)) }}</span> contacts</div>
+            <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-orange-500 h-2 rounded-full transition-all" id="send-progress" style="width: 0%"></div>
+            </div>
         </div>
 
+        <!-- Delivered -->
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center justify-between mb-2">
                 <div class="stat-icon bg-green-100">
                     <i class="fas fa-check-double text-green-500"></i>
                 </div>
-                <span class="text-sm font-semibold text-green-600">{{ overview.delivery_rate|default(0) }}%</span>
+                <span class="text-xs font-medium text-green-600" id="delivery-rate">{{ overview.delivery_rate|default(0) }}%</span>
             </div>
-            <div class="stat-value">{{ "{:,}".format(overview.delivered|default(0)) }}</div>
+            <div class="stat-value text-green-600" id="stat-delivered">{{ "{:,}".format(overview.delivered|default(0)) }}</div>
             <div class="stat-label">Delivered</div>
         </div>
 
+        <!-- Opened -->
         <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center justify-between mb-2">
                 <div class="stat-icon bg-blue-100">
                     <i class="fas fa-envelope-open text-blue-500"></i>
                 </div>
-                <span class="text-sm font-semibold text-blue-600">{{ overview.open_rate|default(0) }}%</span>
+                <span class="text-xs font-medium text-blue-600" id="open-rate">{{ overview.open_rate|default(0) }}%</span>
             </div>
-            <div class="stat-value">{{ "{:,}".format(overview.opened|default(0)) }}</div>
+            <div class="stat-value text-blue-600" id="stat-opened">{{ "{:,}".format(overview.opened|default(0)) }}</div>
             <div class="stat-label">Opened</div>
         </div>
 
-        <div class="stat-card">
-            <div class="flex items-start justify-between mb-3">
-                <div class="stat-icon bg-purple-100">
-                    <i class="fas fa-mouse-pointer text-purple-500"></i>
+        <!-- Failed / Bounced -->
+        <div class="stat-card border-red-200">
+            <div class="flex items-center justify-between mb-2">
+                <div class="stat-icon bg-red-100">
+                    <i class="fas fa-exclamation-triangle text-red-500"></i>
                 </div>
-                <span class="text-sm font-semibold text-purple-600">{{ overview.click_rate|default(0) }}%</span>
+                <span class="text-xs font-medium text-red-600" id="fail-rate">{{ overview.bounce_rate|default(0) }}%</span>
             </div>
-            <div class="stat-value">{{ "{:,}".format(overview.clicked|default(0)) }}</div>
-            <div class="stat-label">Clicked</div>
+            <div class="stat-value text-red-600" id="stat-failed">{{ "{:,}".format((overview.failed|default(0)) + (overview.bounced|default(0))) }}</div>
+            <div class="stat-label">Failed / Bounced</div>
         </div>
     </div>
 
-    <!-- Secondary Stats -->
+    <!-- Secondary Stats Row -->
     <div class="grid grid-cols-3 lg:grid-cols-6 gap-3">
-        <div class="mini-stat">
-            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.bounced|default(0)) }}</div>
-            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-red-400 rounded-full mr-1"></span>Bounced</div>
+        <div class="bg-white border rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-purple-600" id="stat-clicked">{{ "{:,}".format(overview.clicked|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
+                <span class="w-2 h-2 bg-purple-400 rounded-full"></span>Clicked
+            </div>
         </div>
-        <div class="mini-stat">
-            <div class="text-xl font-bold text-gray-900">{{ overview.bounce_rate|default(0) }}%</div>
-            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-orange-400 rounded-full mr-1"></span>Bounce Rate</div>
+        <div class="bg-white border rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-yellow-600" id="stat-pending">{{ "{:,}".format(overview.pending|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
+                <span class="w-2 h-2 bg-yellow-400 rounded-full"></span>Processing
+            </div>
         </div>
-        <div class="mini-stat">
-            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.total_contacts|default(0)) }}</div>
-            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-blue-400 rounded-full mr-1"></span>Contacts</div>
+        <div class="bg-white border rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-red-600" id="stat-bounced">{{ "{:,}".format(overview.bounced|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
+                <span class="w-2 h-2 bg-red-400 rounded-full"></span>Bounced
+            </div>
         </div>
-        <div class="mini-stat">
-            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.active_contacts|default(0)) }}</div>
-            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-green-400 rounded-full mr-1"></span>Active</div>
+        <div class="bg-white border rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-gray-600" id="stat-unsubscribed">{{ "{:,}".format(overview.unsubscribed|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
+                <span class="w-2 h-2 bg-gray-400 rounded-full"></span>Unsubscribed
+            </div>
         </div>
-        <div class="mini-stat">
-            <div class="text-xl font-bold text-gray-900">{{ campaign_stats.sent|default(0) }}</div>
-            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-purple-400 rounded-full mr-1"></span>Campaigns</div>
+        <div class="bg-white border rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-blue-600" id="stat-active-contacts">{{ "{:,}".format(overview.active_contacts|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
+                <span class="w-2 h-2 bg-blue-400 rounded-full"></span>Active Contacts
+            </div>
         </div>
-        <div class="mini-stat">
-            <div class="text-xl font-bold text-gray-900">{{ "{:,}".format(overview.failed|default(0)) }}</div>
-            <div class="text-xs text-gray-500 mt-1"><span class="inline-block w-2 h-2 bg-red-400 rounded-full mr-1"></span>Failed</div>
+        <div class="bg-white border rounded-xl p-4 text-center">
+            <div class="text-2xl font-bold text-green-600" id="stat-avg-daily">{{ "{:,}".format(overview.avg_daily|default(0)) }}</div>
+            <div class="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
+                <span class="w-2 h-2 bg-green-400 rounded-full"></span>Avg Daily
+            </div>
         </div>
     </div>
 
@@ -260,10 +208,10 @@
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h3 class="font-semibold text-gray-900">Email Performance</h3>
-                    <p class="text-sm text-gray-500">Delivery over time</p>
+                    <p class="text-sm text-gray-500">Sent vs Failed over time</p>
                 </div>
                 <div class="flex gap-4 text-xs">
-                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-orange-500 rounded-full"></span> Sent</span>
+                    <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-full"></span> Sent</span>
                     <span class="flex items-center gap-1"><span class="w-3 h-3 bg-red-500 rounded-full"></span> Failed</span>
                 </div>
             </div>
@@ -273,123 +221,200 @@
         <!-- Delivery Funnel -->
         <div class="chart-card">
             <h3 class="font-semibold text-gray-900 mb-4">Delivery Funnel</h3>
-            
-            <div class="space-y-4">
-                {% set max_val = [engagement_funnel.sent|default(0), 1]|max %}
+            <div class="space-y-4" id="funnel-container">
+                {% set max_val = [engagement_funnel.sent|default(1), 1]|max %}
                 
                 <div>
                     <div class="flex justify-between text-sm mb-1">
                         <span class="text-gray-600"><i class="fas fa-paper-plane text-orange-500 mr-2"></i>Sent</span>
-                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.sent|default(0)) }}</span>
+                        <span class="font-semibold" id="funnel-sent">{{ "{:,}".format(engagement_funnel.sent|default(0)) }}</span>
                     </div>
-                    <div class="funnel-bar">
-                        <div class="funnel-fill bg-orange-500" style="width: 100%;"></div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-orange-500 h-2 rounded-full" style="width: 100%;"></div>
                     </div>
                 </div>
                 
                 <div>
                     <div class="flex justify-between text-sm mb-1">
                         <span class="text-gray-600"><i class="fas fa-check-double text-green-500 mr-2"></i>Delivered</span>
-                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.delivered|default(0)) }}</span>
+                        <span class="font-semibold" id="funnel-delivered">{{ "{:,}".format(engagement_funnel.delivered|default(0)) }}</span>
                     </div>
-                    <div class="funnel-bar">
-                        <div class="funnel-fill bg-green-500" style="width: {{ [(engagement_funnel.delivered|default(0) / max_val * 100)|int, 5]|max }}%;"></div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: {{ (engagement_funnel.delivered|default(0) / max_val * 100)|int }}%;"></div>
                     </div>
                 </div>
                 
                 <div>
                     <div class="flex justify-between text-sm mb-1">
                         <span class="text-gray-600"><i class="fas fa-envelope-open text-blue-500 mr-2"></i>Opened</span>
-                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.opened|default(0)) }}</span>
+                        <span class="font-semibold" id="funnel-opened">{{ "{:,}".format(engagement_funnel.opened|default(0)) }}</span>
                     </div>
-                    <div class="funnel-bar">
-                        <div class="funnel-fill bg-blue-500" style="width: {{ [(engagement_funnel.opened|default(0) / max_val * 100)|int, 3]|max }}%;"></div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: {{ (engagement_funnel.opened|default(0) / max_val * 100)|int }}%;"></div>
                     </div>
                 </div>
                 
                 <div>
                     <div class="flex justify-between text-sm mb-1">
                         <span class="text-gray-600"><i class="fas fa-mouse-pointer text-purple-500 mr-2"></i>Clicked</span>
-                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.clicked|default(0)) }}</span>
+                        <span class="font-semibold" id="funnel-clicked">{{ "{:,}".format(engagement_funnel.clicked|default(0)) }}</span>
                     </div>
-                    <div class="funnel-bar">
-                        <div class="funnel-fill bg-purple-500" style="width: {{ [(engagement_funnel.clicked|default(0) / max_val * 100)|int, 2]|max }}%;"></div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-purple-500 h-2 rounded-full" style="width: {{ (engagement_funnel.clicked|default(0) / max_val * 100)|int }}%;"></div>
                     </div>
                 </div>
                 
                 <div>
                     <div class="flex justify-between text-sm mb-1">
-                        <span class="text-gray-600"><i class="fas fa-times-circle text-red-500 mr-2"></i>Failed</span>
-                        <span class="font-semibold">{{ "{:,}".format(engagement_funnel.failed|default(0)) }}</span>
+                        <span class="text-gray-600"><i class="fas fa-times-circle text-red-500 mr-2"></i>Failed/Bounced</span>
+                        <span class="font-semibold" id="funnel-failed">{{ "{:,}".format(engagement_funnel.failed|default(0)) }}</span>
                     </div>
-                    <div class="funnel-bar">
-                        <div class="funnel-fill bg-red-500" style="width: {{ [(engagement_funnel.failed|default(0) / max_val * 100)|int, 2]|max }}%;"></div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-red-500 h-2 rounded-full" style="width: {{ (engagement_funnel.failed|default(0) / max_val * 100)|int }}%;"></div>
                     </div>
                 </div>
             </div>
             
             <div class="grid grid-cols-3 gap-2 mt-6 pt-4 border-t">
                 <div class="text-center p-2 bg-green-50 rounded-lg">
-                    <div class="text-lg font-bold text-green-600">{{ overview.delivery_rate|default(0) }}%</div>
+                    <div class="text-lg font-bold text-green-600" id="rate-delivery">{{ overview.delivery_rate|default(0) }}%</div>
                     <div class="text-xs text-green-700">Delivery</div>
                 </div>
                 <div class="text-center p-2 bg-blue-50 rounded-lg">
-                    <div class="text-lg font-bold text-blue-600">{{ overview.open_rate|default(0) }}%</div>
+                    <div class="text-lg font-bold text-blue-600" id="rate-open">{{ overview.open_rate|default(0) }}%</div>
                     <div class="text-xs text-blue-700">Open</div>
                 </div>
                 <div class="text-center p-2 bg-purple-50 rounded-lg">
-                    <div class="text-lg font-bold text-purple-600">{{ overview.click_rate|default(0) }}%</div>
+                    <div class="text-lg font-bold text-purple-600" id="rate-click">{{ overview.click_rate|default(0) }}%</div>
                     <div class="text-xs text-purple-700">Click</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Section -->
-    <div class="grid lg:grid-cols-3 gap-6">
-        <!-- Hourly Chart -->
-        <div class="chart-card">
-            <h3 class="font-semibold text-gray-900 mb-4">Send Time Distribution</h3>
-            <div id="hourlyChart" style="height: 200px;"></div>
+    <!-- Failed Emails Section -->
+    <div class="chart-card">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="font-semibold text-gray-900">Failed & Bounced Emails</h3>
+                <p class="text-sm text-gray-500">Emails that couldn't be delivered</p>
+            </div>
+            <button onclick="exportFailedEmails()" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 flex items-center gap-2">
+                <i class="fas fa-download"></i> Export Failed
+            </button>
         </div>
-
-        <!-- Recent Campaigns -->
-        <div class="lg:col-span-2 chart-card">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-gray-900">Recent Campaigns</h3>
-                <a href="/dashboard/campaigns" class="text-sm text-orange-600 hover:text-orange-700 font-medium">View All →</a>
+        
+        <div id="failed-emails-container">
+            {% if failed_emails and failed_emails|length > 0 %}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Reason</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Campaign</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for email in failed_emails[:20] %}
+                        <tr class="failed-row hover:bg-red-50">
+                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ email.recipient }}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full text-xs font-medium 
+                                    {% if email.status == 'bounced' %}bg-yellow-100 text-yellow-700
+                                    {% else %}bg-red-100 text-red-700{% endif %}">
+                                    {{ email.status|capitalize }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">{{ email.error or 'Unknown error' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-600">{{ email.campaign_name or 'N/A' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">{{ email.created_at }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-            
-            {% if top_campaigns %}
-            <div class="space-y-2">
-                {% for campaign in top_campaigns[:5] %}
-                <div class="campaign-row flex items-center justify-between">
-                    <div class="flex-1 min-w-0">
-                        <div class="font-medium text-gray-900 truncate">{{ campaign.name }}</div>
-                        <div class="text-xs text-gray-500">{{ campaign.created_at }}</div>
-                    </div>
-                    <div class="flex items-center gap-4 ml-4">
-                        <div class="text-right">
-                            <div class="font-semibold text-gray-900">{{ "{:,}".format(campaign.sent) }}</div>
-                            <div class="text-xs text-gray-500">sent</div>
-                        </div>
-                        <span class="status-badge {{ campaign.status }}">{{ campaign.status|capitalize }}</span>
-                    </div>
-                </div>
-                {% endfor %}
+            {% if failed_emails|length > 20 %}
+            <div class="mt-4 text-center">
+                <p class="text-sm text-gray-500">Showing 20 of {{ failed_emails|length }} failed emails</p>
             </div>
+            {% endif %}
             {% else %}
             <div class="text-center py-8">
-                <div class="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-paper-plane text-orange-300 text-xl"></i>
+                <div class="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-check text-green-500 text-xl"></i>
                 </div>
-                <p class="text-gray-500 text-sm mb-3">No campaigns yet</p>
-                <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600">
-                    <i class="fas fa-plus"></i> Create Campaign
-                </a>
+                <p class="text-gray-500">No failed emails in this period</p>
             </div>
             {% endif %}
         </div>
+    </div>
+
+    <!-- Recent Campaigns -->
+    <div class="chart-card">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-900">Recent Campaigns</h3>
+            <a href="/dashboard/campaigns" class="text-sm text-orange-600 hover:text-orange-700 font-medium">View All →</a>
+        </div>
+        
+        {% if top_campaigns %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Campaign</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Progress</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Opened</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Clicked</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase">Failed</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for campaign in top_campaigns[:10] %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-gray-900">{{ campaign.name or 'Untitled' }}</div>
+                            <div class="text-xs text-gray-500">{{ campaign.created_at }}</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium
+                                {% if campaign.status == 'sending' %}bg-green-100 text-green-700
+                                {% elif campaign.status == 'completed' %}bg-blue-100 text-blue-700
+                                {% elif campaign.status == 'failed' %}bg-red-100 text-red-700
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ campaign.status|capitalize }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <div class="flex-1 bg-gray-200 rounded-full h-2 min-w-[80px]">
+                                    <div class="bg-orange-500 h-2 rounded-full" style="width: {{ (campaign.sent / (campaign.total or 1) * 100)|int }}%"></div>
+                                </div>
+                                <span class="text-xs text-gray-600">{{ "{:,}".format(campaign.sent) }}/{{ "{:,}".format(campaign.total or 0) }}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-green-600">{{ "{:,}".format(campaign.opened or 0) }}</td>
+                        <td class="px-4 py-3 text-sm text-blue-600">{{ "{:,}".format(campaign.clicked or 0) }}</td>
+                        <td class="px-4 py-3 text-sm text-red-600">{{ "{:,}".format(campaign.failed or 0) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <div class="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-paper-plane text-orange-300 text-xl"></i>
+            </div>
+            <p class="text-gray-500 text-sm mb-3">No campaigns yet</p>
+            <a href="/dashboard/campaigns/create" class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600">
+                <i class="fas fa-plus"></i> Create Campaign
+            </a>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Domain Health -->
@@ -431,67 +456,149 @@
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
 <script>
 const emailTrends = {{ email_trends|safe }};
-const hourlyDist = {{ hourly_dist|safe }};
+let autoRefreshInterval = null;
 
-// Performance Chart
-const perfContainer = document.getElementById('performanceChart');
-if (perfContainer && emailTrends.length > 0) {
-    new ApexCharts(perfContainer, {
-        series: [
-            { name: 'Sent', data: emailTrends.map(d => d.sent || d.total || 0) },
-            { name: 'Failed', data: emailTrends.map(d => d.failed || 0) }
-        ],
-        chart: { type: 'area', height: 280, toolbar: { show: false }, fontFamily: 'inherit' },
-        colors: ['#F97316', '#ef4444'],
-        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
-        stroke: { curve: 'smooth', width: 2 },
-        dataLabels: { enabled: false },
-        grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
-        xaxis: {
-            categories: emailTrends.map(d => d.label || ''),
-            labels: { style: { colors: '#9ca3af', fontSize: '11px' } },
-            axisBorder: { show: false },
-            axisTicks: { show: false }
-        },
-        yaxis: {
-            labels: {
-                style: { colors: '#9ca3af', fontSize: '11px' },
-                formatter: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : Math.round(v)
-            }
-        },
-        legend: { show: false },
-        tooltip: { theme: 'light', y: { formatter: v => v ? v.toLocaleString() : '0' } }
-    }).render();
-} else if (perfContainer) {
-    perfContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-chart-area mr-2"></i>No data yet</div>';
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    loadActiveCampaign();
+    updateSendProgress();
+    startAutoRefresh();
+});
+
+function initCharts() {
+    const perfContainer = document.getElementById('performanceChart');
+    if (perfContainer && emailTrends.length > 0) {
+        new ApexCharts(perfContainer, {
+            series: [
+                { name: 'Sent', data: emailTrends.map(d => d.sent || d.total || 0) },
+                { name: 'Failed', data: emailTrends.map(d => d.failed || 0) }
+            ],
+            chart: { type: 'area', height: 280, toolbar: { show: false }, fontFamily: 'inherit' },
+            colors: ['#22c55e', '#ef4444'],
+            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
+            stroke: { curve: 'smooth', width: 2 },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#f3f4f6', strokeDashArray: 4 },
+            xaxis: {
+                categories: emailTrends.map(d => d.label || ''),
+                labels: { style: { colors: '#9ca3af', fontSize: '11px' } },
+                axisBorder: { show: false },
+                axisTicks: { show: false }
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: '#9ca3af', fontSize: '11px' },
+                    formatter: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : Math.round(v)
+                }
+            },
+            legend: { show: false },
+            tooltip: { theme: 'light', y: { formatter: v => v ? v.toLocaleString() : '0' } }
+        }).render();
+    } else if (perfContainer) {
+        perfContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><i class="fas fa-chart-area mr-2"></i>No data yet</div>';
+    }
 }
 
-// Hourly Chart
-const hourlyContainer = document.getElementById('hourlyChart');
-if (hourlyContainer && hourlyDist.some(d => d.count > 0)) {
-    new ApexCharts(hourlyContainer, {
-        series: [{ name: 'Emails', data: hourlyDist.map(d => d.count) }],
-        chart: { type: 'bar', height: 200, toolbar: { show: false }, fontFamily: 'inherit' },
-        colors: ['#F97316'],
-        plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
-        dataLabels: { enabled: false },
-        grid: { borderColor: '#f3f4f6' },
-        xaxis: {
-            categories: hourlyDist.map(d => d.hour),
-            labels: { style: { colors: '#9ca3af', fontSize: '9px' }, rotate: 0 },
-            axisBorder: { show: false },
-            axisTicks: { show: false }
-        },
-        yaxis: {
-            labels: {
-                style: { colors: '#9ca3af', fontSize: '10px' },
-                formatter: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : Math.round(v)
-            }
-        },
-        tooltip: { theme: 'light' }
-    }).render();
-} else if (hourlyContainer) {
-    hourlyContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400 text-sm"><i class="fas fa-clock mr-2"></i>No data yet</div>';
+function updateSendProgress() {
+    const sent = parseInt(document.getElementById('stat-sent').textContent.replace(/,/g, '')) || 0;
+    const total = parseInt(document.getElementById('stat-total-contacts').textContent.replace(/,/g, '')) || 1;
+    const percent = Math.min(Math.round((sent / total) * 100), 100);
+    document.getElementById('send-percent').textContent = percent + '%';
+    document.getElementById('send-progress').style.width = percent + '%';
+}
+
+async function loadActiveCampaign() {
+    try {
+        const res = await fetch('/dashboard/analytics/api/active-campaign');
+        const data = await res.json();
+        
+        const section = document.getElementById('active-campaign-section');
+        const card = document.getElementById('active-campaign-card');
+        
+        if (data.success && data.campaign) {
+            const c = data.campaign;
+            section.classList.remove('hidden');
+            card.innerHTML = `
+                <div class="campaign-progress-card">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-semibold">${c.name || 'Untitled Campaign'}</h3>
+                            <p class="text-gray-400 text-sm">Started ${c.started_at || 'recently'}</p>
+                        </div>
+                        <span class="px-3 py-1 bg-green-500 text-white text-xs rounded-full animate-pulse">SENDING</span>
+                    </div>
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span class="text-gray-400">Progress</span>
+                            <span class="font-semibold">${(c.sent || 0).toLocaleString()} / ${(c.total || 0).toLocaleString()} (${c.percent || 0}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-3">
+                            <div class="bg-gradient-to-r from-green-500 to-emerald-400 h-3 rounded-full transition-all" style="width: ${c.percent || 0}%"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold text-green-400">${(c.sent || 0).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400">Sent</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-red-400">${(c.failed || 0).toLocaleString()}</div>
+                            <div class="text-xs text-gray-400">Failed</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-orange-400">${c.rate || '0'}</div>
+                            <div class="text-xs text-gray-400">Emails/sec</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-blue-400">${c.eta || '--'}</div>
+                            <div class="text-xs text-gray-400">ETA</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            section.classList.add('hidden');
+        }
+    } catch (e) {
+        console.error('Error loading active campaign:', e);
+    }
+}
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    autoRefreshInterval = setInterval(() => {
+        loadActiveCampaign();
+        refreshStats();
+    }, 10000);
+}
+
+async function refreshStats() {
+    try {
+        const res = await fetch('/dashboard/analytics/api/overview?period={{ period }}');
+        const data = await res.json();
+        if (data.success) {
+            const o = data.overview;
+            document.getElementById('stat-sent').textContent = (o.total_sent || 0).toLocaleString();
+            document.getElementById('stat-delivered').textContent = (o.delivered || 0).toLocaleString();
+            document.getElementById('stat-opened').textContent = (o.opened || 0).toLocaleString();
+            document.getElementById('stat-clicked').textContent = (o.clicked || 0).toLocaleString();
+            document.getElementById('stat-failed').textContent = ((o.failed || 0) + (o.bounced || 0)).toLocaleString();
+            document.getElementById('stat-pending').textContent = (o.pending || 0).toLocaleString();
+            document.getElementById('stat-bounced').textContent = (o.bounced || 0).toLocaleString();
+            document.getElementById('delivery-rate').textContent = o.delivery_rate + '%';
+            document.getElementById('open-rate').textContent = o.open_rate + '%';
+            updateSendProgress();
+        }
+    } catch (e) {
+        console.error('Error refreshing stats:', e);
+    }
+}
+
+function refreshData() {
+    document.getElementById('refresh-icon').classList.add('fa-spin');
+    Promise.all([loadActiveCampaign(), refreshStats()]).finally(() => {
+        setTimeout(() => document.getElementById('refresh-icon').classList.remove('fa-spin'), 500);
+    });
 }
 
 function changePeriod(period) {
@@ -502,16 +609,8 @@ function exportData() {
     window.location.href = '/dashboard/analytics/api/export?period={{ period }}';
 }
 
-// Auto-refresh every 60 seconds
-setInterval(() => {
-    fetch('/dashboard/analytics/api/realtime')
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                // Could update queue stats here
-            }
-        })
-        .catch(() => {});
-}, 60000);
+function exportFailedEmails() {
+    window.location.href = '/dashboard/analytics/api/export-failed?period={{ period }}';
+}
 </script>
 {% endblock %}

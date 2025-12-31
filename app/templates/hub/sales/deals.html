@@ -1,0 +1,166 @@
+{% extends 'hub/base.html' %}
+{% block title %}Deals - Sales CRM{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Deals</h1>
+            <p class="text-gray-600">Manage all your sales deals</p>
+        </div>
+        <button onclick="openModal()" class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:shadow-lg flex items-center gap-2">
+            <i class="fas fa-plus"></i> New Deal
+        </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow-sm border p-4 flex flex-wrap gap-4">
+        <select id="filter-status" onchange="loadDeals()" class="px-4 py-2 border rounded-lg">
+            <option value="all">All Status</option>
+            <option value="open">Open</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+        </select>
+        <input type="text" id="search" placeholder="Search deals..." onkeyup="loadDeals()" class="px-4 py-2 border rounded-lg flex-1 min-w-[200px]">
+    </div>
+
+    <!-- Deals Table -->
+    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deal</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stage</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Close Date</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="deals-table" class="divide-y divide-gray-200"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div class="p-6 border-b flex justify-between items-center">
+            <h2 class="text-xl font-bold" id="modal-title">New Deal</h2>
+            <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="deal-form" onsubmit="saveDeal(event)" class="p-6 space-y-4">
+            <input type="hidden" id="deal-id">
+            <div>
+                <label class="block text-sm font-medium mb-1">Deal Name *</label>
+                <input type="text" id="deal-name" required class="w-full px-4 py-2 border rounded-lg">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Amount</label>
+                    <input type="number" id="deal-amount" step="0.01" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Close Date</label>
+                    <input type="date" id="deal-close-date" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Stage</label>
+                <select id="deal-stage" class="w-full px-4 py-2 border rounded-lg"></select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Description</label>
+                <textarea id="deal-description" rows="3" class="w-full px-4 py-2 border rounded-lg"></textarea>
+            </div>
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-orange-500 text-white rounded-lg">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let stages = [];
+document.addEventListener('DOMContentLoaded', () => { loadStages(); loadDeals(); });
+
+async function loadStages() {
+    const res = await fetch('/hub/sales/api/stages');
+    const data = await res.json();
+    if (data.success) {
+        stages = data.stages;
+        document.getElementById('deal-stage').innerHTML = stages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+}
+
+async function loadDeals() {
+    const status = document.getElementById('filter-status').value;
+    const search = document.getElementById('search').value;
+    const res = await fetch(`/hub/sales/api/deals?status=${status}&search=${search}`);
+    const data = await res.json();
+    const tbody = document.getElementById('deals-table');
+    
+    if (data.success && data.deals.length > 0) {
+        tbody.innerHTML = data.deals.map(d => `
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4"><span class="font-medium">${d.name}</span></td>
+                <td class="px-6 py-4 text-gray-500">${d.company_name || '-'}</td>
+                <td class="px-6 py-4 font-semibold">$${Number(d.amount || 0).toLocaleString()}</td>
+                <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-xs" style="background:${d.stage_color}20;color:${d.stage_color}">${d.stage_name || '-'}</span></td>
+                <td class="px-6 py-4 text-gray-500">${d.expected_close_date ? new Date(d.expected_close_date).toLocaleDateString() : '-'}</td>
+                <td class="px-6 py-4 text-right">
+                    <button onclick="editDeal('${d.id}')" class="text-blue-600 hover:underline mr-3">Edit</button>
+                    <button onclick="deleteDeal('${d.id}')" class="text-red-600 hover:underline">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } else {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-gray-500">No deals found</td></tr>';
+    }
+}
+
+function openModal() { document.getElementById('modal').classList.remove('hidden'); document.getElementById('deal-form').reset(); document.getElementById('deal-id').value = ''; }
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+async function editDeal(id) {
+    const res = await fetch(`/hub/sales/api/deals/${id}`);
+    const data = await res.json();
+    if (data.success) {
+        const d = data.deal;
+        document.getElementById('deal-id').value = d.id;
+        document.getElementById('deal-name').value = d.name;
+        document.getElementById('deal-amount').value = d.amount;
+        document.getElementById('deal-close-date').value = d.expected_close_date ? d.expected_close_date.split('T')[0] : '';
+        document.getElementById('deal-stage').value = d.stage_id || '';
+        document.getElementById('deal-description').value = d.description || '';
+        document.getElementById('modal').classList.remove('hidden');
+    }
+}
+
+async function saveDeal(e) {
+    e.preventDefault();
+    const id = document.getElementById('deal-id').value;
+    const data = {
+        name: document.getElementById('deal-name').value,
+        amount: parseFloat(document.getElementById('deal-amount').value) || 0,
+        expected_close_date: document.getElementById('deal-close-date').value || null,
+        stage_id: document.getElementById('deal-stage').value || null,
+        description: document.getElementById('deal-description').value
+    };
+    await fetch(id ? `/hub/sales/api/deals/${id}` : '/hub/sales/api/deals', {
+        method: id ? 'PUT' : 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+    closeModal();
+    loadDeals();
+}
+
+async function deleteDeal(id) {
+    if (confirm('Delete this deal?')) {
+        await fetch(`/hub/sales/api/deals/${id}`, {method: 'DELETE'});
+        loadDeals();
+    }
+}
+</script>
+{% endblock %}

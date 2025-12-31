@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - SendBaba</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: { extend: { colors: { 'brand-orange': '#F7601F' } } }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-orange-50 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 text-center">
+            <div class="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-envelope-open text-white text-3xl"></i>
+            </div>
+            
+            <h1 class="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h1>
+            <p class="text-gray-600 mb-6">
+                We've sent a verification link to<br>
+                <strong class="text-gray-900">{{ email }}</strong>
+            </p>
+            
+            <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+                <p class="text-sm text-gray-600">
+                    <i class="fas fa-info-circle text-brand-orange mr-2"></i>
+                    {% if registration_type == 'mailbox' %}
+                    Once verified, you'll be able to access your business mailbox at 
+                    <strong>mail.sendbaba.com</strong> and set up custom email addresses for your team.
+                    {% else %}
+                    Once verified, you'll have full access to create email campaigns, manage contacts, and track your email performance.
+                    {% endif %}
+                </p>
+            </div>
+            
+            <p class="text-sm text-gray-500 mb-4">Didn't receive the email? Check your spam folder or</p>
+            
+            <form method="POST" action="{{ url_for('auth.resend_verification') }}">
+                <input type="hidden" name="email" value="{{ email }}">
+                <button type="submit" class="text-brand-orange font-semibold hover:underline">
+                    <i class="fas fa-redo mr-1"></i>Resend verification email
+                </button>
+            </form>
+            
+            <div class="border-t border-gray-100 mt-8 pt-6">
+                <a href="{{ url_for('auth.login') }}" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to login
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -36,12 +36,18 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body class="{% block body_class %}bg-white{% endblock %}" id="top">
-    {% include 'components/navbar.html' %}
+<body class="{% block body_class %}bg-white{% endblock %} relative" id="top">
+    <!-- Abstract Background Decorations -->
+    {% include 'components/abstract-bg.html' %}
     
-    {% block content %}{% endblock %}
-    
-    {% include 'components/footer.html' %}
+    <!-- Main Content Wrapper -->
+    <div class="relative z-10">
+        {% include 'components/navbar.html' %}
+        
+        {% block content %}{% endblock %}
+        
+        {% include 'components/footer.html' %}
+    </div>
     
     <script src="{{ url_for('static', filename='js/landing.js') }}"></script>
     {% block extra_js %}{% endblock %}

@@ -1,0 +1,82 @@
+{% extends 'univ.html' %}
+{% block title %}Quick Start - SendBaba Docs{% endblock %}
+{% block content %}
+<section class="pt-32 pb-12 px-4 bg-gradient-to-br from-orange-500 to-red-600 text-white">
+    <div class="max-w-7xl mx-auto">
+        <a href="/docs" class="text-white/80 hover:text-white mb-4 inline-block">← Back to Docs</a>
+        <h1 class="text-4xl font-bold">Quick Start Guide</h1>
+        <p class="text-xl text-white/90 mt-4">Get started with SendBaba in 5 minutes</p>
+    </div>
+</section>
+<section class="py-16 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="space-y-8">
+            <!-- Step 1 -->
+            <div class="bg-white rounded-2xl border p-8">
+                <div class="flex items-center mb-4">
+                    <span class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mr-4">1</span>
+                    <h2 class="text-2xl font-bold text-gray-900">Create an Account</h2>
+                </div>
+                <p class="text-gray-600 mb-4">Sign up for a free SendBaba account to get started.</p>
+                <a href="/auth/register" class="inline-block bg-orange-500 text-white px-6 py-3 rounded-xl hover:bg-orange-600">Create Account →</a>
+            </div>
+            
+            <!-- Step 2 -->
+            <div class="bg-white rounded-2xl border p-8">
+                <div class="flex items-center mb-4">
+                    <span class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mr-4">2</span>
+                    <h2 class="text-2xl font-bold text-gray-900">Get Your API Key</h2>
+                </div>
+                <p class="text-gray-600 mb-4">Generate an API key from your dashboard.</p>
+                <ol class="list-decimal pl-6 text-gray-600 space-y-2">
+                    <li>Go to <a href="/dashboard/api" class="text-orange-500 hover:underline">Dashboard → API Keys</a></li>
+                    <li>Click "Generate New Key"</li>
+                    <li>Copy your API key (starts with <code class="bg-gray-100 px-1 rounded">sb_live_</code>)</li>
+                </ol>
+            </div>
+            
+            <!-- Step 3 -->
+            <div class="bg-white rounded-2xl border p-8">
+                <div class="flex items-center mb-4">
+                    <span class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mr-4">3</span>
+                    <h2 class="text-2xl font-bold text-gray-900">Verify Your Domain</h2>
+                </div>
+                <p class="text-gray-600 mb-4">Add DNS records to send from your own domain.</p>
+                <ol class="list-decimal pl-6 text-gray-600 space-y-2">
+                    <li>Go to <a href="/dashboard/domains" class="text-orange-500 hover:underline">Dashboard → Domains</a></li>
+                    <li>Add your domain (e.g., yourdomain.com)</li>
+                    <li>Add the provided DNS records (SPF, DKIM, DMARC)</li>
+                    <li>Click "Verify Domain"</li>
+                </ol>
+            </div>
+            
+            <!-- Step 4 -->
+            <div class="bg-white rounded-2xl border p-8">
+                <div class="flex items-center mb-4">
+                    <span class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold mr-4">4</span>
+                    <h2 class="text-2xl font-bold text-gray-900">Send Your First Email</h2>
+                </div>
+                <p class="text-gray-600 mb-4">Use curl or any HTTP client to send an email:</p>
+                <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto">
+                    <pre class="text-green-400 text-sm"><code>curl -X POST https://api.sendbaba.com/v1/emails/send \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from": "you@yourdomain.com",
+    "to": "recipient@example.com",
+    "subject": "Hello from SendBaba!",
+    "html": "&lt;h1&gt;It works!&lt;/h1&gt;"
+  }'</code></pre>
+                </div>
+            </div>
+            
+            <!-- Done -->
+            <div class="bg-green-50 border-2 border-green-500 rounded-2xl p-8 text-center">
+                <span class="text-4xl mb-4 block">🎉</span>
+                <h2 class="text-2xl font-bold text-green-800 mb-2">You're all set!</h2>
+                <p class="text-green-700">Start sending emails with SendBaba.</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

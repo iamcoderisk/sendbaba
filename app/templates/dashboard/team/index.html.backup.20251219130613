@@ -1,0 +1,257 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Team Management - SendBaba{% endblock %}
+{% block page_title %}Team Management{% endblock %}
+{% block page_subtitle %}Manage departments and team members{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card { background: white; border-radius: 16px; padding: 20px; border: 1px solid #E5E7EB; }
+.stat-value { font-size: 2rem; font-weight: 800; color: #111827; }
+.stat-label { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+.action-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #FFF7ED, #FFEDD5); border-radius: 16px; border: 1px solid #FDBA74; }
+
+.section-card { background: white; border-radius: 20px; border: 1px solid #E5E7EB; overflow: hidden; margin-bottom: 24px; }
+.section-header { padding: 20px 24px; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: #FAFAFA; }
+.section-title { font-size: 18px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 10px; }
+.section-body { padding: 24px; }
+
+.btn { padding: 12px 20px; border-radius: 12px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+.btn-orange { background: linear-gradient(135deg, #F97316, #EA580C); color: white; }
+.btn-orange:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(249,115,22,0.4); }
+.btn-blue { background: linear-gradient(135deg, #3B82F6, #2563EB); color: white; }
+.btn-blue:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+.btn-green { background: linear-gradient(135deg, #10B981, #059669); color: white; }
+.btn-green:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(16,185,129,0.4); }
+.btn-purple { background: linear-gradient(135deg, #8B5CF6, #7C3AED); color: white; }
+.btn-purple:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(139,92,246,0.4); }
+.btn-gray { background: #F3F4F6; color: #374151; border: 1px solid #E5E7EB; }
+.btn-gray:hover { background: #E5E7EB; }
+.btn-sm { padding: 8px 14px; font-size: 13px; }
+
+.dept-card { background: #F9FAFB; border-radius: 16px; padding: 20px; border: 2px solid #E5E7EB; transition: all 0.2s; cursor: pointer; }
+.dept-card:hover { border-color: #F97316; box-shadow: 0 8px 24px rgba(249,115,22,0.15); transform: translateY(-3px); }
+
+.member-row { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid #F3F4F6; transition: background 0.2s; }
+.member-row:last-child { border-bottom: none; }
+.member-row:hover { background: #F9FAFB; }
+
+.avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 16px; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-active { background: #DCFCE7; color: #166534; }
+.badge-pending { background: #FEF3C7; color: #92400E; }
+.badge-admin { background: #DBEAFE; color: #1E40AF; }
+.badge-member { background: #F3E8FF; color: #7C3AED; }
+
+.progress-bar { height: 6px; background: #E5E7EB; border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+.empty-state { text-align: center; padding: 48px 24px; }
+.empty-state i { font-size: 48px; color: #D1D5DB; margin-bottom: 16px; }
+.empty-state h3 { font-size: 18px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+.empty-state p { color: #6B7280; margin-bottom: 20px; }
+
+.dept-select { padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 8px; font-size: 13px; cursor: pointer; background: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Stats Row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-value text-orange-600">{{ stats.total_departments }}</div>
+            <div class="stat-label"><i class="fas fa-building mr-1"></i> Departments</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-blue-600">{{ stats.total_members }}</div>
+            <div class="stat-label"><i class="fas fa-users mr-1"></i> Team Members</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-green-600">{{ stats.active_members }}</div>
+            <div class="stat-label"><i class="fas fa-check-circle mr-1"></i> Active</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-yellow-600">{{ stats.pending_invitations }}</div>
+            <div class="stat-label"><i class="fas fa-clock mr-1"></i> Pending Invites</div>
+        </div>
+    </div>
+
+    <!-- ACTION BUTTONS BAR -->
+    <div class="action-bar">
+        <a href="{{ url_for('team.create_department') }}" class="btn btn-orange">
+            <i class="fas fa-building"></i> Create Department
+        </a>
+        <a href="{{ url_for('team.invite_member') }}" class="btn btn-blue">
+            <i class="fas fa-user-plus"></i> Invite Team Member
+        </a>
+        <a href="{{ url_for('team.send_single_email') }}" class="btn btn-green">
+            <i class="fas fa-envelope"></i> Send Email
+        </a>
+        <a href="{{ url_for('team.billing') }}" class="btn btn-purple">
+            <i class="fas fa-chart-bar"></i> View Usage & Billing
+        </a>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- DEPARTMENTS SECTION -->
+    <!-- ============================================ -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                <i class="fas fa-building text-orange-500"></i>
+                Departments ({{ departments|length }})
+            </div>
+            <a href="{{ url_for('team.create_department') }}" class="btn btn-orange btn-sm">
+                <i class="fas fa-plus"></i> Add Department
+            </a>
+        </div>
+        
+        <div class="section-body">
+            {% if departments %}
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for dept in departments %}
+                <a href="{{ url_for('team.view_department', dept_id=dept.id) }}" class="dept-card block">
+                    <div class="flex items-start gap-3 mb-3">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background: {{ dept.color }}22;">
+                            <i class="fas fa-building text-lg" style="color: {{ dept.color }};"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-gray-900 truncate">{{ dept.name }}</h3>
+                            <p class="text-sm text-gray-500">{{ dept.member_count }} member{{ 's' if dept.member_count != 1 else '' }} · {{ dept.contact_count }} contacts</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <a href="{{ url_for('team.edit_department', dept_id=dept.id) }}" class="text-gray-400 hover:text-blue-500 p-1" onclick="event.stopPropagation(); event.preventDefault(); window.location='{{ url_for('team.edit_department', dept_id=dept.id) }}';" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ dept.description or 'No description' }}</p>
+                    
+                    <!-- Email Quota Progress -->
+                    {% set quota_pct = (dept.emails_sent_this_month / dept.email_quota * 100) if dept.email_quota > 0 else 0 %}
+                    <div class="mb-2">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>{{ '{:,}'.format(dept.emails_sent_this_month|default(0)) }} / {{ '{:,}'.format(dept.email_quota) }} emails</span>
+                            <span>{{ quota_pct|round(1) }}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ quota_pct|min(100) }}%; background: {% if quota_pct > 90 %}#EF4444{% elif quota_pct > 70 %}#F59E0B{% else %}{{ dept.color }}{% endif %};"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center text-xs mt-3">
+                        <span class="text-gray-500"><i class="fas fa-envelope mr-1"></i>{{ '{:,}'.format(dept.total_emails) }} total sent</span>
+                        <span class="text-orange-500 font-semibold">View Details →</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-building"></i>
+                <h3>No Departments Yet</h3>
+                <p>Create departments to organize your team and track email usage separately.</p>
+                <a href="{{ url_for('team.create_department') }}" class="btn btn-orange">
+                    <i class="fas fa-plus"></i> Create First Department
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TEAM MEMBERS SECTION -->
+    <!-- ============================================ -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                <i class="fas fa-users text-blue-500"></i>
+                Team Members ({{ members|length }})
+            </div>
+            <a href="{{ url_for('team.invite_member') }}" class="btn btn-blue btn-sm">
+                <i class="fas fa-user-plus"></i> Invite Member
+            </a>
+        </div>
+        
+        {% if members %}
+        <!-- Table Header -->
+        <div class="hidden md:flex items-center px-6 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
+            <div class="flex-1">Member</div>
+            <div class="w-40">Department</div>
+            <div class="w-24">Role</div>
+            <div class="w-28">Emails/Month</div>
+            <div class="w-24">Status</div>
+            <div class="w-24 text-right">Actions</div>
+        </div>
+        
+        <!-- Member Rows -->
+        {% for member in members %}
+        <div class="member-row flex-wrap md:flex-nowrap">
+            <div class="flex items-center gap-3 flex-1 min-w-0 mb-2 md:mb-0">
+                <div class="avatar" style="background: {{ member.department_color }};">
+                    {{ member.email[0]|upper }}
+                </div>
+                <div class="min-w-0">
+                    <div class="font-semibold text-gray-900 truncate">{{ member.full_name }}</div>
+                    <div class="text-sm text-gray-500 truncate">{{ member.email }}</div>
+                </div>
+            </div>
+            
+            <div class="w-full md:w-40 mb-2 md:mb-0">
+                <form action="{{ url_for('team.change_department', member_id=member.id) }}" method="POST">
+                    <select name="department_id" class="dept-select w-full md:w-auto" onchange="this.form.submit()">
+                        <option value="">Unassigned</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if dept.id == member.department_id %}selected{% endif %}>{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            
+            <div class="w-24">
+                <span class="badge {% if member.role == 'admin' %}badge-admin{% else %}badge-member{% endif %}">
+                    {{ member.role|capitalize }}
+                </span>
+            </div>
+            
+            <div class="w-28">
+                <span class="font-semibold text-gray-900">{{ '{:,}'.format(member.emails_sent_this_month|default(0)) }}</span>
+            </div>
+            
+            <div class="w-24">
+                {% if member.invitation_accepted %}
+                <span class="badge badge-active"><i class="fas fa-check mr-1"></i>Active</span>
+                {% else %}
+                <span class="badge badge-pending"><i class="fas fa-clock mr-1"></i>Pending</span>
+                {% endif %}
+            </div>
+            
+            <div class="w-24 text-right">
+                <a href="{{ url_for('team.edit_member', member_id=member.id) }}" class="text-blue-500 hover:text-blue-700 p-2" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </a>
+                <form action="{{ url_for('team.delete_member', member_id=member.id) }}" method="POST" class="inline" onsubmit="return confirm('Remove {{ member.full_name }} from the team?');">
+                    <button type="submit" class="text-red-400 hover:text-red-600 p-2" title="Remove">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="section-body">
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>No Team Members Yet</h3>
+                <p>Invite team members to collaborate and send emails on behalf of your organization.</p>
+                <a href="{{ url_for('team.invite_member') }}" class="btn btn-blue">
+                    <i class="fas fa-user-plus"></i> Invite First Member
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

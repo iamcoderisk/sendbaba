@@ -1,0 +1,88 @@
+{% extends 'hub/base.html' %}
+{% block title %}Sales Reports - Sales CRM{% endblock %}
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900">Sales Reports</h1>
+        <p class="text-gray-600">Analytics and insights for your sales pipeline</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <p class="text-sm text-gray-500">Total Pipeline Value</p>
+            <p class="text-3xl font-bold text-gray-900">$<span id="total-pipeline">0</span></p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <p class="text-sm text-gray-500">Deals Won (This Month)</p>
+            <p class="text-3xl font-bold text-green-600" id="deals-won">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <p class="text-sm text-gray-500">Deals Lost (This Month)</p>
+            <p class="text-3xl font-bold text-red-600" id="deals-lost">0</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border p-6">
+            <p class="text-sm text-gray-500">Win Rate</p>
+            <p class="text-3xl font-bold text-blue-600"><span id="win-rate">0</span>%</p>
+        </div>
+    </div>
+
+    <!-- Pipeline by Stage -->
+    <div class="bg-white rounded-xl shadow-sm border p-6">
+        <h2 class="text-lg font-semibold mb-4">Pipeline by Stage</h2>
+        <div id="stage-breakdown" class="space-y-3"></div>
+    </div>
+
+    <!-- Coming Soon -->
+    <div class="bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
+        <i class="fas fa-chart-line text-4xl text-gray-400 mb-4"></i>
+        <h3 class="text-lg font-semibold text-gray-600">More Reports Coming Soon</h3>
+        <p class="text-gray-500">Revenue forecasts, conversion funnels, team performance, and more.</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', loadReports);
+
+async function loadReports() {
+    // Load stats
+    const statsRes = await fetch('/hub/sales/api/stats');
+    const stats = await statsRes.json();
+    if (stats.success) {
+        document.getElementById('total-pipeline').textContent = Number(stats.stats.pipeline_value || 0).toLocaleString();
+        document.getElementById('deals-won').textContent = stats.stats.won_deals || 0;
+    }
+
+    // Load stage breakdown
+    const stagesRes = await fetch('/hub/sales/api/stages');
+    const dealsRes = await fetch('/hub/sales/api/deals?status=open');
+    
+    if (stagesRes.ok && dealsRes.ok) {
+        const stagesData = await stagesRes.json();
+        const dealsData = await dealsRes.json();
+        
+        if (stagesData.success && dealsData.success) {
+            const container = document.getElementById('stage-breakdown');
+            const totalValue = dealsData.deals.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
+            
+            container.innerHTML = stagesData.stages.filter(s => !s.is_lost).map(stage => {
+                const stageDeals = dealsData.deals.filter(d => d.stage_id === stage.id);
+                const stageValue = stageDeals.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
+                const percent = totalValue > 0 ? (stageValue / totalValue * 100).toFixed(1) : 0;
+                
+                return `
+                    <div class="flex items-center gap-4">
+                        <div class="w-32 text-sm font-medium">${stage.name}</div>
+                        <div class="flex-1 bg-gray-200 rounded-full h-4 overflow-hidden">
+                            <div class="h-full rounded-full" style="width: ${percent}%; background-color: ${stage.color}"></div>
+                        </div>
+                        <div class="w-24 text-right text-sm text-gray-600">$${Number(stageValue).toLocaleString()}</div>
+                        <div class="w-16 text-right text-sm text-gray-500">${stageDeals.length} deals</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+</script>
+{% endblock %}

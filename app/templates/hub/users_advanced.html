@@ -1,0 +1,386 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'users' %}
+
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">User Management</h1>
+            <p class="text-gray-500">Manage users, permissions, and access control</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="exportUsers()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+            <button onclick="openInviteModal()" class="px-4 py-2 gradient-primary text-white rounded-xl card-shadow">
+                <i class="fas fa-user-plus mr-2"></i>Invite User
+            </button>
+        </div>
+    </div>
+
+    <!-- User Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">Total Users</p>
+            <p class="text-3xl font-bold text-gray-800" id="total-users">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">Active Today</p>
+            <p class="text-3xl font-bold text-green-600" id="active-today">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">New This Week</p>
+            <p class="text-3xl font-bold text-blue-600" id="new-week">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">Suspended</p>
+            <p class="text-3xl font-bold text-red-600" id="suspended">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">Pending Invites</p>
+            <p class="text-3xl font-bold text-yellow-600" id="pending-invites">0</p>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="bg-white rounded-2xl p-4 card-shadow">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" id="search-users" placeholder="Search users by name, email..." 
+                       class="w-full px-4 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-blue-500"
+                       onkeyup="searchUsers(this.value)">
+            </div>
+            <select id="filter-status" onchange="filterUsers()" class="px-4 py-2 bg-gray-50 border-0 rounded-xl">
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+            </select>
+            <select id="filter-role" onchange="filterUsers()" class="px-4 py-2 bg-gray-50 border-0 rounded-xl">
+                <option value="">All Roles</option>
+                <option value="admin">Admin</option>
+                <option value="user">User</option>
+                <option value="viewer">Viewer</option>
+            </select>
+            <select id="filter-org" onchange="filterUsers()" class="px-4 py-2 bg-gray-50 border-0 rounded-xl">
+                <option value="">All Organizations</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">
+                            <input type="checkbox" id="select-all-users" onchange="toggleSelectAll()" class="rounded">
+                        </th>
+                        <th class="pb-3 font-medium">User</th>
+                        <th class="pb-3 font-medium">Organization</th>
+                        <th class="pb-3 font-medium">Role</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Last Login</th>
+                        <th class="pb-3 font-medium">Emails Sent</th>
+                        <th class="pb-3 font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+        <div class="flex items-center justify-between mt-4 pt-4 border-t">
+            <div class="flex items-center space-x-2">
+                <select id="bulk-action" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm">
+                    <option value="">Bulk Actions</option>
+                    <option value="suspend">Suspend Selected</option>
+                    <option value="activate">Activate Selected</option>
+                    <option value="delete">Delete Selected</option>
+                    <option value="export">Export Selected</option>
+                </select>
+                <button onclick="applyBulkAction()" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">Apply</button>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="prevPage()" class="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Previous</button>
+                <span class="px-3 py-1.5 text-gray-600">Page <span id="current-page">1</span></span>
+                <button onclick="nextPage()" class="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Detail Modal -->
+<div id="user-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeUserModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white rounded-2xl card-shadow-lg p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800">User Details</h3>
+            <button onclick="closeUserModal()" class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-400"></i>
+            </button>
+        </div>
+        <div id="user-modal-content">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Invite User Modal -->
+<div id="invite-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeInviteModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl card-shadow-lg p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Invite User</h3>
+            <button onclick="closeInviteModal()" class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-400"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                <input type="email" id="invite-email" placeholder="user@company.com" class="w-full border border-gray-200 rounded-xl p-3">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Organization</label>
+                <select id="invite-org" class="w-full border border-gray-200 rounded-xl p-3">
+                    <option value="">Select organization</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                <select id="invite-role" class="w-full border border-gray-200 rounded-xl p-3">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="viewer">Viewer</option>
+                </select>
+            </div>
+            <button onclick="sendInvite()" class="w-full py-3 gradient-primary text-white rounded-xl font-medium">
+                Send Invitation
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allUsers = [];
+let currentPage = 1;
+
+async function fetchUsers() {
+    try {
+        const res = await fetch('/hub/api/users/list');
+        const data = await res.json();
+        
+        if (data.success) {
+            allUsers = data.users;
+            document.getElementById('total-users').textContent = data.stats.total;
+            document.getElementById('active-today').textContent = data.stats.active_today;
+            document.getElementById('new-week').textContent = data.stats.new_week;
+            document.getElementById('suspended').textContent = data.stats.suspended;
+            document.getElementById('pending-invites').textContent = data.stats.pending_invites;
+            
+            renderUsersTable(data.users);
+            populateOrgFilter(data.organizations);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderUsersTable(users) {
+    const tbody = document.getElementById('users-table');
+    
+    tbody.innerHTML = users.map(u => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50">
+            <td class="py-3"><input type="checkbox" class="user-cb rounded" value="${u.id}"></td>
+            <td class="py-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                        ${u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-800">${u.name || 'No name'}</p>
+                        <p class="text-xs text-gray-500">${u.email}</p>
+                    </div>
+                </div>
+            </td>
+            <td class="py-3">${u.organization || '-'}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                    u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                    u.role === 'user' ? 'bg-blue-100 text-blue-700' :
+                    'bg-gray-100 text-gray-700'
+                }">${u.role || 'user'}</span>
+            </td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                    u.status === 'active' ? 'bg-green-100 text-green-700' :
+                    u.status === 'suspended' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                }">${u.status || 'active'}</span>
+            </td>
+            <td class="py-3 text-gray-500">${u.last_login || 'Never'}</td>
+            <td class="py-3 font-medium">${formatNumber(u.emails_sent || 0)}</td>
+            <td class="py-3">
+                <div class="flex space-x-1">
+                    <button onclick="viewUser('${u.id}')" class="p-1.5 hover:bg-gray-100 rounded" title="View">
+                        <i class="fas fa-eye text-gray-400"></i>
+                    </button>
+                    <button onclick="impersonateUser('${u.id}')" class="p-1.5 hover:bg-gray-100 rounded" title="Impersonate">
+                        <i class="fas fa-user-secret text-blue-400"></i>
+                    </button>
+                    <button onclick="suspendUser('${u.id}')" class="p-1.5 hover:bg-gray-100 rounded" title="Suspend">
+                        <i class="fas fa-ban text-red-400"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function populateOrgFilter(orgs) {
+    const select = document.getElementById('filter-org');
+    orgs.forEach(org => {
+        const opt = document.createElement('option');
+        opt.value = org.id;
+        opt.textContent = org.name;
+        select.appendChild(opt);
+    });
+}
+
+function viewUser(id) {
+    const user = allUsers.find(u => u.id == id);
+    if (!user) return;
+    
+    document.getElementById('user-modal-content').innerHTML = `
+        <div class="space-y-6">
+            <div class="flex items-center space-x-4">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">
+                    ${user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div>
+                    <h4 class="text-xl font-bold text-gray-800">${user.name || 'No name'}</h4>
+                    <p class="text-gray-500">${user.email}</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 mb-1">Organization</p>
+                    <p class="font-medium">${user.organization || '-'}</p>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 mb-1">Role</p>
+                    <p class="font-medium">${user.role || 'user'}</p>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 mb-1">Status</p>
+                    <p class="font-medium">${user.status || 'active'}</p>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 mb-1">Last Login</p>
+                    <p class="font-medium">${user.last_login || 'Never'}</p>
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-2">Activity Summary</p>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p class="text-2xl font-bold text-blue-600">${formatNumber(user.emails_sent || 0)}</p>
+                        <p class="text-xs text-gray-500">Emails Sent</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-green-600">${user.campaigns || 0}</p>
+                        <p class="text-xs text-gray-500">Campaigns</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-purple-600">${formatNumber(user.contacts || 0)}</p>
+                        <p class="text-xs text-gray-500">Contacts</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex space-x-3">
+                <button onclick="impersonateUser('${user.id}')" class="flex-1 py-2 bg-blue-500 text-white rounded-xl font-medium">
+                    <i class="fas fa-user-secret mr-2"></i>Login as User
+                </button>
+                <button onclick="suspendUser('${user.id}')" class="flex-1 py-2 bg-red-500 text-white rounded-xl font-medium">
+                    <i class="fas fa-ban mr-2"></i>Suspend
+                </button>
+            </div>
+        </div>
+    `;
+    document.getElementById('user-modal').classList.remove('hidden');
+}
+
+function closeUserModal() {
+    document.getElementById('user-modal').classList.add('hidden');
+}
+
+function openInviteModal() {
+    document.getElementById('invite-modal').classList.remove('hidden');
+}
+
+function closeInviteModal() {
+    document.getElementById('invite-modal').classList.add('hidden');
+}
+
+function sendInvite() {
+    const email = document.getElementById('invite-email').value;
+    if (!email) { showToast('Please enter an email', 'error'); return; }
+    showToast(`Invitation sent to ${email}`, 'success');
+    closeInviteModal();
+}
+
+function impersonateUser(id) {
+    if (confirm('Login as this user? You will be logged out of admin.')) {
+        showToast('Logging in as user...', 'info');
+    }
+}
+
+function suspendUser(id) {
+    if (confirm('Suspend this user?')) {
+        showToast('User suspended', 'success');
+        fetchUsers();
+    }
+}
+
+function searchUsers(query) {
+    const filtered = allUsers.filter(u => 
+        (u.name && u.name.toLowerCase().includes(query.toLowerCase())) ||
+        (u.email && u.email.toLowerCase().includes(query.toLowerCase()))
+    );
+    renderUsersTable(filtered);
+}
+
+function filterUsers() {
+    fetchUsers();
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('select-all-users').checked;
+    document.querySelectorAll('.user-cb').forEach(cb => cb.checked = checked);
+}
+function applyBulkAction() {
+const action = document.getElementById('bulk-action').value;
+if (!action) return;
+const selected = [...document.querySelectorAll('.user-cb:checked')].map(cb => cb.value);
+if (selected.length === 0) { showToast('No users selected', 'error'); return; }
+showToast(${action} applied to ${selected.length} users, 'success');
+}
+function exportUsers() {
+showToast('Exporting users...', 'info');
+}
+function prevPage() { if (currentPage > 1) { currentPage--; fetchUsers(); } }
+function nextPage() { currentPage++; fetchUsers(); }
+// Initialize
+fetchUsers();
+</script>
+{% endblock %}

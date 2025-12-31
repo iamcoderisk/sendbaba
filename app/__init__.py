@@ -9,22 +9,34 @@ import logging
 
 db = SQLAlchemy()
 login_manager = LoginManager()
+socketio = None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def create_app():
-    app = Flask(__name__)
+    global socketio
     
+    app = Flask(__name__)
+
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '60b55ca25a3391f98774c37d68c65b88')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://emailer:SecurePassword123@localhost:5432/emailer')
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"connect_args": {"options": "-c search_path=public"}}
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
+
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     
+    # Initialize SocketIO (optional - app works without it)
+    try:
+        from flask_socketio import SocketIO
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+        logger.info("✅ SocketIO initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ SocketIO not available: {e}")
+        socketio = None
+
     with app.app_context():
         # ===========================================
         # CORE BLUEPRINTS (17)
@@ -48,9 +60,9 @@ def create_app():
             ('team_controller', 'team_bp', 'Team'),
             ('settings_controller', 'settings_bp', 'Settings'),
         ]
-        
+
         # ===========================================
-        # ADDITIONAL BLUEPRINTS (14)
+        # ADDITIONAL BLUEPRINTS
         # ===========================================
         additional_blueprints = [
             ('engine_controller', 'engine_bp', 'Engine'),
@@ -72,10 +84,14 @@ def create_app():
             ('bounce_controller', 'bounce_bp', 'Bounces'),
             ('unsubscribe_controller', 'unsubscribe_bp', 'Unsubscribe'),
             ('hub_controller', 'hub_bp', 'Hub'),
+            ('ip_management_controller', 'ip_management_bp', 'IP Management'),
+            ('ip_pool_controller', 'ip_pool_bp', 'IP Pools'),
+            ('monitor_controller', 'monitor_bp', 'Monitor'),
+            ('webmail_controller', 'webmail_bp', 'Webmail'),
         ]
-        
+
         all_blueprints = core_blueprints + additional_blueprints
-        
+
         for module, bp_name, label in all_blueprints:
             try:
                 mod = __import__(f'app.controllers.{module}', fromlist=[bp_name])
@@ -84,7 +100,7 @@ def create_app():
                 logger.info(f"✅ {label}")
             except Exception as e:
                 logger.error(f"❌ {label}: {e}")
-    
+
     @app.context_processor
     def inject_features():
         from sqlalchemy import text
@@ -107,7 +123,7 @@ def create_app():
                             'ai_reply': row[3] if row[3] is not None else True
                         }
                     sub_result = db.session.execute(text("""
-                        SELECT plan_name, status FROM subscriptions 
+                        SELECT plan_name, status FROM subscriptions
                         WHERE organization_id = :org_id ORDER BY created_at DESC LIMIT 1
                     """), {'org_id': org_id})
                     sub_row = sub_result.fetchone()
@@ -116,7 +132,7 @@ def create_app():
         except Exception as e:
             logger.error(f"Context processor error: {e}")
         return dict(features=features, subscription=subscription)
-    
+
     @login_manager.user_loader
     def load_user(user_id):
         from sqlalchemy import text
@@ -138,11 +154,12 @@ def create_app():
                     return str(self.id)
             return User(result[0], result[1], result[2], result[3] if len(result) > 3 else None)
         return None
-    
+
     @app.route('/')
     def index():
         if current_user.is_authenticated:
             return redirect('/dashboard/')
         return render_template('index.html')
-    
+
+        app.register_blueprint(tickets_bp)
     return app

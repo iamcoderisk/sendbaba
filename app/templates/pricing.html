@@ -2,96 +2,669 @@
 
 {% block title %}Pricing - SendBaba{% endblock %}
 
+{% block extra_css %}
+<style>
+    .pricing-toggle {
+        display: inline-flex;
+        background: rgba(255,255,255,0.2);
+        border-radius: 50px;
+        padding: 4px;
+    }
+    .pricing-toggle button {
+        padding: 10px 24px;
+        border-radius: 50px;
+        font-weight: 600;
+        font-size: 14px;
+        transition: all 0.3s;
+        border: none;
+        cursor: pointer;
+    }
+    .pricing-toggle button.active {
+        background: white;
+        color: #F97316;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .pricing-toggle button:not(.active) {
+        background: transparent;
+        color: white;
+    }
+    .billing-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        background: rgba(255,255,255,0.15);
+        padding: 8px 20px;
+        border-radius: 50px;
+        margin-top: 20px;
+    }
+    .billing-toggle span {
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(255,255,255,0.8);
+    }
+    .billing-toggle span.active {
+        color: white;
+    }
+    .toggle-switch {
+        width: 50px;
+        height: 26px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 13px;
+        position: relative;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+    .toggle-switch.active {
+        background: white;
+    }
+    .toggle-switch .knob {
+        width: 22px;
+        height: 22px;
+        background: #F97316;
+        border-radius: 11px;
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        transition: transform 0.3s;
+    }
+    .toggle-switch.active .knob {
+        transform: translateX(24px);
+    }
+    .save-badge {
+        background: #10B981;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+    .plan-card {
+        background: white;
+        border-radius: 24px;
+        padding: 32px;
+        border: 2px solid #E5E7EB;
+        position: relative;
+        transition: all 0.3s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .plan-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        border-color: #F97316;
+    }
+    .plan-card.popular {
+        background: linear-gradient(135deg, #F97316, #EA580C);
+        border-color: transparent;
+        color: white;
+        transform: scale(1.05);
+        z-index: 10;
+    }
+    .plan-card.popular:hover {
+        transform: scale(1.05) translateY(-8px);
+    }
+    .popular-badge {
+        position: absolute;
+        top: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #FBBF24, #F59E0B);
+        color: #78350F;
+        padding: 6px 20px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+    }
+    .plan-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        margin-bottom: 20px;
+    }
+    .plan-name {
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+    .plan-description {
+        font-size: 14px;
+        opacity: 0.8;
+        margin-bottom: 24px;
+    }
+    .plan-price {
+        margin-bottom: 24px;
+    }
+    .plan-price-amount {
+        font-size: 48px;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .plan-price-period {
+        font-size: 16px;
+        opacity: 0.7;
+    }
+    .plan-price .annual-price {
+        display: none;
+    }
+    .annual-billing .plan-price .monthly-price {
+        display: none;
+    }
+    .annual-billing .plan-price .annual-price {
+        display: block;
+    }
+    .plan-cta {
+        width: 100%;
+        padding: 16px 24px;
+        border-radius: 14px;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: none;
+        text-decoration: none;
+        text-align: center;
+        display: block;
+        margin-bottom: 24px;
+    }
+    .plan-cta-primary {
+        background: linear-gradient(135deg, #F97316, #EA580C);
+        color: white;
+    }
+    .plan-cta-primary:hover {
+        box-shadow: 0 8px 25px rgba(249, 115, 22, 0.4);
+        transform: translateY(-2px);
+    }
+    .plan-card.popular .plan-cta-primary {
+        background: white;
+        color: #F97316;
+    }
+    .plan-card.popular .plan-cta-primary:hover {
+        box-shadow: 0 8px 25px rgba(255,255,255,0.3);
+    }
+    .plan-cta-secondary {
+        background: transparent;
+        color: #374151;
+        border: 2px solid #E5E7EB;
+    }
+    .plan-cta-secondary:hover {
+        border-color: #F97316;
+        color: #F97316;
+        background: #FFF7ED;
+    }
+    .plan-features {
+        flex: 1;
+        border-top: 1px solid rgba(0,0,0,0.1);
+        padding-top: 24px;
+    }
+    .plan-card.popular .plan-features {
+        border-top-color: rgba(255,255,255,0.2);
+    }
+    .feature-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 14px;
+        margin-bottom: 14px;
+    }
+    .feature-item i {
+        color: #10B981;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+    .plan-card.popular .feature-item i {
+        color: #FEF3C7;
+    }
+    .plans-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+        align-items: stretch;
+    }
+    @media (min-width: 1024px) {
+        .plans-grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+        .plans-grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    .faq-item {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 16px;
+    }
+    .faq-item summary {
+        padding: 20px 24px;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        list-style: none;
+    }
+    .faq-item summary::-webkit-details-marker {
+        display: none;
+    }
+    .faq-item summary::after {
+        content: '+';
+        font-size: 24px;
+        color: #F97316;
+        transition: transform 0.3s;
+    }
+    .faq-item[open] summary::after {
+        transform: rotate(45deg);
+    }
+    .faq-item .faq-content {
+        padding: 0 24px 20px;
+        color: #6B7280;
+        line-height: 1.7;
+    }
+    .enterprise-cta {
+        background: linear-gradient(135deg, #1E293B, #334155);
+        border-radius: 24px;
+        padding: 48px;
+        text-align: center;
+        color: white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Hero -->
-<section class="pt-32 pb-20 px-4 bg-gradient-to-br from-brand-orange to-brand-light text-white">
-    <div class="max-w-7xl mx-auto text-center">
-        <div class="inline-block bg-white/20 rounded-full px-6 py-2 mb-6">
-            <span class="text-white font-semibold">💰 Simple Pricing</span>
+<section class="pt-32 pb-32 px-4 bg-gradient-to-br from-brand-orange to-brand-light text-white relative overflow-hidden">
+    <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+        <div class="absolute bottom-20 right-10 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+    </div>
+    <div class="max-w-7xl mx-auto text-center relative z-10">
+        <div class="inline-block bg-white/20 backdrop-blur-sm rounded-full px-6 py-2 mb-6">
+            <span class="text-white font-semibold">💰 Transparent Pricing</span>
         </div>
-        <h1 class="text-5xl md:text-6xl font-bold mb-6">Plans for Every Business</h1>
-        <p class="text-xl text-white/90 max-w-2xl mx-auto">Start free, scale as you grow. No hidden fees.</p>
+        <h1 class="text-5xl md:text-6xl font-bold mb-6">Plans That Scale With You</h1>
+        <p class="text-xl text-white/90 max-w-2xl mx-auto mb-8">Start free, upgrade when you're ready. No hidden fees, no surprises.</p>
+        
+        <!-- Plan Type Toggle -->
+        <div class="pricing-toggle mb-4">
+            <button class="active" data-type="individual" onclick="switchPlanType('individual')">
+                <i class="fas fa-user mr-2"></i>Individual
+            </button>
+            <button data-type="team" onclick="switchPlanType('team')">
+                <i class="fas fa-users mr-2"></i>Teams
+            </button>
+        </div>
+        
+        <!-- Billing Toggle -->
+        <div class="billing-toggle">
+            <span class="active" id="monthlyLabel">Monthly</span>
+            <div class="toggle-switch" id="billingToggle" onclick="toggleBilling()">
+                <div class="knob"></div>
+            </div>
+            <span id="annualLabel">Annual</span>
+            <span class="save-badge">Save 20%</span>
+        </div>
     </div>
 </section>
 
 <!-- Pricing Cards -->
-<section class="py-20 px-4 -mt-20">
+<section class="py-20 px-4 -mt-20 relative z-20">
     <div class="max-w-6xl mx-auto">
+        <!-- Individual Plans -->
+        <div id="individual-plans" class="plans-container">
+            {% if individual_plans %}
+            <div class="plans-grid plans-grid-{{ individual_plans|length if individual_plans|length <= 4 else 4 }}">
+                {% for plan in individual_plans %}
+                <div class="plan-card {{ 'popular' if plan.is_popular else '' }}">
+                    {% if plan.is_popular %}
+                    <div class="popular-badge">⭐ MOST POPULAR</div>
+                    {% endif %}
+                    
+                    <div class="plan-icon" style="background: {{ '#FFF7ED' if not plan.is_popular else 'rgba(255,255,255,0.2)' }}">
+                        {% if plan.slug == 'free' %}🎁
+                        {% elif plan.slug == 'starter' %}✨
+                        {% elif plan.slug == 'business' %}🚀
+                        {% elif plan.slug == 'enterprise' %}🏢
+                        {% else %}📦{% endif %}
+                    </div>
+                    
+                    <h3 class="plan-name">{{ plan.name }}</h3>
+                    <p class="plan-description">
+                        {% if plan.slug == 'free' %}Perfect for getting started
+                        {% elif plan.slug == 'starter' %}For small businesses
+                        {% elif plan.slug == 'business' %}For growing companies
+                        {% elif plan.slug == 'enterprise' %}For large organizations
+                        {% else %}Great for your needs{% endif %}
+                    </p>
+                    
+                    <div class="plan-price">
+                        <div class="monthly-price">
+                            {% if plan.price_monthly == 0 %}
+                            <span class="plan-price-amount">Free</span>
+                            {% else %}
+                            <span class="plan-price-amount">${{ plan.price_monthly|int }}</span>
+                            <span class="plan-price-period">/month</span>
+                            {% endif %}
+                        </div>
+                        <div class="annual-price">
+                            {% if plan.price_annual == 0 %}
+                            <span class="plan-price-amount">Free</span>
+                            {% else %}
+                            <span class="plan-price-amount">${{ (plan.price_annual / 12)|int }}</span>
+                            <span class="plan-price-period">/month</span>
+                            <div class="text-sm mt-1 {{ 'text-white/70' if plan.is_popular else 'text-green-600' }}">
+                                Billed ${{ plan.price_annual|int }}/year
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if plan.price_monthly == 0 %}
+                    <a href="/register" class="plan-cta plan-cta-secondary">Get Started Free</a>
+                    {% elif plan.is_popular %}
+                    <a href="/register?plan={{ plan.slug }}" class="plan-cta plan-cta-primary">Start Free Trial</a>
+                    {% else %}
+                    <a href="/register?plan={{ plan.slug }}" class="plan-cta plan-cta-primary">Get Started</a>
+                    {% endif %}
+                    
+                    <div class="plan-features">
+                        {% if plan.features %}
+                            {% for feature in plan.features[:8] %}
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ feature }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ '{:,}'.format(plan.email_limit_daily) }} emails/day</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ '{:,}'.format(plan.email_limit_monthly) }} emails/month</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ '{:,}'.format(plan.contact_limit) }} contacts</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ plan.team_member_limit }} team member{{ 's' if plan.team_member_limit > 1 else '' }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-16">
+                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-box-open text-gray-400 text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">Plans Coming Soon</h3>
+                <p class="text-gray-500">We're preparing amazing plans for you. Check back soon!</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Team Plans -->
+        <div id="team-plans" class="plans-container hidden">
+            {% if team_plans %}
+            <div class="plans-grid plans-grid-{{ team_plans|length if team_plans|length <= 4 else 3 }}">
+                {% for plan in team_plans %}
+                <div class="plan-card {{ 'popular' if plan.is_popular else '' }}">
+                    {% if plan.is_popular %}
+                    <div class="popular-badge">⭐ BEST VALUE</div>
+                    {% endif %}
+                    
+                    <div class="plan-icon" style="background: {{ '#FFF7ED' if not plan.is_popular else 'rgba(255,255,255,0.2)' }}">
+                        {% if 'starter' in plan.slug %}👥
+                        {% elif 'pro' in plan.slug %}💼
+                        {% elif 'enterprise' in plan.slug %}🌐
+                        {% else %}👥{% endif %}
+                    </div>
+                    
+                    <h3 class="plan-name">{{ plan.name }}</h3>
+                    <p class="plan-description">
+                        {% if 'starter' in plan.slug %}Small teams getting started
+                        {% elif 'pro' in plan.slug %}Growing teams with advanced needs
+                        {% elif 'enterprise' in plan.slug %}Enterprise-grade solution
+                        {% else %}For your team{% endif %}
+                    </p>
+                    
+                    <div class="plan-price">
+                        <div class="monthly-price">
+                            <span class="plan-price-amount">${{ plan.price_monthly|int }}</span>
+                            <span class="plan-price-period">/month</span>
+                        </div>
+                        <div class="annual-price">
+                            <span class="plan-price-amount">${{ (plan.price_annual / 12)|int }}</span>
+                            <span class="plan-price-period">/month</span>
+                            <div class="text-sm mt-1 {{ 'text-white/70' if plan.is_popular else 'text-green-600' }}">
+                                Billed ${{ plan.price_annual|int }}/year
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if plan.is_popular %}
+                    <a href="/register?plan={{ plan.slug }}" class="plan-cta plan-cta-primary">Start Free Trial</a>
+                    {% else %}
+                    <a href="/register?plan={{ plan.slug }}" class="plan-cta plan-cta-primary">Get Started</a>
+                    {% endif %}
+                    
+                    <div class="plan-features">
+                        {% if plan.features %}
+                            {% for feature in plan.features[:8] %}
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ feature }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ '{:,}'.format(plan.email_limit_daily) }} emails/day</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ '{:,}'.format(plan.email_limit_monthly) }} emails/month</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>{{ '{:,}'.format(plan.contact_limit) }} contacts</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Up to {{ plan.team_member_limit }} team members</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-16">
+                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-users text-gray-400 text-3xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-700 mb-2">Team Plans Coming Soon</h3>
+                <p class="text-gray-500">We're preparing team plans. Contact us for custom solutions!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Enterprise CTA -->
+<section class="py-12 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="enterprise-cta">
+            <h2 class="text-3xl font-bold mb-4">Need a Custom Solution?</h2>
+            <p class="text-gray-300 mb-8 max-w-xl mx-auto">
+                For high-volume senders and enterprises with specific requirements, we offer tailored plans with dedicated support.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/contact" class="px-8 py-4 bg-white text-gray-900 rounded-xl font-bold hover:shadow-lg transition">
+                    <i class="fas fa-envelope mr-2"></i>Contact Sales
+                </a>
+                <a href="/docs" class="px-8 py-4 border-2 border-white/30 text-white rounded-xl font-bold hover:bg-white/10 transition">
+                    <i class="fas fa-book mr-2"></i>View Documentation
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Comparison -->
+<section class="py-20 px-4 bg-gray-50">
+    <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl font-bold text-gray-900 mb-4">Why Choose SendBaba?</h2>
+            <p class="text-gray-600 text-lg">Everything you need to succeed with email marketing</p>
+        </div>
+        
         <div class="grid md:grid-cols-3 gap-8">
-            <!-- Free -->
-            <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-                <h3 class="text-2xl font-bold text-gray-900 mb-2">Free</h3>
-                <p class="text-gray-600 mb-6">Perfect for getting started</p>
-                <div class="mb-6">
-                    <span class="text-5xl font-bold text-gray-900">$0</span>
-                    <span class="text-gray-600">/month</span>
+            <div class="bg-white rounded-2xl p-8 shadow-lg">
+                <div class="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mb-6">
+                    <i class="fas fa-rocket text-orange-600 text-2xl"></i>
                 </div>
-                <ul class="space-y-4 mb-8">
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>1,000 emails/month</li>
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>500 contacts</li>
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>Basic templates</li>
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>Email support</li>
-                </ul>
-                <a href="/register" class="block w-full text-center py-3 border-2 border-brand-orange text-brand-orange rounded-xl font-semibold hover:bg-brand-orange hover:text-white transition">Get Started</a>
+                <h3 class="text-xl font-bold text-gray-900 mb-3">High Deliverability</h3>
+                <p class="text-gray-600">Industry-leading inbox placement rates with our optimized infrastructure.</p>
             </div>
-
-            <!-- Pro -->
-            <div class="bg-gradient-to-br from-brand-orange to-brand-light rounded-2xl shadow-xl p-8 text-white transform scale-105 relative">
-                <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-yellow-400 text-yellow-900 px-4 py-1 rounded-full text-sm font-bold">MOST POPULAR</div>
-                <h3 class="text-2xl font-bold mb-2">Pro</h3>
-                <p class="text-white/80 mb-6">For growing businesses</p>
-                <div class="mb-6">
-                    <span class="text-5xl font-bold">$49</span>
-                    <span class="text-white/80">/month</span>
+            <div class="bg-white rounded-2xl p-8 shadow-lg">
+                <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
+                    <i class="fas fa-brain text-blue-600 text-2xl"></i>
                 </div>
-                <ul class="space-y-4 mb-8">
-                    <li class="flex items-center"><i class="fas fa-check mr-3"></i>50,000 emails/month</li>
-                    <li class="flex items-center"><i class="fas fa-check mr-3"></i>Unlimited contacts</li>
-                    <li class="flex items-center"><i class="fas fa-check mr-3"></i>Advanced automation</li>
-                    <li class="flex items-center"><i class="fas fa-check mr-3"></i>AI Reply Intelligence</li>
-                    <li class="flex items-center"><i class="fas fa-check mr-3"></i>Priority support</li>
-                </ul>
-                <a href="/register?plan=pro" class="block w-full text-center py-3 bg-white text-brand-orange rounded-xl font-semibold hover:shadow-lg transition">Start Free Trial</a>
+                <h3 class="text-xl font-bold text-gray-900 mb-3">AI-Powered</h3>
+                <p class="text-gray-600">Smart reply detection and automated responses powered by AI.</p>
             </div>
-
-            <!-- Enterprise -->
-            <div class="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-                <h3 class="text-2xl font-bold text-gray-900 mb-2">Enterprise</h3>
-                <p class="text-gray-600 mb-6">For large organizations</p>
-                <div class="mb-6">
-                    <span class="text-5xl font-bold text-gray-900">Custom</span>
+            <div class="bg-white rounded-2xl p-8 shadow-lg">
+                <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-6">
+                    <i class="fas fa-chart-line text-green-600 text-2xl"></i>
                 </div>
-                <ul class="space-y-4 mb-8">
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>Unlimited emails</li>
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>Dedicated IP</li>
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>Custom integrations</li>
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>SLA guarantee</li>
-                    <li class="flex items-center"><i class="fas fa-check text-green-500 mr-3"></i>24/7 phone support</li>
-                </ul>
-                <a href="/contact" class="block w-full text-center py-3 border-2 border-brand-orange text-brand-orange rounded-xl font-semibold hover:bg-brand-orange hover:text-white transition">Contact Sales</a>
+                <h3 class="text-xl font-bold text-gray-900 mb-3">Real-Time Analytics</h3>
+                <p class="text-gray-600">Track opens, clicks, and conversions with detailed reporting.</p>
             </div>
         </div>
     </div>
 </section>
 
 <!-- FAQ -->
-<section class="py-20 px-4 bg-gray-50">
-    <div class="max-w-4xl mx-auto">
-        <h2 class="text-4xl font-bold text-gray-900 mb-12 text-center">Pricing FAQ</h2>
-        <div class="space-y-6">
-            <details class="bg-white rounded-xl p-6 shadow-md cursor-pointer">
-                <summary class="font-bold text-lg text-gray-900">Can I change plans anytime?</summary>
-                <p class="mt-4 text-gray-600">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
+<section class="py-20 px-4">
+    <div class="max-w-3xl mx-auto">
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
+            <p class="text-gray-600">Got questions? We've got answers.</p>
+        </div>
+        
+        <div class="space-y-4">
+            <details class="faq-item">
+                <summary>Can I change plans anytime?</summary>
+                <div class="faq-content">
+                    Yes! You can upgrade or downgrade your plan at any time. When upgrading, you'll get immediate access to new features. When downgrading, changes take effect at the end of your billing period.
+                </div>
             </details>
-            <details class="bg-white rounded-xl p-6 shadow-md cursor-pointer">
-                <summary class="font-bold text-lg text-gray-900">What happens if I exceed my email limit?</summary>
-                <p class="mt-4 text-gray-600">We'll notify you when you're close to your limit. You can upgrade or purchase additional emails as needed.</p>
+            <details class="faq-item">
+                <summary>What happens if I exceed my email limit?</summary>
+                <div class="faq-content">
+                    We'll notify you when you're approaching your limit. You can either upgrade to a higher plan or purchase additional email credits. We never stop your campaigns mid-send.
+                </div>
             </details>
-            <details class="bg-white rounded-xl p-6 shadow-md cursor-pointer">
-                <summary class="font-bold text-lg text-gray-900">Is there a free trial?</summary>
-                <p class="mt-4 text-gray-600">Yes! All paid plans come with a 14-day free trial. No credit card required.</p>
+            <details class="faq-item">
+                <summary>Is there a free trial for paid plans?</summary>
+                <div class="faq-content">
+                    Yes! All paid plans come with a 14-day free trial. No credit card required to start. You'll only be charged after the trial ends if you decide to continue.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Do you offer refunds?</summary>
+                <div class="faq-content">
+                    We offer a 14-day money-back guarantee on all paid plans. If you're not satisfied within the first 14 days, contact us for a full refund.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>Can I use my own sending domain?</summary>
+                <div class="faq-content">
+                    Absolutely! All plans support custom sending domains. We'll help you set up proper DNS records (SPF, DKIM, DMARC) for optimal deliverability.
+                </div>
+            </details>
+            <details class="faq-item">
+                <summary>What payment methods do you accept?</summary>
+                <div class="faq-content">
+                    We accept all major credit cards (Visa, MasterCard, American Express), PayPal, and bank transfers for annual plans. Enterprise customers can also pay via invoice.
+                </div>
             </details>
         </div>
     </div>
 </section>
+
+<!-- Final CTA -->
+<section class="py-20 px-4 bg-gradient-to-br from-brand-orange to-brand-light text-white">
+    <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-4xl md:text-5xl font-bold mb-6">Ready to Get Started?</h2>
+        <p class="text-xl text-white/90 mb-8">Join thousands of businesses sending better emails with SendBaba.</p>
+        <a href="/register" class="inline-block px-10 py-4 bg-white text-brand-orange rounded-xl font-bold text-lg hover:shadow-2xl transition transform hover:-translate-y-1">
+            Start Free Today <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let isAnnual = false;
+let currentType = 'individual';
+
+function switchPlanType(type) {
+    currentType = type;
+    
+    // Update toggle buttons
+    document.querySelectorAll('.pricing-toggle button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === type);
+    });
+    
+    // Show/hide plan containers
+    document.getElementById('individual-plans').classList.toggle('hidden', type !== 'individual');
+    document.getElementById('team-plans').classList.toggle('hidden', type !== 'team');
+}
+
+function toggleBilling() {
+    isAnnual = !isAnnual;
+    
+    const toggle = document.getElementById('billingToggle');
+    const monthlyLabel = document.getElementById('monthlyLabel');
+    const annualLabel = document.getElementById('annualLabel');
+    
+    toggle.classList.toggle('active', isAnnual);
+    monthlyLabel.classList.toggle('active', !isAnnual);
+    annualLabel.classList.toggle('active', isAnnual);
+    
+    // Update all plan cards
+    document.querySelectorAll('.plans-container').forEach(container => {
+        container.classList.toggle('annual-billing', isAnnual);
+    });
+}
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+        }
+    });
+});
+</script>
 {% endblock %}

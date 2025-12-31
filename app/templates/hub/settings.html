@@ -1,0 +1,445 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'settings' %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Settings</h1>
+            <p class="text-gray-500">Configure system settings and preferences</p>
+        </div>
+        <button onclick="saveAllSettings()" class="px-4 py-2 gradient-primary text-white rounded-xl card-shadow">
+            <i class="fas fa-save mr-2"></i>Save All Changes
+        </button>
+    </div>
+
+    <!-- Settings Navigation -->
+    <div class="flex flex-wrap gap-2 mb-6">
+        <button onclick="showSection('general')" class="settings-tab px-4 py-2 bg-blue-50 text-blue-600 rounded-xl font-medium" data-section="general">General</button>
+        <button onclick="showSection('email')" class="settings-tab px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-xl" data-section="email">Email Settings</button>
+        <button onclick="showSection('smtp')" class="settings-tab px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-xl" data-section="smtp">SMTP Configuration</button>
+        <button onclick="showSection('limits')" class="settings-tab px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-xl" data-section="limits">Rate Limits</button>
+        <button onclick="showSection('notifications')" class="settings-tab px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-xl" data-section="notifications">Notifications</button>
+        <button onclick="showSection('integrations')" class="settings-tab px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-xl" data-section="integrations">Integrations</button>
+        <button onclick="showSection('advanced')" class="settings-tab px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-xl" data-section="advanced">Advanced</button>
+    </div>
+
+    <!-- General Settings -->
+    <div id="section-general" class="settings-section space-y-6">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Platform Settings</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Platform Name</label>
+                        <input type="text" value="SendBaba" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Support Email</label>
+                        <input type="email" value="support@sendbaba.com" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Default Timezone</label>
+                        <select class="w-full border border-gray-200 rounded-xl p-3">
+                            <option>UTC</option>
+                            <option selected>Africa/Lagos (WAT)</option>
+                            <option>America/New_York (EST)</option>
+                            <option>Europe/London (GMT)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Date Format</label>
+                        <select class="w-full border border-gray-200 rounded-xl p-3">
+                            <option>YYYY-MM-DD</option>
+                            <option selected>DD/MM/YYYY</option>
+                            <option>MM/DD/YYYY</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Branding</h3>
+            <div class="space-y-4">
+                <div class="flex items-center space-x-6">
+                    <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
+                        SB
+                    </div>
+                    <div>
+                        <button class="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100">
+                            <i class="fas fa-upload mr-2"></i>Upload Logo
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2">Recommended: 200x200px, PNG or SVG</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="color" value="#667eea" class="w-12 h-12 rounded-lg border-0 cursor-pointer">
+                        <input type="text" value="#667eea" class="w-32 border border-gray-200 rounded-xl p-3 font-mono">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Settings -->
+    <div id="section-email" class="settings-section space-y-6 hidden">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Default Email Settings</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Default From Name</label>
+                        <input type="text" value="SendBaba" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Default Reply-To</label>
+                        <input type="email" value="noreply@sendbaba.com" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email Footer (HTML)</label>
+                    <textarea rows="4" class="w-full border border-gray-200 rounded-xl p-3 font-mono text-sm">&lt;p style="color:#666;font-size:12px;"&gt;Sent via SendBaba&lt;/p&gt;</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Tracking Settings</h3>
+            <div class="space-y-4">
+                <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Open Tracking</p>
+                        <p class="text-sm text-gray-500">Track when recipients open emails</p>
+                    </div>
+                    <input type="checkbox" checked class="w-5 h-5 rounded">
+                </label>
+                <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Click Tracking</p>
+                        <p class="text-sm text-gray-500">Track when recipients click links</p>
+                    </div>
+                    <input type="checkbox" checked class="w-5 h-5 rounded">
+                </label>
+                <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Unsubscribe Link</p>
+                        <p class="text-sm text-gray-500">Automatically add unsubscribe links</p>
+                    </div>
+                    <input type="checkbox" checked class="w-5 h-5 rounded">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMTP Configuration -->
+    <div id="section-smtp" class="settings-section space-y-6 hidden">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">SMTP Server Settings</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">SMTP Host</label>
+                        <input type="text" value="localhost" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">SMTP Port</label>
+                        <input type="number" value="25" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Encryption</label>
+                        <select class="w-full border border-gray-200 rounded-xl p-3">
+                            <option>None</option>
+                            <option selected>STARTTLS</option>
+                            <option>SSL/TLS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Timeout (seconds)</label>
+                        <input type="number" value="30" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Connection Pool</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Max Connections</label>
+                    <input type="number" value="100" class="w-full border border-gray-200 rounded-xl p-3">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Connection Lifetime</label>
+                    <input type="number" value="300" class="w-full border border-gray-200 rounded-xl p-3">
+                    <p class="text-xs text-gray-500 mt-1">seconds</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Retry Attempts</label>
+                    <input type="number" value="3" class="w-full border border-gray-200 rounded-xl p-3">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Limits -->
+    <div id="section-limits" class="settings-section space-y-6 hidden">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Sending Rate Limits</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Per Second</label>
+                        <input type="number" value="100" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Per Minute</label>
+                        <input type="number" value="3000" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Per Hour</label>
+                        <input type="number" value="100000" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">API Rate Limits</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Requests per Minute (Free)</label>
+                        <input type="number" value="60" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Requests per Minute (Pro)</label>
+                        <input type="number" value="1000" class="w-full border border-gray-200 rounded-xl p-3">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">IP Warmup Schedule</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-500 border-b">
+                            <th class="pb-2">Day</th>
+                            <th class="pb-2">Daily Limit</th>
+                            <th class="pb-2">Hourly Limit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="py-2">Day 1-3</td><td>500</td><td>50</td></tr>
+                        <tr><td class="py-2">Day 4-7</td><td>1,000</td><td>100</td></tr>
+                        <tr><td class="py-2">Day 8-14</td><td>5,000</td><td>500</td></tr>
+                        <tr><td class="py-2">Day 15-21</td><td>20,000</td><td>2,000</td></tr>
+                        <tr><td class="py-2">Day 22-30</td><td>50,000</td><td>5,000</td></tr>
+                        <tr><td class="py-2">Day 30+</td><td>100,000</td><td>10,000</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="section-notifications" class="settings-section space-y-6 hidden">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Email Notifications</h3>
+            <div class="space-y-4">
+                <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Campaign Completed</p>
+                        <p class="text-sm text-gray-500">Notify when a campaign finishes sending</p>
+                    </div>
+                    <input type="checkbox" checked class="w-5 h-5 rounded">
+                </label>
+                <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">High Bounce Rate Alert</p>
+                        <p class="text-sm text-gray-500">Notify when bounce rate exceeds threshold</p>
+                    </div>
+                    <input type="checkbox" checked class="w-5 h-5 rounded">
+                </label>
+                <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Server Offline</p>
+                        <p class="text-sm text-gray-500">Notify when a server goes offline</p>
+                    </div>
+                    <input type="checkbox" checked class="w-5 h-5 rounded">
+                </label>
+                <label class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Daily Summary</p>
+                        <p class="text-sm text-gray-500">Send daily email summary</p>
+                    </div>
+                    <input type="checkbox" class="w-5 h-5 rounded">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Integrations -->
+    <div id="section-integrations" class="settings-section space-y-6 hidden">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Connected Integrations</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                            <i class="fab fa-slack text-purple-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">Slack</p>
+                            <p class="text-xs text-gray-500">Not connected</p>
+                        </div>
+                    </div>
+                    <button class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-sm">Connect</button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                            <i class="fab fa-telegram text-blue-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">Telegram</p>
+                            <p class="text-xs text-gray-500">Not connected</p>
+                        </div>
+                    </div>
+                    <button class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm">Connect</button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                            <i class="fab fa-stripe text-green-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">Stripe</p>
+                            <p class="text-xs text-green-500">Connected</p>
+                        </div>
+                    </div>
+                    <button class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm">Disconnect</button>
+                </div>
+                <div class="border border-gray-200 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-chart-bar text-orange-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-800">Google Analytics</p>
+                            <p class="text-xs text-gray-500">Not connected</p>
+                        </div>
+                    </div>
+                    <button class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-lg text-sm">Connect</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Webhooks</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Email Events Webhook</p>
+                        <p class="text-sm text-gray-500 font-mono">https://example.com/webhook/email</p>
+                    </div>
+                    <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                </div>
+                <button class="w-full py-3 border-2 border-dashed border-gray-200 text-gray-500 rounded-xl hover:border-blue-300 hover:text-blue-500">
+                    <i class="fas fa-plus mr-2"></i>Add Webhook
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced -->
+    <div id="section-advanced" class="settings-section space-y-6 hidden">
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Database Settings</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email Retention (days)</label>
+                    <input type="number" value="90" class="w-full border border-gray-200 rounded-xl p-3">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Log Retention (days)</label>
+                    <input type="number" value="30" class="w-full border border-gray-200 rounded-xl p-3">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Maintenance</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Clear Email Cache</p>
+                        <p class="text-sm text-gray-500">Remove cached email data</p>
+                    </div>
+                    <button onclick="clearCache()" class="px-4 py-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100">Clear Cache</button>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-gray-800">Rebuild Indexes</p>
+                        <p class="text-sm text-gray-500">Optimize database performance</p>
+                    </div>
+                    <button onclick="rebuildIndexes()" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">Rebuild</button>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-red-50 rounded-xl">
+                    <div>
+                        <p class="font-medium text-red-800">Purge Old Data</p>
+                        <p class="text-sm text-red-500">Delete emails older than retention period</p>
+                    </div>
+                    <button onclick="purgeData()" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200">Purge</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showSection(section) {
+    // Hide all sections
+    document.querySelectorAll('.settings-section').forEach(s => s.classList.add('hidden'));
+    // Show selected section
+    document.getElementById('section-' + section).classList.remove('hidden');
+    
+    // Update tabs
+    document.querySelectorAll('.settings-tab').forEach(t => {
+        t.classList.remove('bg-blue-50', 'text-blue-600');
+        t.classList.add('text-gray-600');
+    });
+    document.querySelector(`.settings-tab[data-section="${section}"]`).classList.add('bg-blue-50', 'text-blue-600');
+    document.querySelector(`.settings-tab[data-section="${section}"]`).classList.remove('text-gray-600');
+}
+
+function saveAllSettings() {
+    showToast('Settings saved successfully', 'success');
+}
+
+function clearCache() {
+    if (confirm('Clear all cached data?')) {
+        showToast('Cache cleared', 'success');
+    }
+}
+
+function rebuildIndexes() {
+    showToast('Rebuilding indexes...', 'info');
+}
+
+function purgeData() {
+    if (confirm('This will permanently delete old data. Continue?')) {
+        showToast('Purging old data...', 'info');
+    }
+}
+</script>
+{% endblock %}

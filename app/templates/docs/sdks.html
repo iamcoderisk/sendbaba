@@ -1,0 +1,106 @@
+{% extends 'univ.html' %}
+{% block title %}SDKs & Libraries - SendBaba Docs{% endblock %}
+{% block content %}
+<section class="pt-32 pb-12 px-4 bg-gradient-to-br from-orange-500 to-red-600 text-white">
+    <div class="max-w-7xl mx-auto">
+        <a href="/docs" class="text-white/80 hover:text-white mb-4 inline-block">← Back to Docs</a>
+        <h1 class="text-4xl font-bold">SDKs & Libraries</h1>
+        <p class="text-xl text-white/90 mt-4">Official libraries for popular programming languages</p>
+    </div>
+</section>
+<section class="py-16 px-4">
+    <div class="max-w-4xl mx-auto">
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Python -->
+            <div class="bg-white rounded-2xl border p-6">
+                <div class="flex items-center mb-4">
+                    <img src="https://cdn-icons-png.flaticon.com/128/5968/5968350.png" class="w-10 h-10 mr-3" alt="Python">
+                    <h3 class="text-xl font-bold text-gray-900">Python</h3>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-3 mb-4">
+                    <code class="text-green-400 text-sm">pip install sendbaba</code>
+                </div>
+                <div class="bg-gray-100 rounded-lg p-3 text-sm">
+                    <pre class="text-gray-800"><code>from sendbaba import SendBaba
+
+client = SendBaba("sb_live_xxx")
+client.send(
+    to="user@example.com",
+    subject="Hello!",
+    html="&lt;h1&gt;Hi&lt;/h1&gt;"
+)</code></pre>
+                </div>
+            </div>
+            
+            <!-- Node.js -->
+            <div class="bg-white rounded-2xl border p-6">
+                <div class="flex items-center mb-4">
+                    <img src="https://cdn-icons-png.flaticon.com/128/5968/5968322.png" class="w-10 h-10 mr-3" alt="Node.js">
+                    <h3 class="text-xl font-bold text-gray-900">Node.js</h3>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-3 mb-4">
+                    <code class="text-green-400 text-sm">npm install sendbaba</code>
+                </div>
+                <div class="bg-gray-100 rounded-lg p-3 text-sm">
+                    <pre class="text-gray-800"><code>const SendBaba = require('sendbaba');
+
+const client = new SendBaba('sb_live_xxx');
+await client.send({
+    to: 'user@example.com',
+    subject: 'Hello!',
+    html: '&lt;h1&gt;Hi&lt;/h1&gt;'
+});</code></pre>
+                </div>
+            </div>
+            
+            <!-- PHP -->
+            <div class="bg-white rounded-2xl border p-6">
+                <div class="flex items-center mb-4">
+                    <img src="https://cdn-icons-png.flaticon.com/128/5968/5968332.png" class="w-10 h-10 mr-3" alt="PHP">
+                    <h3 class="text-xl font-bold text-gray-900">PHP</h3>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-3 mb-4">
+                    <code class="text-green-400 text-sm">composer require sendbaba/sendbaba</code>
+                </div>
+                <div class="bg-gray-100 rounded-lg p-3 text-sm">
+                    <pre class="text-gray-800"><code>use SendBaba\Client;
+
+$client = new Client('sb_live_xxx');
+$client->send([
+    'to' => 'user@example.com',
+    'subject' => 'Hello!',
+    'html' => '&lt;h1&gt;Hi&lt;/h1&gt;'
+]);</code></pre>
+                </div>
+            </div>
+            
+            <!-- Ruby -->
+            <div class="bg-white rounded-2xl border p-6">
+                <div class="flex items-center mb-4">
+                    <img src="https://cdn-icons-png.flaticon.com/128/919/919842.png" class="w-10 h-10 mr-3" alt="Ruby">
+                    <h3 class="text-xl font-bold text-gray-900">Ruby</h3>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-3 mb-4">
+                    <code class="text-green-400 text-sm">gem install sendbaba</code>
+                </div>
+                <div class="bg-gray-100 rounded-lg p-3 text-sm">
+                    <pre class="text-gray-800"><code>require 'sendbaba'
+
+client = SendBaba::Client.new('sb_live_xxx')
+client.send(
+  to: 'user@example.com',
+  subject: 'Hello!',
+  html: '&lt;h1&gt;Hi&lt;/h1&gt;'
+)</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-12 bg-orange-50 rounded-2xl p-8 text-center">
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Need a different language?</h3>
+            <p class="text-gray-600 mb-4">Our REST API works with any language that can make HTTP requests.</p>
+            <a href="/docs/sending" class="text-orange-500 hover:underline">View API Reference →</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

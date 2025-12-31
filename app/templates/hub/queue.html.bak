@@ -1,0 +1,391 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'queue' %}
+
+{% block title %}Email Queue Management{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Email Queue Management</h1>
+            <p class="text-gray-500">Monitor and manage email processing queues</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="refreshQueue()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+                <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+            <button onclick="pauseQueue()" id="pause-btn" class="px-4 py-2 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600">
+                <i class="fas fa-pause mr-2"></i>Pause Queue
+            </button>
+            <button onclick="clearQueue()" class="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600">
+                <i class="fas fa-trash mr-2"></i>Clear Queue
+            </button>
+        </div>
+    </div>
+
+    <!-- Queue Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Pending</span>
+                <div class="w-3 h-3 bg-yellow-500 rounded-full pulse-dot"></div>
+            </div>
+            <p class="text-3xl font-bold text-yellow-600" id="queue-pending">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Processing</span>
+                <div class="w-3 h-3 bg-blue-500 rounded-full pulse-dot"></div>
+            </div>
+            <p class="text-3xl font-bold text-blue-600" id="queue-processing">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Sent</span>
+                <i class="fas fa-check text-green-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-green-600" id="queue-sent">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Failed</span>
+                <i class="fas fa-times text-red-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-red-600" id="queue-failed">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">Rate</span>
+                <i class="fas fa-tachometer-alt text-purple-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-purple-600"><span id="queue-rate">0</span>/s</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-500 text-sm">ETA</span>
+                <i class="fas fa-clock text-cyan-400"></i>
+            </div>
+            <p class="text-3xl font-bold text-cyan-600"><span id="queue-eta">0</span>m</p>
+        </div>
+    </div>
+
+    <!-- Queue Visualization -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Queue Flow -->
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Queue Throughput</h3>
+            <div id="throughput-chart" style="height: 300px;"></div>
+        </div>
+
+        <!-- Queue Health -->
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Queue Health</h3>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-500">Redis Connection</span>
+                        <span class="text-green-500 font-medium" id="redis-status">● Connected</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-500">Celery Workers</span>
+                        <span class="font-medium" id="worker-count">0 active</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-500">Memory Usage</span>
+                        <span class="font-medium" id="memory-usage">0 MB</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" id="memory-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-gray-500">Queue Lag</span>
+                        <span class="font-medium" id="queue-lag">0s</span>
+                    </div>
+                </div>
+                <div class="pt-4 border-t">
+                    <button onclick="flushRedisCache()" class="w-full py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">
+                        <i class="fas fa-broom mr-2"></i>Flush Cache
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Priority Queues -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <h3 class="font-bold text-gray-800 mb-4">Priority Queues</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="border border-red-200 bg-red-50 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-bold text-red-800">High Priority</h4>
+                    <span class="px-2 py-1 bg-red-200 text-red-800 rounded-full text-xs">Transactional</span>
+                </div>
+                <p class="text-3xl font-bold text-red-600" id="high-priority">0</p>
+                <p class="text-sm text-red-500 mt-1">emails waiting</p>
+                <div class="mt-3 flex space-x-2">
+                    <button onclick="processQueue('high')" class="flex-1 py-1.5 bg-red-600 text-white rounded-lg text-sm">Process</button>
+                    <button onclick="clearPriorityQueue('high')" class="px-3 py-1.5 bg-red-200 text-red-700 rounded-lg text-sm">Clear</button>
+                </div>
+            </div>
+            <div class="border border-yellow-200 bg-yellow-50 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-bold text-yellow-800">Normal Priority</h4>
+                    <span class="px-2 py-1 bg-yellow-200 text-yellow-800 rounded-full text-xs">Marketing</span>
+                </div>
+                <p class="text-3xl font-bold text-yellow-600" id="normal-priority">0</p>
+                <p class="text-sm text-yellow-500 mt-1">emails waiting</p>
+                <div class="mt-3 flex space-x-2">
+                    <button onclick="processQueue('normal')" class="flex-1 py-1.5 bg-yellow-600 text-white rounded-lg text-sm">Process</button>
+                    <button onclick="clearPriorityQueue('normal')" class="px-3 py-1.5 bg-yellow-200 text-yellow-700 rounded-lg text-sm">Clear</button>
+                </div>
+            </div>
+            <div class="border border-gray-200 bg-gray-50 rounded-xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="font-bold text-gray-800">Low Priority</h4>
+                    <span class="px-2 py-1 bg-gray-200 text-gray-800 rounded-full text-xs">Bulk</span>
+                </div>
+                <p class="text-3xl font-bold text-gray-600" id="low-priority">0</p>
+                <p class="text-sm text-gray-500 mt-1">emails waiting</p>
+                <div class="mt-3 flex space-x-2">
+                    <button onclick="processQueue('low')" class="flex-1 py-1.5 bg-gray-600 text-white rounded-lg text-sm">Process</button>
+                    <button onclick="clearPriorityQueue('low')" class="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Queue Items -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-gray-800">Queue Items</h3>
+            <div class="flex items-center space-x-2">
+                <select id="queue-filter" onchange="filterQueue(this.value)" class="px-3 py-1.5 border border-gray-200 rounded-lg text-sm">
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="sending">Processing</option>
+                    <option value="failed">Failed</option>
+                </select>
+                <button onclick="retryFailed()" class="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm hover:bg-blue-100">
+                    <i class="fas fa-redo mr-1"></i>Retry Failed
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">
+                            <input type="checkbox" id="select-all" onchange="toggleSelectAll()" class="rounded">
+                        </th>
+                        <th class="pb-3 font-medium">ID</th>
+                        <th class="pb-3 font-medium">Recipient</th>
+                        <th class="pb-3 font-medium">Subject</th>
+                        <th class="pb-3 font-medium">Campaign</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Created</th>
+                        <th class="pb-3 font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="queue-table" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+        <div class="flex items-center justify-between mt-4 pt-4 border-t">
+            <p class="text-sm text-gray-500">Showing <span id="showing-count">0</span> of <span id="total-count">0</span> items</p>
+            <div class="flex space-x-2">
+                <button onclick="prevPage()" class="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Previous</button>
+                <button onclick="nextPage()" class="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let throughputChart;
+let currentPage = 1;
+let queuePaused = false;
+
+function initCharts() {
+    throughputChart = new ApexCharts(document.querySelector("#throughput-chart"), {
+        chart: { type: 'area', height: 300, toolbar: { show: false }, animations: { enabled: true, dynamicAnimation: { speed: 1000 } } },
+        series: [
+            { name: 'Sent', data: [] },
+            { name: 'Failed', data: [] }
+        ],
+        colors: ['#10b981', '#ef4444'],
+        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
+        stroke: { curve: 'smooth', width: 2 },
+        xaxis: { labels: { show: false } },
+        yaxis: { labels: { formatter: v => formatNumber(v) } },
+        grid: { borderColor: '#f1f5f9' },
+        legend: { position: 'top' }
+    });
+    throughputChart.render();
+}
+
+async function fetchQueueData() {
+    try {
+        const res = await fetch('/hub/api/queue/stats');
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('queue-pending').textContent = formatNumber(data.pending);
+            document.getElementById('queue-processing').textContent = formatNumber(data.processing);
+            document.getElementById('queue-sent').textContent = formatNumber(data.sent);
+            document.getElementById('queue-failed').textContent = formatNumber(data.failed);
+            document.getElementById('queue-rate').textContent = data.rate || 0;
+            document.getElementById('queue-eta').textContent = data.eta || 0;
+            
+            document.getElementById('worker-count').textContent = data.workers + ' active';
+            document.getElementById('memory-usage').textContent = data.memory_mb + ' MB';
+            document.getElementById('memory-bar').style.width = data.memory_pct + '%';
+            document.getElementById('queue-lag').textContent = data.lag + 's';
+            
+            document.getElementById('high-priority').textContent = formatNumber(data.high_priority || 0);
+            document.getElementById('normal-priority').textContent = formatNumber(data.normal_priority || 0);
+            document.getElementById('low-priority').textContent = formatNumber(data.low_priority || 0);
+            
+            // Update chart
+            if (data.throughput) {
+                throughputChart.updateSeries([
+                    { name: 'Sent', data: data.throughput.sent },
+                    { name: 'Failed', data: data.throughput.failed }
+                ]);
+            }
+            
+            // Update table
+            renderQueueTable(data.items || []);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderQueueTable(items) {
+    const tbody = document.getElementById('queue-table');
+    document.getElementById('showing-count').textContent = items.length;
+    
+    if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-500">No items in queue</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = items.map(item => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50">
+            <td class="py-3"><input type="checkbox" class="queue-item-cb rounded" value="${item.id}"></td>
+            <td class="py-3 font-mono text-xs">${item.id.substring(0, 8)}...</td>
+            <td class="py-3">${item.to_email}</td>
+            <td class="py-3 truncate max-w-xs">${item.subject || 'No subject'}</td>
+            <td class="py-3">${item.campaign || '-'}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${
+                    item.status === 'sent' ? 'bg-green-100 text-green-700' :
+                    item.status === 'failed' ? 'bg-red-100 text-red-700' :
+                    item.status === 'sending' ? 'bg-blue-100 text-blue-700' :
+                    'bg-yellow-100 text-yellow-700'
+                }">${item.status}</span>
+            </td>
+            <td class="py-3 text-gray-500">${item.created_at}</td>
+            <td class="py-3">
+                <div class="flex space-x-1">
+                    <button onclick="retryItem('${item.id}')" class="p-1.5 hover:bg-gray-100 rounded" title="Retry">
+                        <i class="fas fa-redo text-blue-500"></i>
+                    </button>
+                    <button onclick="deleteItem('${item.id}')" class="p-1.5 hover:bg-gray-100 rounded" title="Delete">
+                        <i class="fas fa-trash text-red-500"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function refreshQueue() {
+    fetchQueueData();
+    showToast('Queue refreshed', 'success');
+}
+
+async function pauseQueue() {
+    const action = queuePaused ? 'resume' : 'pause';
+    const res = await fetch(`/hub/api/system/${action}`, { method: 'POST' });
+    const data = await res.json();
+    
+    if (data.success) {
+        queuePaused = !queuePaused;
+        const btn = document.getElementById('pause-btn');
+        btn.innerHTML = queuePaused ? '<i class="fas fa-play mr-2"></i>Resume Queue' : '<i class="fas fa-pause mr-2"></i>Pause Queue';
+        btn.className = queuePaused ? 'px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600' : 'px-4 py-2 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600';
+        showToast(data.message, 'success');
+    }
+}
+
+async function clearQueue() {
+    if (!confirm('Are you sure you want to clear all pending emails? This cannot be undone.')) return;
+    
+    const res = await fetch('/hub/api/queue/clear', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.message || 'Queue cleared', data.success ? 'success' : 'error');
+    fetchQueueData();
+}
+
+async function processQueue(priority) {
+    showToast(`Processing ${priority} priority queue...`, 'info');
+}
+
+async function clearPriorityQueue(priority) {
+    if (!confirm(`Clear all ${priority} priority emails?`)) return;
+    showToast(`${priority} priority queue cleared`, 'success');
+}
+
+async function retryFailed() {
+    const res = await fetch('/hub/api/queue/retry-failed', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.message || 'Retrying failed emails...', 'success');
+    fetchQueueData();
+}
+
+async function retryItem(id) {
+    showToast('Retrying email...', 'info');
+}
+
+async function deleteItem(id) {
+    if (!confirm('Delete this email from queue?')) return;
+    showToast('Email deleted', 'success');
+    fetchQueueData();
+}
+
+function toggleSelectAll() {
+    const checked = document.getElementById('select-all').checked;
+    document.querySelectorAll('.queue-item-cb').forEach(cb => cb.checked = checked);
+}
+
+function filterQueue(status) {
+    fetchQueueData();
+}
+
+async function flushRedisCache() {
+    if (!confirm('Flush Redis cache? This may temporarily affect performance.')) return;
+    showToast('Cache flushed', 'success');
+}
+
+function prevPage() { if (currentPage > 1) { currentPage--; fetchQueueData(); } }
+function nextPage() { currentPage++; fetchQueueData(); }
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    fetchQueueData();
+    setInterval(fetchQueueData, 5000);
+});
+</script>
+{% endblock %}

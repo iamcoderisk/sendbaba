@@ -7,7 +7,7 @@ import sys
 import time
 import redis
 
-r = redis.Redis(host='localhost', port=6379, password='SendBaba2024SecureRedis', decode_responses=True)
+r = redis.Redis(host='localhost', port=6379, password='SendBabaRedis2024!', decode_responses=True)
 
 def monitor(campaign_id=None):
     print("=" * 60)

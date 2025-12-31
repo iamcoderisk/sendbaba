@@ -1,0 +1,224 @@
+{% extends 'hub/base.html' %}
+
+{% block title %}Sales Dashboard - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Sales Dashboard</h1>
+            <p class="text-gray-600">Overview of your sales pipeline and performance</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="/hub/sales/pipeline" class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:shadow-lg transition-all flex items-center gap-2">
+                <i class="fas fa-columns"></i> View Pipeline
+            </a>
+            <a href="/hub/sales/deals/new" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-all flex items-center gap-2">
+                <i class="fas fa-plus"></i> New Deal
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Open Deals</p>
+                    <p class="text-3xl font-bold text-gray-900" id="stat-open-deals">-</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-handshake text-blue-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Pipeline Value</p>
+                    <p class="text-3xl font-bold text-gray-900">$<span id="stat-pipeline-value">-</span></p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Won This Month</p>
+                    <p class="text-3xl font-bold text-emerald-600" id="stat-won-deals">-</p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-trophy text-emerald-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-gray-500">Total Contacts</p>
+                    <p class="text-3xl font-bold text-gray-900" id="stat-contacts">-</p>
+                </div>
+                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-users text-purple-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <a href="/hub/sales/pipeline" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-orange-300 transition-all text-center group">
+            <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-2 group-hover:bg-orange-200">
+                <i class="fas fa-columns text-orange-600"></i>
+            </div>
+            <span class="text-sm font-medium text-gray-700">Pipeline</span>
+        </a>
+        <a href="/hub/sales/deals" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-orange-300 transition-all text-center group">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2 group-hover:bg-blue-200">
+                <i class="fas fa-handshake text-blue-600"></i>
+            </div>
+            <span class="text-sm font-medium text-gray-700">Deals</span>
+        </a>
+        <a href="/hub/sales/contacts" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-orange-300 transition-all text-center group">
+            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-2 group-hover:bg-purple-200">
+                <i class="fas fa-user text-purple-600"></i>
+            </div>
+            <span class="text-sm font-medium text-gray-700">Contacts</span>
+        </a>
+        <a href="/hub/sales/companies" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-orange-300 transition-all text-center group">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-2 group-hover:bg-green-200">
+                <i class="fas fa-building text-green-600"></i>
+            </div>
+            <span class="text-sm font-medium text-gray-700">Companies</span>
+        </a>
+        <a href="/hub/sales/activities" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-orange-300 transition-all text-center group">
+            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-2 group-hover:bg-yellow-200">
+                <i class="fas fa-tasks text-yellow-600"></i>
+            </div>
+            <span class="text-sm font-medium text-gray-700">Activities</span>
+        </a>
+        <a href="/hub/sales/reports" class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md hover:border-orange-300 transition-all text-center group">
+            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-2 group-hover:bg-red-200">
+                <i class="fas fa-chart-bar text-red-600"></i>
+            </div>
+            <span class="text-sm font-medium text-gray-700">Reports</span>
+        </a>
+    </div>
+
+    <!-- Recent Deals & Activities -->
+    <div class="grid lg:grid-cols-2 gap-6">
+        <!-- Recent Deals -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="font-semibold text-gray-900">Recent Deals</h2>
+                <a href="/hub/sales/deals" class="text-sm text-orange-600 hover:underline">View All</a>
+            </div>
+            <div class="p-4" id="recent-deals-container">
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Activities -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+            <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="font-semibold text-gray-900">Upcoming Activities</h2>
+                <a href="/hub/sales/activities" class="text-sm text-orange-600 hover:underline">View All</a>
+            </div>
+            <div class="p-4" id="activities-container">
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+    loadRecentDeals();
+    loadActivities();
+});
+
+async function loadStats() {
+    try {
+        const res = await fetch('/hub/sales/api/stats');
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('stat-open-deals').textContent = data.stats.open_deals || 0;
+            document.getElementById('stat-pipeline-value').textContent = formatNumber(data.stats.pipeline_value || 0);
+            document.getElementById('stat-won-deals').textContent = data.stats.won_deals || 0;
+            document.getElementById('stat-contacts').textContent = data.stats.total_contacts || 0;
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function loadRecentDeals() {
+    try {
+        const res = await fetch('/hub/sales/api/deals?per_page=5');
+        const data = await res.json();
+        const container = document.getElementById('recent-deals-container');
+        
+        if (data.success && data.deals && data.deals.length > 0) {
+            container.innerHTML = data.deals.map(d => `
+                <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-medium text-gray-900">${d.name}</p>
+                        <p class="text-sm text-gray-500">${d.company_name || 'No company'}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold">$${formatNumber(d.amount || 0)}</p>
+                        <span class="text-xs px-2 py-1 rounded-full" style="background-color: ${d.stage_color || '#6B7280'}20; color: ${d.stage_color || '#6B7280'}">${d.stage_name || 'No stage'}</span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fas fa-inbox text-2xl mb-2"></i><p>No deals yet</p></div>';
+        }
+    } catch (e) { 
+        console.error(e);
+        document.getElementById('recent-deals-container').innerHTML = '<div class="text-center py-8 text-gray-500"><p>Error loading deals</p></div>';
+    }
+}
+
+async function loadActivities() {
+    try {
+        const res = await fetch('/hub/sales/api/activities?status=pending&per_page=5');
+        const data = await res.json();
+        const container = document.getElementById('activities-container');
+        
+        if (data.success && data.activities && data.activities.length > 0) {
+            const icons = { call: 'fa-phone', email: 'fa-envelope', meeting: 'fa-calendar', task: 'fa-check-circle', note: 'fa-sticky-note' };
+            container.innerHTML = data.activities.map(a => `
+                <div class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg">
+                    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <i class="fas ${icons[a.type] || 'fa-tasks'} text-gray-600"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-900">${a.subject}</p>
+                        <p class="text-sm text-gray-500">${a.type} • ${a.due_date ? new Date(a.due_date).toLocaleDateString() : 'No due date'}</p>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fas fa-calendar-check text-2xl mb-2"></i><p>No upcoming activities</p></div>';
+        }
+    } catch (e) {
+        console.error(e);
+        document.getElementById('activities-container').innerHTML = '<div class="text-center py-8 text-gray-500"><p>Error loading activities</p></div>';
+    }
+}
+
+function formatNumber(n) { return new Intl.NumberFormat().format(n); }
+</script>
+{% endblock %}

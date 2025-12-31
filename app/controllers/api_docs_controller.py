@@ -385,3 +385,34 @@ def openapi_spec():
     }
     
     return jsonify(spec)
+
+
+@api_docs_bp.route('/authentication')
+def authentication():
+    """Authentication documentation"""
+    return render_template('docs/authentication.html')
+
+@api_docs_bp.route('/sending')
+def sending():
+    """Sending emails documentation"""
+    return render_template('docs/sending.html')
+
+@api_docs_bp.route('/webhooks')
+def webhooks():
+    """Webhooks documentation"""
+    return render_template('docs/webhooks.html')
+
+@api_docs_bp.route('/templates')
+def templates():
+    """Email templates documentation"""
+    return render_template('docs/templates.html')
+
+@api_docs_bp.route('/quickstart')
+def quickstart():
+    """Quick start guide"""
+    return render_template('docs/quickstart.html')
+
+@api_docs_bp.route('/sdks')
+def sdks():
+    """SDKs and libraries"""
+    return render_template('docs/sdks.html')

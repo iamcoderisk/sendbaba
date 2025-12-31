@@ -1,382 +1,478 @@
 {% extends "dashboard/base.html" %}
-{% block title %}Choose Template - SendBaba{% endblock %}
-{% block page_title %}Template Gallery{% endblock %}
-{% block page_subtitle %}Choose a template to start designing your campaign{% endblock %}
+{% block title %}Email Templates - SendBaba{% endblock %}
+{% block page_title %}Email Templates{% endblock %}
+{% block page_subtitle %}Choose from {{ templates|length }} professional templates{% endblock %}
 
 {% block extra_css %}
 <style>
-    .templates-header {
-        display: flex;
-        justify-content: flex-end;
-        margin-bottom: 24px;
-    }
-    .back-btn {
-        color: #6b7280;
-        text-decoration: none;
-        font-weight: 500;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: color 0.2s;
-    }
-    .back-btn:hover {
-        color: #F97316;
-    }
-    
-    .templates-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 24px;
-    }
-    
-    .template-card {
-        background: white;
-        border-radius: 20px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        border: 2px solid transparent;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .template-card:hover {
-        border-color: #F97316;
-        box-shadow: 0 12px 40px rgba(249, 115, 22, 0.15);
-        transform: translateY(-4px);
-    }
-    
-    .template-preview {
-        height: 180px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        overflow: hidden;
-    }
-    .template-preview .emoji {
-        font-size: 48px;
-        margin-bottom: 8px;
-    }
-    .template-preview h4 {
-        font-size: 24px;
-        font-weight: 700;
-        color: white;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    .template-preview .content {
-        text-align: center;
-    }
-    
-    .preview-blank { background: linear-gradient(135deg, #e5e7eb, #d1d5db); }
-    .preview-blank i { font-size: 56px; color: #9ca3af; }
-    .template-card:hover .preview-blank { background: linear-gradient(135deg, #fed7aa, #fdba74); }
-    .template-card:hover .preview-blank i { color: #F97316; }
-    
-    .preview-welcome { background: linear-gradient(135deg, #a855f7, #7c3aed); }
-    .preview-newsletter { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
-    .preview-promotional { background: linear-gradient(135deg, #ec4899, #ef4444); }
-    .preview-event { background: linear-gradient(135deg, #10b981, #14b8a6); }
-    .preview-simple { background: linear-gradient(135deg, #374151, #1f2937); }
-    
-    .template-info {
-        padding: 20px 24px;
-    }
-    .template-title {
-        font-size: 18px;
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 4px;
-    }
-    .template-desc {
-        font-size: 14px;
-        color: #6b7280;
-    }
-    
-    /* Modal Styles */
-    .modal-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(4px);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-    }
-    .modal-overlay.show {
-        display: flex;
-        animation: fadeIn 0.2s ease;
-    }
-    .modal-content {
-        background: white;
-        border-radius: 24px;
-        width: 100%;
-        max-width: 440px;
-        padding: 32px;
-        box-shadow: 0 25px 50px rgba(0,0,0,0.25);
-        animation: slideUp 0.3s ease;
-    }
-    @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .modal-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 8px;
-    }
-    .modal-desc {
-        color: #6b7280;
-        margin-bottom: 24px;
-    }
-    .modal-input {
-        width: 100%;
-        padding: 14px 18px;
-        border: 2px solid #e5e7eb;
-        border-radius: 12px;
-        font-size: 16px;
-        margin-bottom: 24px;
-        transition: border-color 0.2s;
-    }
-    .modal-input:focus {
-        outline: none;
-        border-color: #F97316;
-    }
-    .modal-actions {
-        display: flex;
-        gap: 12px;
-    }
-    .btn-cancel {
-        flex: 1;
-        padding: 14px;
-        background: #f3f4f6;
-        color: #374151;
-        border: none;
-        border-radius: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .btn-cancel:hover {
-        background: #e5e7eb;
-    }
-    .btn-continue {
-        flex: 1;
-        padding: 14px;
-        background: linear-gradient(135deg, #F97316, #EA580C);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4);
-        transition: all 0.2s;
-    }
-    .btn-continue:hover {
-        box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
-        transform: translateY(-1px);
-    }
-    
-    /* Loading Modal */
-    .loading-modal {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.8);
-        z-index: 1001;
-        align-items: center;
-        justify-content: center;
-    }
-    .loading-modal.show {
-        display: flex;
-    }
-    .loading-content {
-        background: white;
-        border-radius: 20px;
-        padding: 40px 60px;
-        text-align: center;
-    }
-    .loading-content i {
-        font-size: 48px;
-        color: #F97316;
-        margin-bottom: 16px;
-    }
-    .loading-content p {
-        font-size: 18px;
-        font-weight: 600;
-        color: #374151;
-    }
-    
-    @media (max-width: 900px) {
-        .templates-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-    @media (max-width: 600px) {
-        .templates-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+/* Header */
+.templates-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.back-btn {
+    color: #6b7280;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.back-btn:hover { color: #F97316; }
+
+/* Search & Filter */
+.filter-bar {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.search-box {
+    position: relative;
+}
+.search-box input {
+    padding: 12px 20px 12px 45px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    font-size: 15px;
+    width: 280px;
+    transition: all 0.3s;
+}
+.search-box input:focus {
+    outline: none;
+    border-color: #F97316;
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.1);
+}
+.search-box i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+}
+
+/* Category Pills */
+.category-pills {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 30px;
+}
+.category-pill {
+    padding: 10px 20px;
+    border-radius: 50px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: capitalize;
+}
+.category-pill:hover {
+    border-color: #F97316;
+    color: #F97316;
+}
+.category-pill.active {
+    background: linear-gradient(135deg, #F97316, #EA580C);
+    border-color: #F97316;
+    color: white;
+}
+
+/* Templates Grid */
+.templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+}
+.template-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+.template-card:hover {
+    border-color: #F97316;
+    box-shadow: 0 12px 40px rgba(249,115,22,0.15);
+    transform: translateY(-4px);
+}
+.template-card.hidden { display: none; }
+
+/* Preview Area */
+.template-preview {
+    height: 200px;
+    background: #f3f4f6;
+    position: relative;
+    overflow: hidden;
+}
+.template-preview iframe {
+    width: 200%;
+    height: 400px;
+    transform: scale(0.5);
+    transform-origin: top left;
+    pointer-events: none;
+    border: none;
+}
+.template-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.6));
+    opacity: 0;
+    transition: opacity 0.3s;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 20px;
+}
+.template-card:hover .template-overlay { opacity: 1; }
+.preview-btn {
+    background: white;
+    color: #111;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+.preview-btn:hover {
+    background: #F97316;
+    color: white;
+}
+
+/* Template Info */
+.template-info {
+    padding: 20px;
+}
+.template-category {
+    display: inline-block;
+    background: #FFF7ED;
+    color: #EA580C;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.template-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 6px;
+}
+.template-desc {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 15px;
+}
+.template-actions {
+    display: flex;
+    gap: 10px;
+}
+.btn-use {
+    flex: 1;
+    background: linear-gradient(135deg, #F97316, #EA580C);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+.btn-use:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(249,115,22,0.4);
+}
+.btn-preview-small {
+    padding: 12px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    background: white;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.btn-preview-small:hover {
+    border-color: #F97316;
+    color: #F97316;
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+.modal-overlay.active { display: flex; }
+.modal-content {
+    background: white;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.modal-header {
+    padding: 20px 30px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-title {
+    font-size: 20px;
+    font-weight: 700;
+}
+.modal-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: none;
+    background: #f3f4f6;
+    cursor: pointer;
+    font-size: 20px;
+    transition: all 0.2s;
+}
+.modal-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+.modal-body {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+}
+.modal-body iframe {
+    width: 100%;
+    height: 500px;
+    border: none;
+}
+.modal-footer {
+    padding: 20px 30px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+}
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 20px;
+    color: #d1d5db;
+}
+
+/* Stats */
+.stats-bar {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+    padding: 20px 30px;
+    background: linear-gradient(135deg, #FFF7ED, #FFEDD5);
+    border-radius: 16px;
+}
+.stat-item {
+    text-align: center;
+}
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #EA580C;
+}
+.stat-label {
+    font-size: 13px;
+    color: #92400E;
+}
+
+@media (max-width: 768px) {
+    .templates-grid { grid-template-columns: 1fr; }
+    .filter-bar { width: 100%; }
+    .search-box input { width: 100%; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="templates-header">
-    <a href="/dashboard/campaigns/create" class="back-btn">
-        <i class="fas fa-arrow-left"></i> Back
+    <a href="{{ url_for('campaigns.list_campaigns') }}" class="back-btn">
+        <i class="fas fa-arrow-left"></i> Back to Campaigns
     </a>
+    <div class="filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Search templates..." onkeyup="filterTemplates()">
+        </div>
+    </div>
+</div>
+
+<div class="stats-bar">
+    <div class="stat-item">
+        <div class="stat-value">{{ templates|length }}</div>
+        <div class="stat-label">Templates</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">{{ categories|length }}</div>
+        <div class="stat-label">Categories</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value">100%</div>
+        <div class="stat-label">Responsive</div>
+    </div>
+</div>
+
+<div class="category-pills">
+    <button class="category-pill active" onclick="filterByCategory('all')">All</button>
+    {% for cat in categories %}
+    <button class="category-pill" onclick="filterByCategory('{{ cat }}')">{{ cat|replace('_', ' ') }}</button>
+    {% endfor %}
 </div>
 
 <div class="templates-grid">
-    <div class="template-card" onclick="selectTemplate('blank', 'Blank Template')">
-        <div class="template-preview preview-blank">
-            <i class="fas fa-plus"></i>
+    <!-- Blank Template -->
+    <div class="template-card" data-category="blank" data-name="blank">
+        <div class="template-preview" style="background: linear-gradient(135deg, #e5e7eb, #d1d5db); display: flex; align-items: center; justify-content: center;">
+            <i class="fas fa-plus" style="font-size: 48px; color: #9ca3af;"></i>
         </div>
         <div class="template-info">
-            <h3 class="template-title">Start from Scratch</h3>
-            <p class="template-desc">Build your email from a blank canvas</p>
+            <span class="template-category">Start Fresh</span>
+            <h3 class="template-name">Blank Canvas</h3>
+            <p class="template-desc">Start from scratch with a blank template</p>
+            <div class="template-actions">
+                <a href="{{ url_for('campaigns.design_campaign', template_id='blank') }}" class="btn-use">
+                    <i class="fas fa-plus"></i> Start Blank
+                </a>
+            </div>
         </div>
     </div>
-    
-    <div class="template-card" onclick="selectTemplate('welcome', 'Welcome Email')">
-        <div class="template-preview preview-welcome">
-            <div class="content">
-                <div class="emoji">👋</div>
-                <h4>Welcome!</h4>
+
+    {% for template in templates %}
+    <div class="template-card" data-category="{{ template.category }}" data-name="{{ template.name|lower }}">
+        <div class="template-preview">
+            <iframe srcdoc="{{ template.html_content|e }}" sandbox="allow-same-origin"></iframe>
+            <div class="template-overlay">
+                <button class="preview-btn" onclick="openPreview('{{ template.id }}', '{{ template.name|e }}')">
+                    <i class="fas fa-eye"></i> Preview
+                </button>
             </div>
         </div>
         <div class="template-info">
-            <h3 class="template-title">Welcome Email</h3>
-            <p class="template-desc">Greet new subscribers warmly</p>
-        </div>
-    </div>
-    
-    <div class="template-card" onclick="selectTemplate('newsletter', 'Newsletter')">
-        <div class="template-preview preview-newsletter">
-            <div class="content">
-                <div class="emoji">📰</div>
-                <h4>Newsletter</h4>
+            <span class="template-category">{{ template.category|replace('_', ' ') }}</span>
+            <h3 class="template-name">{{ template.name }}</h3>
+            <p class="template-desc">{{ template.description or template.subject }}</p>
+            <div class="template-actions">
+                <a href="{{ url_for('campaigns.design_campaign', template_id=template.id) }}" class="btn-use">
+                    Use Template
+                </a>
+                <button class="btn-preview-small" onclick="openPreview('{{ template.id }}', '{{ template.name|e }}')">
+                    <i class="fas fa-expand"></i>
+                </button>
             </div>
         </div>
-        <div class="template-info">
-            <h3 class="template-title">Business Newsletter</h3>
-            <p class="template-desc">Monthly updates and news</p>
-        </div>
     </div>
-    
-    <div class="template-card" onclick="selectTemplate('promotional', 'Special Offer')">
-        <div class="template-preview preview-promotional">
-            <div class="content">
-                <div class="emoji">🎁</div>
-                <h4>50% OFF</h4>
-            </div>
-        </div>
-        <div class="template-info">
-            <h3 class="template-title">Special Offer</h3>
-            <p class="template-desc">Promotional sales template</p>
-        </div>
-    </div>
-    
-    <div class="template-card" onclick="selectTemplate('event', 'Event Invitation')">
-        <div class="template-preview preview-event">
-            <div class="content">
-                <div class="emoji">🎉</div>
-                <h4>Event!</h4>
-            </div>
-        </div>
-        <div class="template-info">
-            <h3 class="template-title">Event Invitation</h3>
-            <p class="template-desc">Beautiful event announcement</p>
-        </div>
-    </div>
-    
-    <div class="template-card" onclick="selectTemplate('simple', 'Simple Email')">
-        <div class="template-preview preview-simple">
-            <div class="content">
-                <div class="emoji">✉️</div>
-                <h4>Simple</h4>
-            </div>
-        </div>
-        <div class="template-info">
-            <h3 class="template-title">Simple Text</h3>
-            <p class="template-desc">Clean minimal design</p>
-        </div>
-    </div>
+    {% endfor %}
 </div>
 
-<!-- Name Modal -->
-<div class="modal-overlay" id="nameModal">
+{% if not templates %}
+<div class="empty-state">
+    <i class="fas fa-inbox"></i>
+    <h3>No templates found</h3>
+    <p>Templates will appear here once added to the database</p>
+</div>
+{% endif %}
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="previewModal">
     <div class="modal-content">
-        <h3 class="modal-title">Name your campaign</h3>
-        <p class="modal-desc">This helps you identify your campaigns later.</p>
-        <input type="text" id="campaignName" class="modal-input" placeholder="e.g., Summer Sale Newsletter">
-        <div class="modal-actions">
-            <button onclick="closeModal()" class="btn-cancel">Cancel</button>
-            <button onclick="createCampaign()" class="btn-continue">Continue</button>
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">Template Preview</h3>
+            <button class="modal-close" onclick="closePreview()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <iframe id="previewFrame" srcdoc=""></iframe>
+        </div>
+        <div class="modal-footer">
+            <button onclick="closePreview()" style="padding: 12px 24px; border: 2px solid #e5e7eb; border-radius: 10px; background: white; cursor: pointer;">Cancel</button>
+            <a href="#" id="useTemplateBtn" class="btn-use" style="text-decoration: none;">Use This Template</a>
         </div>
     </div>
 </div>
 
-<!-- Loading Modal -->
-<div class="loading-modal" id="loadingModal">
-    <div class="loading-content">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Creating your campaign...</p>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
 <script>
-let selectedTemplateId = null;
-let selectedTemplateName = null;
+const templates = {{ templates|tojson|safe }};
 
-function selectTemplate(id, name) {
-    selectedTemplateId = id;
-    selectedTemplateName = name;
-    document.getElementById('campaignName').value = name;
-    document.getElementById('nameModal').classList.add('show');
-    setTimeout(() => {
-        document.getElementById('campaignName').focus();
-        document.getElementById('campaignName').select();
-    }, 100);
+function filterByCategory(category) {
+    document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    document.querySelectorAll('.template-card').forEach(card => {
+        const cardCat = card.dataset.category;
+        if (category === 'all' || cardCat === category || cardCat === 'blank') {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
 }
 
-function closeModal() {
-    document.getElementById('nameModal').classList.remove('show');
+function filterTemplates() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    document.querySelectorAll('.template-card').forEach(card => {
+        const name = card.dataset.name;
+        const category = card.dataset.category;
+        if (name.includes(search) || category.includes(search)) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
+    });
 }
 
-function createCampaign() {
-    const name = document.getElementById('campaignName').value.trim();
-    if (!name) {
-        document.getElementById('campaignName').style.borderColor = '#ef4444';
-        document.getElementById('campaignName').focus();
-        return;
+function openPreview(templateId, templateName) {
+    const template = templates.find(t => t.id == templateId);
+    if (template) {
+        document.getElementById('modalTitle').textContent = templateName;
+        document.getElementById('previewFrame').srcdoc = template.html_content;
+        document.getElementById('useTemplateBtn').href = '/dashboard/campaigns/design/' + templateId;
+        document.getElementById('previewModal').classList.add('active');
     }
-    
-    document.getElementById('nameModal').classList.remove('show');
-    document.getElementById('loadingModal').classList.add('show');
-    
-    window.location.href = '/dashboard/campaigns/design/' + selectedTemplateId + '?name=' + encodeURIComponent(name);
 }
 
-document.getElementById('campaignName')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') createCampaign();
-});
+function closePreview() {
+    document.getElementById('previewModal').classList.remove('active');
+}
 
-document.getElementById('campaignName')?.addEventListener('input', (e) => {
-    e.target.style.borderColor = '#e5e7eb';
-});
-
-// Close modal on overlay click
-document.getElementById('nameModal')?.addEventListener('click', (e) => {
-    if (e.target.id === 'nameModal') closeModal();
-});
-
-// Close modal on escape
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') closePreview();
+});
+
+document.getElementById('previewModal').addEventListener('click', (e) => {
+    if (e.target.id === 'previewModal') closePreview();
 });
 </script>
 {% endblock %}

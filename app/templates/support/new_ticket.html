@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Create Ticket - Support{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+        <div class="max-w-3xl mx-auto px-4 py-12">
+            <a href="{{ url_for('tickets.support_home') }}" class="inline-flex items-center text-orange-100 hover:text-white mb-4">
+                <i class="fas fa-arrow-left mr-2"></i> Back to tickets
+            </a>
+            <h1 class="text-3xl font-bold">Create New Ticket</h1>
+            <p class="text-orange-100 mt-2">Tell us how we can help you</p>
+        </div>
+    </div>
+    
+    <!-- Form -->
+    <div class="max-w-3xl mx-auto px-4 py-8">
+        <form action="{{ url_for('tickets.create_ticket') }}" method="POST" class="bg-white rounded-xl shadow-sm p-8">
+            <!-- Subject -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Subject <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="subject" required
+                       class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                       placeholder="Brief summary of your issue">
+            </div>
+            
+            <!-- Category -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Category
+                </label>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {% for cat in categories %}
+                    <label class="relative">
+                        <input type="radio" name="category_id" value="{{ cat.id }}" class="peer sr-only">
+                        <div class="p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all
+                                    peer-checked:border-orange-500 peer-checked:bg-orange-50 hover:border-gray-300">
+                            <i class="fas {{ cat.icon }} text-xl mb-2" style="color: {{ cat.color }}"></i>
+                            <div class="font-medium text-gray-900 text-sm">{{ cat.name }}</div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Priority -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Priority
+                </label>
+                <div class="flex gap-3">
+                    <label class="flex-1">
+                        <input type="radio" name="priority" value="low" class="peer sr-only">
+                        <div class="p-3 border-2 border-gray-200 rounded-xl text-center cursor-pointer transition-all
+                                    peer-checked:border-gray-500 peer-checked:bg-gray-50 hover:border-gray-300">
+                            <span class="font-medium text-gray-600">Low</span>
+                        </div>
+                    </label>
+                    <label class="flex-1">
+                        <input type="radio" name="priority" value="medium" checked class="peer sr-only">
+                        <div class="p-3 border-2 border-gray-200 rounded-xl text-center cursor-pointer transition-all
+                                    peer-checked:border-yellow-500 peer-checked:bg-yellow-50 hover:border-gray-300">
+                            <span class="font-medium text-yellow-600">Medium</span>
+                        </div>
+                    </label>
+                    <label class="flex-1">
+                        <input type="radio" name="priority" value="high" class="peer sr-only">
+                        <div class="p-3 border-2 border-gray-200 rounded-xl text-center cursor-pointer transition-all
+                                    peer-checked:border-orange-500 peer-checked:bg-orange-50 hover:border-gray-300">
+                            <span class="font-medium text-orange-600">High</span>
+                        </div>
+                    </label>
+                    <label class="flex-1">
+                        <input type="radio" name="priority" value="urgent" class="peer sr-only">
+                        <div class="p-3 border-2 border-gray-200 rounded-xl text-center cursor-pointer transition-all
+                                    peer-checked:border-red-500 peer-checked:bg-red-50 hover:border-gray-300">
+                            <span class="font-medium text-red-600">Urgent</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Description -->
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Description <span class="text-red-500">*</span>
+                </label>
+                <textarea name="description" required rows="8"
+                          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all resize-none"
+                          placeholder="Please describe your issue in detail. Include any error messages, steps to reproduce, and what you expected to happen."></textarea>
+                <p class="text-sm text-gray-500 mt-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    The more details you provide, the faster we can help you.
+                </p>
+            </div>
+            
+            <!-- Submit -->
+            <div class="flex items-center justify-between pt-4 border-t">
+                <a href="{{ url_for('tickets.support_home') }}" class="text-gray-500 hover:text-gray-700">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
+                    <i class="fas fa-paper-plane mr-2"></i>
+                    Submit Ticket
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

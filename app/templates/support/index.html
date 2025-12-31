@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Support - MyHelpr{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+        <div class="max-w-7xl mx-auto px-4 py-12">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">Support Center</h1>
+                    <p class="text-orange-100 mt-2">How can we help you today?</p>
+                </div>
+                <a href="{{ url_for('tickets.create_ticket') }}" 
+                   class="bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
+                    <i class="fas fa-plus mr-2"></i>New Ticket
+                </a>
+            </div>
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                    <div class="text-3xl font-bold">{{ stats.open_count or 0 }}</div>
+                    <div class="text-orange-100 text-sm">Open</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                    <div class="text-3xl font-bold">{{ stats.pending_count or 0 }}</div>
+                    <div class="text-orange-100 text-sm">Pending</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                    <div class="text-3xl font-bold">{{ stats.resolved_count or 0 }}</div>
+                    <div class="text-orange-100 text-sm">Resolved</div>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                    <div class="text-3xl font-bold">{{ stats.total_count or 0 }}</div>
+                    <div class="text-orange-100 text-sm">Total</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Filters -->
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-6">
+            <div class="flex flex-wrap gap-2">
+                <a href="?status=all" class="px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    {{ 'bg-orange-500 text-white' if status_filter == 'all' else 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    All Tickets
+                </a>
+                <a href="?status=open" class="px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    {{ 'bg-orange-500 text-white' if status_filter == 'open' else 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    Open
+                </a>
+                <a href="?status=pending" class="px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    {{ 'bg-orange-500 text-white' if status_filter == 'pending' else 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    Pending
+                </a>
+                <a href="?status=resolved" class="px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    {{ 'bg-orange-500 text-white' if status_filter == 'resolved' else 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    Resolved
+                </a>
+                <a href="?status=closed" class="px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    {{ 'bg-orange-500 text-white' if status_filter == 'closed' else 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    Closed
+                </a>
+            </div>
+        </div>
+        
+        <!-- Tickets List -->
+        <div class="space-y-4">
+            {% if tickets %}
+                {% for ticket in tickets %}
+                <a href="{{ url_for('tickets.view_ticket', ticket_id=ticket.id) }}" 
+                   class="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 overflow-hidden group">
+                    <div class="p-5">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="text-sm font-mono text-gray-500">{{ ticket.ticket_number }}</span>
+                                    {% if ticket.unread_replies and ticket.unread_replies > 0 %}
+                                    <span class="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                                        {{ ticket.unread_replies }} new
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">
+                                    {{ ticket.subject }}
+                                </h3>
+                                <p class="text-gray-500 text-sm mt-1 line-clamp-2">{{ ticket.description[:150] }}...</p>
+                            </div>
+                            <div class="ml-4 flex flex-col items-end gap-2">
+                                <!-- Status Badge -->
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                    {% if ticket.status == 'open' %}bg-green-100 text-green-700
+                                    {% elif ticket.status == 'pending' %}bg-yellow-100 text-yellow-700
+                                    {% elif ticket.status == 'resolved' %}bg-blue-100 text-blue-700
+                                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                                    {{ ticket.status|title }}
+                                </span>
+                                <!-- Priority -->
+                                <span class="text-xs px-2 py-1 rounded
+                                    {% if ticket.priority == 'urgent' %}bg-red-100 text-red-600
+                                    {% elif ticket.priority == 'high' %}bg-orange-100 text-orange-600
+                                    {% elif ticket.priority == 'medium' %}bg-yellow-100 text-yellow-600
+                                    {% else %}bg-gray-100 text-gray-500{% endif %}">
+                                    {{ ticket.priority|title }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 mt-4 text-sm text-gray-500">
+                            {% if ticket.category_name %}
+                            <span class="flex items-center gap-1">
+                                <i class="fas {{ ticket.category_icon }}" style="color: {{ ticket.category_color }}"></i>
+                                {{ ticket.category_name }}
+                            </span>
+                            {% endif %}
+                            <span class="flex items-center gap-1">
+                                <i class="fas fa-comments"></i>
+                                {{ ticket.reply_count }} replies
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <i class="fas fa-clock"></i>
+                                {{ ticket.updated_at.strftime('%b %d, %Y %H:%M') if ticket.updated_at else ticket.created_at.strftime('%b %d, %Y %H:%M') }}
+                            </span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="bg-white rounded-xl shadow-sm p-12 text-center">
+                    <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-ticket-alt text-2xl text-orange-500"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">No tickets yet</h3>
+                    <p class="text-gray-500 mb-6">Create a ticket to get help from our support team.</p>
+                    <a href="{{ url_for('tickets.create_ticket') }}" 
+                       class="inline-flex items-center gap-2 bg-orange-500 text-white px-6 py-3 rounded-xl font-semibold hover:bg-orange-600 transition-colors">
+                        <i class="fas fa-plus"></i>
+                        Create Your First Ticket
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,304 @@
+{% extends "hub/base.html" %}
+{% set active_page = 'audit-log' %}
+
+{% block title %}Audit Log{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Audit Log</h1>
+            <p class="text-gray-500">Track all system activities and user actions</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="exportAuditLog()" class="px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+            <button onclick="openComplianceReport()" class="px-4 py-2 gradient-primary text-white rounded-xl card-shadow">
+                <i class="fas fa-file-alt mr-2"></i>Compliance Report
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">Today's Events</p>
+            <p class="text-3xl font-bold text-gray-800" id="events-today">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">User Actions</p>
+            <p class="text-3xl font-bold text-blue-600" id="user-actions">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">System Events</p>
+            <p class="text-3xl font-bold text-purple-600" id="system-events">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">Security Events</p>
+            <p class="text-3xl font-bold text-red-600" id="security-events">0</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm mb-1">API Calls</p>
+            <p class="text-3xl font-bold text-green-600" id="api-calls">0</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-2xl p-4 card-shadow">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" id="search-query" placeholder="Search events..." 
+                       class="w-full px-4 py-2 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-blue-500">
+            </div>
+            <select id="event-type" class="px-4 py-2 bg-gray-50 border-0 rounded-xl">
+                <option value="">All Types</option>
+                <option value="user">User Actions</option>
+                <option value="system">System Events</option>
+                <option value="security">Security</option>
+                <option value="api">API Calls</option>
+                <option value="email">Email Events</option>
+            </select>
+            <select id="severity" class="px-4 py-2 bg-gray-50 border-0 rounded-xl">
+                <option value="">All Severity</option>
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="error">Error</option>
+                <option value="critical">Critical</option>
+            </select>
+            <input type="date" id="date-from" class="px-4 py-2 bg-gray-50 border-0 rounded-xl">
+            <input type="date" id="date-to" class="px-4 py-2 bg-gray-50 border-0 rounded-xl">
+            <button onclick="applyFilters()" class="px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600">
+                <i class="fas fa-filter mr-2"></i>Filter
+            </button>
+        </div>
+    </div>
+
+    <!-- Audit Log Table -->
+    <div class="bg-white rounded-2xl p-6 card-shadow">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-sm text-gray-500 border-b">
+                        <th class="pb-3 font-medium">Timestamp</th>
+                        <th class="pb-3 font-medium">Type</th>
+                        <th class="pb-3 font-medium">User</th>
+                        <th class="pb-3 font-medium">Action</th>
+                        <th class="pb-3 font-medium">Resource</th>
+                        <th class="pb-3 font-medium">IP Address</th>
+                        <th class="pb-3 font-medium">Status</th>
+                        <th class="pb-3 font-medium">Details</th>
+                    </tr>
+                </thead>
+                <tbody id="audit-table" class="text-sm">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+        <div class="flex items-center justify-between mt-4 pt-4 border-t">
+            <p class="text-sm text-gray-500">Showing <span id="showing-count">0</span> of <span id="total-count">0</span> events</p>
+            <div class="flex space-x-2">
+                <button onclick="prevPage()" class="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Previous</button>
+                <span class="px-3 py-1.5 text-gray-600">Page <span id="current-page">1</span></span>
+                <button onclick="nextPage()" class="px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Timeline -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Activity Timeline</h3>
+            <div id="timeline-chart" style="height: 300px;"></div>
+        </div>
+        <div class="bg-white rounded-2xl p-6 card-shadow">
+            <h3 class="font-bold text-gray-800 mb-4">Top Users by Activity</h3>
+            <div class="space-y-4" id="top-users">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div id="event-detail-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50" onclick="closeEventDetail()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-white rounded-2xl card-shadow-lg p-6 max-h-[80vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-800">Event Details</h3>
+            <button onclick="closeEventDetail()" class="p-2 hover:bg-gray-100 rounded-lg">
+                <i class="fas fa-times text-gray-400"></i>
+            </button>
+        </div>
+        <div id="event-detail-content">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let timelineChart;
+let currentPage = 1;
+
+function initCharts() {
+    timelineChart = new ApexCharts(document.querySelector("#timeline-chart"), {
+        chart: { type: 'bar', height: 300, toolbar: { show: false }, stacked: true },
+        series: [
+            { name: 'User Actions', data: [44, 55, 41, 67, 22, 43, 21, 33, 45, 31, 87, 65] },
+            { name: 'System Events', data: [13, 23, 20, 8, 13, 27, 33, 12, 21, 19, 15, 23] },
+            { name: 'Security', data: [11, 17, 15, 15, 21, 14, 15, 13, 17, 11, 13, 18] }
+        ],
+        colors: ['#3b82f6', '#8b5cf6', '#ef4444'],
+        plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '60%' } },
+        xaxis: { categories: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'] },
+        yaxis: { labels: { formatter: v => formatNumber(v) } },
+        legend: { position: 'top' },
+        grid: { borderColor: '#f1f5f9' }
+    });
+    timelineChart.render();
+}
+
+async function fetchAuditLog() {
+    try {
+        const res = await fetch('/hub/api/audit-log');
+        const data = await res.json();
+        
+        if (data.success) {
+            document.getElementById('events-today').textContent = formatNumber(data.stats.today);
+            document.getElementById('user-actions').textContent = formatNumber(data.stats.user_actions);
+            document.getElementById('system-events').textContent = formatNumber(data.stats.system_events);
+            document.getElementById('security-events').textContent = formatNumber(data.stats.security_events);
+            document.getElementById('api-calls').textContent = formatNumber(data.stats.api_calls);
+            document.getElementById('total-count').textContent = formatNumber(data.total);
+            document.getElementById('showing-count').textContent = data.events.length;
+            
+            renderAuditTable(data.events);
+            renderTopUsers(data.top_users);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderAuditTable(events) {
+    const tbody = document.getElementById('audit-table');
+    
+    const typeColors = {
+        user: 'bg-blue-100 text-blue-700',
+        system: 'bg-purple-100 text-purple-700',
+        security: 'bg-red-100 text-red-700',
+        api: 'bg-green-100 text-green-700',
+        email: 'bg-yellow-100 text-yellow-700'
+    };
+    
+    const statusColors = {
+        success: 'text-green-500',
+        failed: 'text-red-500',
+        warning: 'text-yellow-500',
+        info: 'text-blue-500'
+    };
+    
+    tbody.innerHTML = events.map(e => `
+        <tr class="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onclick="showEventDetail('${e.id}')">
+            <td class="py-3 text-gray-500">${e.timestamp}</td>
+            <td class="py-3">
+                <span class="px-2 py-1 rounded-full text-xs font-medium ${typeColors[e.type] || 'bg-gray-100 text-gray-700'}">${e.type}</span>
+            </td>
+            <td class="py-3">${e.user || 'System'}</td>
+            <td class="py-3 font-medium">${e.action}</td>
+            <td class="py-3 text-gray-500">${e.resource || '-'}</td>
+            <td class="py-3 font-mono text-xs text-gray-500">${e.ip_address || '-'}</td>
+            <td class="py-3">
+                <i class="fas fa-circle text-xs ${statusColors[e.status] || 'text-gray-400'}"></i>
+            </td>
+            <td class="py-3">
+                <button class="text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderTopUsers(users) {
+    const container = document.getElementById('top-users');
+    container.innerHTML = users.map((u, i) => `
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                ${u.name.charAt(0)}
+            </div>
+            <div class="flex-1">
+                <p class="font-medium text-gray-800">${u.name}</p>
+                <p class="text-xs text-gray-500">${u.email}</p>
+            </div>
+            <div class="text-right">
+                <p class="font-bold text-gray-800">${formatNumber(u.actions)}</p>
+                <p class="text-xs text-gray-500">actions</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+function showEventDetail(id) {
+    document.getElementById('event-detail-content').innerHTML = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 mb-1">Event ID</p>
+                    <p class="font-mono">${id}</p>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="text-sm text-gray-500 mb-1">Timestamp</p>
+                    <p class="font-medium">${new Date().toISOString()}</p>
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <p class="text-sm text-gray-500 mb-2">Raw Event Data</p>
+                <pre class="text-xs bg-gray-800 text-green-400 p-4 rounded-lg overflow-x-auto">
+{
+  "id": "${id}",
+  "type": "user",
+  "action": "login",
+  "user_id": "usr_123",
+  "ip_address": "192.168.1.1",
+  "user_agent": "Mozilla/5.0...",
+  "status": "success"
+}
+                </pre>
+            </div>
+        </div>
+    `;
+    document.getElementById('event-detail-modal').classList.remove('hidden');
+}
+
+function closeEventDetail() {
+    document.getElementById('event-detail-modal').classList.add('hidden');
+}
+
+function applyFilters() {
+    fetchAuditLog();
+    showToast('Filters applied', 'success');
+}
+
+function exportAuditLog() {
+    showToast('Exporting audit log...', 'info');
+    window.open('/hub/api/audit-log/export', '_blank');
+}
+
+function openComplianceReport() {
+    showToast('Generating compliance report...', 'info');
+}
+
+function prevPage() { if (currentPage > 1) { currentPage--; fetchAuditLog(); } }
+function nextPage() { currentPage++; fetchAuditLog(); }
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initCharts();
+    fetchAuditLog();
+});
+</script>
+{% endblock %}

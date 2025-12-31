@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - SendBaba</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Header */
+        .header {
+            background: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #e5e5e5;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-back {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            color: #1a1a1a;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .header-back:hover { background: #f0f0f0; }
+        
+        .header-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f86d31, #e55a1f);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .header-info {
+            flex: 1;
+        }
+        
+        .header-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #1a1a1a;
+        }
+        
+        .header-status {
+            font-size: 12px;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .header-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .header-btn:hover { background: #f0f0f0; color: #f86d31; }
+        
+        /* Dropdown Menu */
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            min-width: 180px;
+            padding: 8px 0;
+            display: none;
+            z-index: 200;
+        }
+        .dropdown-menu.show { display: block; }
+        
+        .dropdown-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #1a1a1a;
+            transition: background 0.15s;
+        }
+        .dropdown-item:hover { background: #f5f5f5; }
+        .dropdown-item.danger { color: #ef4444; }
+        .dropdown-item i { width: 20px; text-align: center; }
+        
+        /* Messages Area */
+        .messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #f5f5f5;
+        }
+        
+        /* Message Bubbles */
+        .message-row {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            max-width: 85%;
+        }
+        
+        .message-row.sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        
+        .message-row.received {
+            align-self: flex-start;
+        }
+        
+        .message-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            flex-shrink: 0;
+        }
+        
+        .message-bubble {
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.4;
+            max-width: 100%;
+            word-wrap: break-word;
+            position: relative;
+        }
+        
+        .message-row.sent .message-bubble {
+            background: linear-gradient(135deg, #f86d31, #e55a1f);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message-row.received .message-bubble {
+            background: white;
+            color: #1a1a1a;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .message-time {
+            font-size: 11px;
+            margin-top: 4px;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .message-row.sent .message-time {
+            justify-content: flex-end;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .message-row.received .message-time {
+            color: #999;
+        }
+        
+        .message-status {
+            color: rgba(255,255,255,0.9);
+        }
+        
+        /* Sticker/Image Message */
+        .message-sticker {
+            max-width: 150px;
+            border-radius: 12px;
+        }
+        
+        .message-sticker img {
+            width: 100%;
+            border-radius: 12px;
+        }
+        
+        /* Typing Indicator */
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+        }
+        .typing-indicator.show { display: flex; }
+        
+        .typing-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+        }
+        
+        .typing-bubble {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            display: flex;
+            gap: 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #ccc;
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
+        }
+        
+        /* Input Area */
+        .input-area {
+            background: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-top: 1px solid #e5e5e5;
+        }
+        
+        .input-actions {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .input-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            color: #666;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .input-btn:hover { background: #f0f0f0; color: #f86d31; }
+        
+        .input-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background: #f5f5f5;
+            border-radius: 24px;
+            padding: 0 16px;
+        }
+        
+        .input-wrapper input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 12px 0;
+            font-size: 15px;
+            outline: none;
+        }
+        .input-wrapper input::placeholder { color: #999; }
+        
+        .send-btn {
+            padding: 10px 20px;
+            background: transparent;
+            color: #f86d31;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 20px;
+            transition: all 0.2s;
+        }
+        .send-btn:hover { background: #fff5f0; }
+        
+        /* Emoji Picker */
+        .emoji-picker {
+            position: absolute;
+            bottom: 70px;
+            left: 16px;
+            right: 16px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.2);
+            padding: 16px;
+            display: none;
+            z-index: 300;
+        }
+        .emoji-picker.show { display: block; }
+        
+        .emoji-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #e5e5e5;
+            padding-bottom: 8px;
+        }
+        
+        .emoji-tab {
+            padding: 8px;
+            border: none;
+            background: transparent;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+        .emoji-tab:hover { background: #f0f0f0; }
+        .emoji-tab.active { background: #fff5f0; }
+        
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .emoji-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
+            font-size: 22px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.15s;
+        }
+        .emoji-btn:hover { background: #f0f0f0; transform: scale(1.15); }
+        
+        /* Sticker Picker */
+        .sticker-picker {
+            position: absolute;
+            bottom: 70px;
+            left: 16px;
+            right: 16px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.2);
+            padding: 16px;
+            display: none;
+            z-index: 300;
+        }
+        .sticker-picker.show { display: block; }
+        
+        .sticker-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .sticker-btn {
+            aspect-ratio: 1;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 12px;
+            cursor: pointer;
+            padding: 8px;
+            transition: all 0.15s;
+        }
+        .sticker-btn:hover { background: #e5e5e5; transform: scale(1.05); }
+        .sticker-btn img { width: 100%; height: 100%; object-fit: contain; }
+        
+        /* Date Separator */
+        .date-separator {
+            text-align: center;
+            padding: 16px 0;
+        }
+        .date-separator span {
+            background: rgba(0,0,0,0.05);
+            color: #666;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* Scrollbar */
+        .messages::-webkit-scrollbar { width: 6px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        .messages::-webkit-scrollbar-thumb:hover { background: #aaa; }
+        
+        /* Animations */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-row { animation: slideIn 0.2s ease; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <button class="header-back" onclick="window.close()">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="header-avatar" id="avatar">{{ with_email[0]|upper if with_email else '?' }}</div>
+        <div class="header-info">
+            <div class="header-name" id="recipient-name">{{ with_email.split('@')[0].replace('.', ' ').replace('_', ' ').title() if with_email else 'Unknown' }}</div>
+            <div class="header-status">
+                <span class="status-dot"></span>
+                <span id="status-text">Online</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="header-btn" onclick="startVideoCall()" title="Video Call">
+                <i class="fas fa-video"></i>
+            </button>
+            <button class="header-btn" onclick="toggleMenu()" title="More">
+                <i class="fas fa-ellipsis-v"></i>
+                <div class="dropdown-menu" id="dropdown-menu">
+                    <div class="dropdown-item" onclick="startAudioCall()">
+                        <i class="fas fa-phone"></i> Audio call
+                    </div>
+                    <div class="dropdown-item" onclick="startVideoCall()">
+                        <i class="fas fa-video"></i> Video Call
+                    </div>
+                    <div class="dropdown-item" onclick="reportUser()">
+                        <i class="fas fa-flag"></i> Report
+                    </div>
+                    <div class="dropdown-item danger" onclick="blockUser()">
+                        <i class="fas fa-ban"></i> Block
+                    </div>
+                </div>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Messages -->
+    <div class="messages" id="messages">
+        <div class="date-separator"><span>Today</span></div>
+        
+        <!-- Typing Indicator -->
+        <div class="typing-indicator" id="typing">
+            <div class="typing-avatar" id="typing-avatar">?</div>
+            <div class="typing-bubble">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Emoji Picker -->
+    <div class="emoji-picker" id="emoji-picker">
+        <div class="emoji-tabs">
+            <button class="emoji-tab active" onclick="showEmojiCategory('smileys')">😀</button>
+            <button class="emoji-tab" onclick="showEmojiCategory('gestures')">👋</button>
+            <button class="emoji-tab" onclick="showEmojiCategory('hearts')">❤️</button>
+            <button class="emoji-tab" onclick="showEmojiCategory('objects')">🎉</button>
+        </div>
+        <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+    
+    <!-- Sticker Picker -->
+    <div class="sticker-picker" id="sticker-picker">
+        <div class="sticker-grid" id="sticker-grid"></div>
+    </div>
+    
+    <!-- Input Area -->
+    <div class="input-area">
+        <button class="input-btn" onclick="openCamera()" title="Camera">
+            <i class="fas fa-camera"></i>
+        </button>
+        <button class="input-btn" onclick="toggleStickers()" title="Stickers">
+            <i class="fas fa-sticky-note"></i>
+        </button>
+        <button class="input-btn" onclick="toggleEmoji()" title="Emoji">
+            <i class="fas fa-smile"></i>
+        </button>
+        <div class="input-wrapper">
+            <input type="text" id="message-input" placeholder="Message.." 
+                   onkeypress="if(event.key==='Enter')sendMessage()" 
+                   oninput="handleTyping()">
+        </div>
+        <button class="send-btn" onclick="sendMessage()">SEND</button>
+    </div>
+    
+    <script>
+        // Config
+        const withEmail = '{{ with_email }}';
+        const fromEmail = '{{ from_email }}';
+        let socket = null;
+        let lastTypingEmit = 0;
+        
+        // Emoji Data
+        const emojiData = {
+            smileys: ['😀','😃','😄','😁','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😋','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐'],
+            gestures: ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💪'],
+            hearts: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟'],
+            objects: ['🎉','🎊','🎈','🎁','🏆','🥇','⭐','🌟','✨','💫','🔥','💯','✅','❌','💰','💸','📱','💻','🎮','🎧','📸','🎬','🎵','🎶']
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initSocket();
+            loadHistory();
+            buildEmojiPicker('smileys');
+            buildStickerPicker();
+            document.getElementById('typing-avatar').textContent = withEmail ? withEmail[0].toUpperCase() : '?';
+            document.getElementById('message-input').focus();
+            markAsRead();
+        });
+        
+        // Socket
+        function initSocket() {
+            try {
+                socket = io({ transports: ['websocket', 'polling'] });
+                
+                socket.on('connect', () => {
+                    console.log('🟢 Connected');
+                    socket.emit('join_room', { room: [fromEmail, withEmail].sort().join('_') });
+                });
+                
+                socket.on('chat_message', (data) => {
+                    if (data.from === withEmail) {
+                        addMessage(data.content, false, data.time, data.type || 'text');
+                        playSound();
+                        hideTyping();
+                    }
+                });
+                
+                socket.on('chat_typing', (data) => {
+                    if (data.from === withEmail) {
+                        showTyping();
+                    }
+                });
+                
+                socket.on('user_status', (data) => {
+                    if (data.email === withEmail) {
+                        document.getElementById('status-text').textContent = data.online ? 'Online' : 'Offline';
+                    }
+                });
+            } catch(e) {
+                console.log('Socket error:', e);
+            }
+        }
+        
+        // Load History
+        async function loadHistory() {
+            try {
+                const r = await fetch('/api/chat/history?with=' + encodeURIComponent(withEmail), { credentials: 'same-origin' });
+                const data = await r.json();
+                if (data.success && data.messages) {
+                    data.messages.forEach(m => {
+                        addMessage(m.content, m.sent_by_me, m.time, m.type || 'text', false);
+                    });
+                }
+            } catch(e) {
+                console.log('History error:', e);
+            }
+            scrollToBottom();
+        }
+        
+        // Send Message
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const content = input.value.trim();
+            if (!content) return;
+            
+            input.value = '';
+            addMessage(content, true, null, 'text');
+            
+            // Socket emit
+            if (socket) {
+                socket.emit('chat_message', {
+                    to: withEmail,
+                    content: content,
+                    type: 'text'
+                });
+            }
+            
+            // Save to server
+            try {
+                await fetch('/api/chat/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ to: withEmail, content: content, type: 'text' })
+                });
+            } catch(e) {}
+        }
+        
+        // Add Message to UI
+        function addMessage(content, isSent, time, type = 'text', animate = true) {
+            const container = document.getElementById('messages');
+            const typing = document.getElementById('typing');
+            
+            const row = document.createElement('div');
+            row.className = 'message-row ' + (isSent ? 'sent' : 'received');
+            if (!animate) row.style.animation = 'none';
+            
+            const timeStr = time || new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            const initial = isSent ? fromEmail[0].toUpperCase() : withEmail[0].toUpperCase();
+            
+            if (type === 'sticker') {
+                row.innerHTML = `
+                    <div class="message-avatar">${isSent ? '' : initial}</div>
+                    <div class="message-sticker">
+                        <img src="${content}" alt="Sticker">
+                        <div class="message-time">${timeStr}</div>
+                    </div>
+                `;
+            } else {
+                row.innerHTML = `
+                    <div class="message-avatar" style="${isSent ? 'display:none' : ''}">${initial}</div>
+                    <div class="message-bubble">
+                        ${escapeHtml(content)}
+                        <div class="message-time">
+                            ${timeStr}
+                            ${isSent ? '<i class="fas fa-check-double message-status"></i>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.insertBefore(row, typing);
+            scrollToBottom();
+        }
+        
+        // Typing
+        function handleTyping() {
+            if (socket && Date.now() - lastTypingEmit > 2000) {
+                socket.emit('chat_typing', { to: withEmail });
+                lastTypingEmit = Date.now();
+            }
+        }
+        
+        let typingTimeout;
+        function showTyping() {
+            document.getElementById('typing').classList.add('show');
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(hideTyping, 3000);
+        }
+        
+        function hideTyping() {
+            document.getElementById('typing').classList.remove('show');
+        }
+        
+        // Emoji
+        function toggleEmoji() {
+            document.getElementById('sticker-picker').classList.remove('show');
+            document.getElementById('emoji-picker').classList.toggle('show');
+        }
+        
+        function buildEmojiPicker(category) {
+            const grid = document.getElementById('emoji-grid');
+            const emojis = emojiData[category] || emojiData.smileys;
+            grid.innerHTML = emojis.map(e => `<button class="emoji-btn" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+            
+            // Update active tab
+            document.querySelectorAll('.emoji-tab').forEach((tab, i) => {
+                tab.classList.toggle('active', Object.keys(emojiData)[i] === category);
+            });
+        }
+        
+        function showEmojiCategory(category) {
+            buildEmojiPicker(category);
+        }
+        
+        function insertEmoji(emoji) {
+            const input = document.getElementById('message-input');
+            input.value += emoji;
+            input.focus();
+        }
+        
+        // Stickers
+        function toggleStickers() {
+            document.getElementById('emoji-picker').classList.remove('show');
+            document.getElementById('sticker-picker').classList.toggle('show');
+        }
+        
+        function buildStickerPicker() {
+            // Using emoji as stickers for now
+            const stickers = ['👍','❤️','😂','😮','😢','😡','🎉','🔥'];
+            const grid = document.getElementById('sticker-grid');
+            grid.innerHTML = stickers.map(s => `
+                <button class="sticker-btn" onclick="sendSticker('${s}')">
+                    <span style="font-size:40px">${s}</span>
+                </button>
+            `).join('');
+        }
+        
+        function sendSticker(sticker) {
+            addMessage(sticker, true, null, 'text');
+            if (socket) {
+                socket.emit('chat_message', { to: withEmail, content: sticker, type: 'text' });
+            }
+            fetch('/api/chat/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ to: withEmail, content: sticker, type: 'sticker' })
+            }).catch(() => {});
+            document.getElementById('sticker-picker').classList.remove('show');
+        }
+        
+        // Menu
+        function toggleMenu() {
+            document.getElementById('dropdown-menu').classList.toggle('show');
+        }
+        
+        // Close pickers on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.emoji-picker') && !e.target.closest('.input-btn')) {
+                document.getElementById('emoji-picker').classList.remove('show');
+            }
+            if (!e.target.closest('.sticker-picker') && !e.target.closest('.input-btn')) {
+                document.getElementById('sticker-picker').classList.remove('show');
+            }
+            if (!e.target.closest('.dropdown-menu') && !e.target.closest('.header-btn')) {
+                document.getElementById('dropdown-menu').classList.remove('show');
+            }
+        });
+        
+        // Actions
+        function startAudioCall() {
+            alert('Audio calls coming soon!');
+        }
+        
+        function startVideoCall() {
+            alert('Video calls coming soon!');
+        }
+        
+        function reportUser() {
+            alert('Report submitted');
+        }
+        
+        function blockUser() {
+            if (confirm('Block this user?')) {
+                alert('User blocked');
+                window.close();
+            }
+        }
+        
+        function openCamera() {
+            alert('Camera feature coming soon!');
+        }
+        
+        // Helpers
+        function scrollToBottom() {
+            const container = document.getElementById('messages');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        
+        // Mark messages as read when opening
+        async function markAsRead() {
+            try {
+                await fetch('/api/chat/mark-read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ with: withEmail })
+                });
+            } catch(e) {}
+        }
+        
+        // Call on load
+        markAsRead();
+
+        function playSound() {
+            try {
+                const audio = new Audio('/static/sounds/new-email.wav');
+                audio.volume = 0.3;
+                audio.play().catch(() => {});
+            } catch(e) {}
+        }
+    </script>
+</body>
+</html>

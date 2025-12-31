@@ -477,3 +477,78 @@ def on_password_reset_request(user):
     except Exception as e:
         logger.error(f"on_password_reset_request failed: {e}")
         return None
+
+
+    def send_mailbox_welcome_email(self, user_email, user_name, verification_token, org_name):
+        """Send welcome email for mailbox users"""
+        verification_link = f"https://playmaster.sendbaba.com/auth/verify-email/{verification_token}"
+        html = self._get_mailbox_welcome_template(user_name, user_email, verification_link, org_name)
+        text = f"Welcome to SendBaba Mail, {user_name}! Verify your email: {verification_link}"
+        return self.send_email(user_email, "📬 Welcome to SendBaba Mail - Verify Your Email", html, text)
+
+    def _get_mailbox_welcome_template(self, user_name, user_email, verification_link, org_name):
+        content = f'''
+<table width="100%" cellspacing="0" cellpadding="0">
+<tr><td align="center" style="padding-bottom:24px;">
+<div style="width:80px;height:80px;background:linear-gradient(135deg,#E0E7FF,#C7D2FE);border-radius:50%;text-align:center;line-height:80px;display:inline-block;">
+<span style="font-size:40px;">📬</span>
+</div>
+</td></tr>
+</table>
+
+<h1 style="margin:0 0 8px;font-size:28px;font-weight:700;color:#111827;text-align:center;">Welcome to SendBaba Mail!</h1>
+<p style="margin:0 0 32px;font-size:16px;color:#6b7280;text-align:center;">Hello <strong style="color:#111827;">{user_name}</strong>, your business mailbox is almost ready!</p>
+
+<!-- Verify Button -->
+<table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+<tr><td align="center">
+<a href="{verification_link}" style="display:inline-block;padding:16px 48px;background:linear-gradient(135deg,#6366F1,#8B5CF6);color:#fff;text-decoration:none;border-radius:12px;font-weight:600;font-size:16px;">
+Verify Email & Get Started
+</a>
+</td></tr>
+</table>
+
+<!-- What's Next -->
+<table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+<tr><td style="padding:24px;background:#f9fafb;border-radius:16px;">
+<h2 style="margin:0 0 16px;font-size:18px;font-weight:600;color:#111827;">What you can do:</h2>
+
+<table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:12px;">
+<tr>
+<td width="40" valign="top"><div style="width:32px;height:32px;background:#6366F1;border-radius:8px;text-align:center;line-height:32px;"><span style="font-size:14px;">🌐</span></div></td>
+<td style="padding-left:12px;"><p style="margin:0 0 2px;font-size:14px;font-weight:600;color:#111827;">Add Your Custom Domain</p><p style="margin:0;font-size:13px;color:#6b7280;">Use your own domain like you@{org_name.lower().replace(" ", "")}.com</p></td>
+</tr>
+</table>
+
+<table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:12px;">
+<tr>
+<td width="40" valign="top"><div style="width:32px;height:32px;background:#10B981;border-radius:8px;text-align:center;line-height:32px;"><span style="font-size:14px;">👥</span></div></td>
+<td style="padding-left:12px;"><p style="margin:0 0 2px;font-size:14px;font-weight:600;color:#111827;">Create Team Mailboxes</p><p style="margin:0;font-size:13px;color:#6b7280;">Add email accounts for your team members</p></td>
+</tr>
+</table>
+
+<table width="100%" cellspacing="0" cellpadding="0">
+<tr>
+<td width="40" valign="top"><div style="width:32px;height:32px;background:#F97316;border-radius:8px;text-align:center;line-height:32px;"><span style="font-size:14px;">📱</span></div></td>
+<td style="padding-left:12px;"><p style="margin:0 0 2px;font-size:14px;font-weight:600;color:#111827;">Access Anywhere</p><p style="margin:0;font-size:13px;color:#6b7280;">Use our web app at <a href="https://mail.sendbaba.com" style="color:#6366F1;">mail.sendbaba.com</a></p></td>
+</tr>
+</table>
+
+</td></tr>
+</table>
+
+<!-- Quick Start -->
+<table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:24px;">
+<tr><td style="padding:20px;background:linear-gradient(135deg,#E0E7FF,#C7D2FE);border-radius:16px;">
+<p style="margin:0;font-size:14px;color:#4338CA;">
+<strong>🚀 Quick Start:</strong> After verifying, log in at <a href="https://mail.sendbaba.com" style="color:#4338CA;font-weight:600;">mail.sendbaba.com</a> to access your mailbox and start setting up your custom domain.
+</p>
+</td></tr>
+</table>
+
+<p style="margin:0;font-size:13px;color:#9ca3af;text-align:center;">
+If the button doesn\'t work, copy this link:<br>
+<a href="{verification_link}" style="color:#6366F1;word-break:break-all;">{verification_link}</a>
+</p>
+'''
+        return self._base_template(content, f"Welcome to SendBaba Mail, {user_name}! Verify your email to get started.")
