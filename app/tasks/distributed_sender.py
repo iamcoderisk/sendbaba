@@ -1,424 +1,93 @@
 """
-DISTRIBUTED EMAIL SENDER - Dynamic IPs from Database
-=====================================================
-High-speed sending with IPs from ip_pools table.
-Target: 100,000 emails in 10 minutes (167/sec)
+SendBaba Distributed Sender - Database Driven
+==============================================
+No hardcoding - all limits from database
 """
-import os
-import sys
-import uuid
 import logging
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-sys.path.insert(0, '/opt/sendbaba-staging')
-
-from celery_app import celery_app
-from config.redis_config import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+from celery import Celery
+from app.tasks.worker_manager import (
+    get_available_workers, 
+    distribute_emails, 
+    get_total_capacity,
+    update_worker_stats
+)
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import redis
 
 logger = logging.getLogger(__name__)
-redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
 
-# Hub Keys
-HUB_RATE_LIMITS_KEY = 'sendbaba:hub:rate_limits'
-HUB_WORKER_CONFIG_KEY = 'sendbaba:hub:worker_config'
-
-# Default 15x TURBO limits
-DEFAULT_LIMITS = {
-    'gmail.com': 3000, 'googlemail.com': 3000,
-    'yahoo.com': 2250, 'hotmail.com': 2250, 'outlook.com': 2250,
-    'live.com': 2250, 'aol.com': 1500, 'icloud.com': 1500,
-    'default': 4500
+DB_CONFIG = {
+    'host': 'localhost',
+    'database': 'emailer',
+    'user': 'emailer',
+    'password': 'SecurePassword123'
 }
 
-
 def get_db():
-    return psycopg2.connect(
-        host='localhost', database='emailer',
-        user='emailer', password='SecurePassword123'
-    )
+    return psycopg2.connect(**DB_CONFIG)
 
-
-def get_warmed_ips():
-    """Get warmed IPs from database (daily_limit >= 100000)"""
+def get_capacity_report():
+    """Get current sending capacity report"""
     try:
         conn = get_db()
         cur = conn.cursor(cursor_factory=RealDictCursor)
+        
         cur.execute("""
-            SELECT ip_address, hostname, daily_limit, sent_today
-            FROM ip_pools 
-            WHERE is_active = true AND daily_limit >= 100000
-            ORDER BY priority ASC, sent_today ASC
+            SELECT 
+                COUNT(*) FILTER (WHERE status = 'active' AND is_active = TRUE) as active_servers,
+                COUNT(*) FILTER (WHERE status = 'warming' AND is_active = TRUE) as warming_servers,
+                COUNT(*) as total_servers,
+                COALESCE(SUM(daily_limit) FILTER (WHERE is_active = TRUE), 0) as total_daily_capacity,
+                COALESCE(SUM(sent_today) FILTER (WHERE is_active = TRUE), 0) as total_sent_today
+            FROM worker_servers
         """)
-        ips = [row['ip_address'] for row in cur.fetchall()]
-        conn.close()
+        capacity = cur.fetchone()
         
-        if ips:
-            # Cache in Redis for faster access
-            redis_client.delete('warmed_ips')
-            redis_client.rpush('warmed_ips', *ips)
-            redis_client.expire('warmed_ips', 300)  # 5 min cache
-            return ips
-    except Exception as e:
-        logger.error(f"Error getting warmed IPs: {e}")
-    
-    # Fallback to cached or default
-    cached = redis_client.lrange('warmed_ips', 0, -1)
-    if cached:
-        return [ip.decode() if isinstance(ip, bytes) else ip for ip in cached]
-    
-    # Last resort: return empty (will use default in relay_server)
-    return []
-
-
-def get_limit(domain):
-    """Get rate limit from Hub"""
-    limit = redis_client.hget(HUB_RATE_LIMITS_KEY, domain)
-    if limit:
-        return int(limit)
-    default = redis_client.hget(HUB_RATE_LIMITS_KEY, 'default')
-    return int(default) if default else DEFAULT_LIMITS.get(domain, 4500)
-
-
-def get_workers():
-    """Get worker config from Hub"""
-    c = redis_client.hgetall(HUB_WORKER_CONFIG_KEY)
-    return {
-        'threads': int(c.get('threads', 150)),
-        'chunk': int(c.get('chunk', 2500))
-    }
-
-
-def get_ip():
-    """Round-robin IP selection from warmed IPs"""
-    ips = get_warmed_ips()
-    if not ips:
-        return None
-    idx = redis_client.incr("ip_idx") % len(ips)
-    return ips[idx]
-
-
-def check_rate(domain, org_id):
-    """Check domain rate limit"""
-    minute = int(time.time()) // 60
-    key = f"rate:{org_id}:{domain}:{minute}"
-    count = redis_client.incr(key)
-    redis_client.expire(key, 120)
-    limit = get_limit(domain)
-    return count <= limit
-
-
-def update_progress(campaign_id, sent, failed, total, start):
-    """Update campaign progress"""
-    key = f"campaign_progress:{campaign_id}"
-    elapsed = max(1, time.time() - start)
-    rate = (sent + failed) / elapsed
-    eta = int((total - sent - failed) / max(1, rate))
-    
-    redis_client.hset(key, mapping={
-        'sent': sent, 'failed': failed, 'total': total,
-        'percent': int((sent + failed) / total * 100) if total else 0,
-        'rate': round(rate, 1), 'eta': eta,
-        'updated': time.time()
-    })
-    redis_client.expire(key, 86400)
-
-
-def update_ip_sent_count(ip_address):
-    """Increment sent_today for the IP"""
-    try:
-        conn = get_db()
-        cur = conn.cursor()
         cur.execute("""
-            UPDATE ip_pools 
-            SET sent_today = sent_today + 1, last_used_at = NOW() 
-            WHERE ip_address = %s
-        """, (ip_address,))
-        conn.commit()
-        conn.close()
-    except:
-        pass
-
-
-@celery_app.task(bind=True, max_retries=2, soft_time_limit=600)
-def send_email_chunk(self, data):
-    """Process email chunk with Hub rate limits and dynamic IPs"""
-    campaign_id = data['campaign_id']
-    campaign = data['campaign']
-    contacts = data['contacts']
-    chunk_id = data.get('chunk_id', 0)
-    start_time = data.get('start', time.time())
-    
-    workers = get_workers()
-    threads = workers['threads']
-    
-    # Get warmed IPs for this chunk
-    warmed_ips = get_warmed_ips()
-    if not warmed_ips:
-        logger.warning("No warmed IPs available!")
-    
-    logger.info(f"⚡ Chunk {chunk_id}: {len(contacts)} contacts ({threads} threads, {len(warmed_ips)} IPs)")
-    
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    stats = {'sent': 0, 'failed': 0, 'skip': 0, 'supp': 0}
-    records = []
-    
-    # Load suppressions
-    suppressed = set()
-    unsubs = set()
-    try:
-        cursor.execute("SELECT email FROM suppressions WHERE organization_id=%s", 
-                      (campaign['organization_id'],))
-        suppressed = {r[0].lower() for r in cursor.fetchall()}
+            SELECT ip_address, hostname, status, warmup_day, daily_limit, sent_today,
+                   ROUND((sent_today::numeric / NULLIF(daily_limit, 0)) * 100, 1) as usage_pct
+            FROM worker_servers 
+            WHERE is_active = TRUE
+            ORDER BY status DESC, daily_limit DESC
+        """)
+        servers = cur.fetchall()
         
-        cursor.execute("SELECT email FROM unsubscribes WHERE organization_id=%s",
-                      (campaign['organization_id'],))
-        unsubs = {r[0].lower() for r in cursor.fetchall()}
-    except:
-        pass
-    
-    ip_index = [0]  # Mutable for closure
-    
-    def send_one(contact):
-        """Send single email"""
-        result = {'sent': 0, 'fail': 0, 'skip': 0, 'supp': 0, 'rec': None}
-        
-        try:
-            email = (contact[1] or '').strip().lower()
-            if not email or '@' not in email:
-                result['skip'] = 1
-                return result
-            
-            if email in suppressed or email in unsubs:
-                result['supp'] = 1
-                return result
-            
-            domain = email.split('@')[1]
-            check_rate(domain, campaign['organization_id'])
-            
-            # Personalize
-            first = contact[2] or ''
-            last = contact[3] or ''
-            subj = campaign['subject']
-            body = campaign['html_body']
-            
-            for tag, val in [('{{first_name}}', first), ('{{last_name}}', last),
-                            ('{{email}}', email), ('*|FNAME|*', first), ('*|LNAME|*', last)]:
-                subj = subj.replace(tag, val)
-                body = body.replace(tag, val)
-            
-            # Round-robin IP from warmed IPs
-            ip = None
-            if warmed_ips:
-                ip_index[0] = (ip_index[0] + 1) % len(warmed_ips)
-                ip = warmed_ips[ip_index[0]]
-            
-            from app.smtp.relay_server import send_email_sync
-from app.utils.relay_client import send_via_relay, get_next_relay
-            res = send_email_sync({
-                'from': campaign['from_email'],
-                'from_name': campaign.get('from_name', ''),
-                'to': email,
-                'subject': subj,
-                'html_body': body,
-                'source_ip': ip,
-                'campaign_id': campaign_id,
-                'org_id': campaign['organization_id']
-            })
-            
-            status = 'sent' if res.get('success') else 'failed'
-            result['rec'] = {
-                'id': str(uuid.uuid4()),
-                'org': campaign['organization_id'],
-                'camp': campaign_id,
-                'from': campaign['from_email'],
-                'to': email,
-                'subj': subj[:200],
-                'status': status,
-                'err': None if res.get('success') else res.get('message', '')[:500],
-                'ip': ip
-            }
-            
-            if res.get('success'):
-                result['sent'] = 1
-                if ip:
-                    update_ip_sent_count(ip)
-            else:
-                result['fail'] = 1
-                
-        except Exception as e:
-            result['fail'] = 1
-        
-        return result
-    
-    # Parallel send
-    with ThreadPoolExecutor(max_workers=threads) as ex:
-        futures = [ex.submit(send_one, c) for c in contacts]
-        
-        for f in as_completed(futures, timeout=300):
-            try:
-                r = f.result(timeout=30)
-                stats['sent'] += r.get('sent', 0)
-                stats['failed'] += r.get('fail', 0)
-                stats['skip'] += r.get('skip', 0)
-                stats['supp'] += r.get('supp', 0)
-                if r.get('rec'):
-                    records.append(r['rec'])
-            except:
-                stats['failed'] += 1
-    
-    # Batch insert
-    if records:
-        try:
-            for rec in records:
-                cursor.execute("""
-                    INSERT INTO emails (id, organization_id, campaign_id, sender, recipient,
-                        subject, status, error_message, source_ip, created_at, sent_at)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),
-                        CASE WHEN %s='sent' THEN NOW() ELSE NULL END)
-                    ON CONFLICT DO NOTHING
-                """, (rec['id'], rec['org'], rec['camp'], rec['from'], rec['to'],
-                      rec['subj'], rec['status'], rec['err'], rec['ip'], rec['status']))
-            conn.commit()
-        except Exception as e:
-            logger.error(f"DB error: {e}")
-            conn.rollback()
-    
-    # Update campaign
-    try:
-        cursor.execute("""
-            UPDATE campaigns SET
-                sent_count = COALESCE(sent_count,0) + %s,
-                failed_count = COALESCE(failed_count,0) + %s,
-                updated_at = NOW()
-            WHERE id = %s
-        """, (stats['sent'], stats['failed'], campaign_id))
-        conn.commit()
-        
-        # Check completion
-        cursor.execute("""
-            SELECT total_recipients,
-                   (SELECT COUNT(*) FROM emails WHERE campaign_id=%s) as cnt,
-                   (SELECT COUNT(*) FROM emails WHERE campaign_id=%s AND status='sent') as sent,
-                   (SELECT COUNT(*) FROM emails WHERE campaign_id=%s AND status='failed') as fail
-            FROM campaigns WHERE id=%s
-        """, (campaign_id, campaign_id, campaign_id, campaign_id))
-        row = cursor.fetchone()
-        
-        if row:
-            total, cnt, sent_total, fail_total = row
-            update_progress(campaign_id, sent_total, fail_total, total or cnt, start_time)
-            
-            if total and cnt >= total:
-                cursor.execute("""
-                    UPDATE campaigns SET status='completed', completed_at=NOW(),
-                        sent_count=%s, failed_count=%s
-                    WHERE id=%s AND status='sending'
-                """, (sent_total, fail_total, campaign_id))
-                conn.commit()
-                logger.info(f"✅ Campaign {campaign_id} COMPLETED! {sent_total} sent")
-    except Exception as e:
-        logger.error(f"Update error: {e}")
-    
-    cursor.close()
-    conn.close()
-    
-    logger.info(f"✅ Chunk {chunk_id}: {stats['sent']} sent, {stats['failed']} failed, {stats['supp']} suppressed")
-    return stats
-
-
-def launch_campaign(campaign_id, chunk_size=None):
-    """Launch distributed campaign"""
-    if not chunk_size:
-        chunk_size = get_workers()['chunk']
-    
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute("""
-            SELECT id, organization_id, name, from_name, from_email, subject,
-                   COALESCE(html_content, html_body, '') as html_body
-            FROM campaigns WHERE id=%s
-        """, (campaign_id,))
-        row = cursor.fetchone()
-        
-        if not row:
-            return {'error': 'Campaign not found'}
-        
-        campaign = {
-            'id': row[0], 'organization_id': row[1], 'name': row[2],
-            'from_name': row[3], 'from_email': row[4], 'subject': row[5],
-            'html_body': row[6]
-        }
-        
-        # Get contacts
-        cursor.execute("""
-            SELECT c.id, c.email, c.first_name, c.last_name
-            FROM contacts c
-            WHERE c.organization_id=%s AND c.status='active'
-            AND NOT EXISTS (SELECT 1 FROM emails e WHERE e.campaign_id=%s AND e.recipient=c.email)
-            AND NOT EXISTS (SELECT 1 FROM suppressions s WHERE s.organization_id=%s AND s.email=c.email)
-            AND NOT EXISTS (SELECT 1 FROM unsubscribes u WHERE u.organization_id=%s AND u.email=c.email)
-        """, (campaign['organization_id'], campaign_id, 
-              campaign['organization_id'], campaign['organization_id']))
-        contacts = cursor.fetchall()
-        
-        total = len(contacts)
-        if total == 0:
-            cursor.execute("UPDATE campaigns SET status='completed', completed_at=NOW() WHERE id=%s", (campaign_id,))
-            conn.commit()
-            return {'success': True, 'msg': 'No contacts', 'total': 0}
-        
-        cursor.execute("""
-            UPDATE campaigns SET total_recipients=%s, status='sending', started_at=NOW()
-            WHERE id=%s
-        """, (total, campaign_id))
-        conn.commit()
-        
-        # Split chunks
-        chunks = [contacts[i:i+chunk_size] for i in range(0, total, chunk_size)]
-        start = time.time()
-        
-        # Get profile info and IPs
-        eps = int(redis_client.hget('sendbaba:hub:config', 'eps') or 167)
-        profile = redis_client.hget('sendbaba:hub:config', 'name') or '🚀 TURBO'
-        warmed_ips = get_warmed_ips()
-        
-        logger.info(f"\n{'='*60}")
-        logger.info(f"🚀 LAUNCHING: {campaign['name']}")
-        logger.info(f"{'='*60}")
-        logger.info(f"📊 Contacts: {total:,} | Chunks: {len(chunks)} x {chunk_size}")
-        logger.info(f"🔥 Profile: {profile} ({eps} eps)")
-        logger.info(f"📡 Warmed IPs: {len(warmed_ips)}")
-        logger.info(f"⏱️  ETA: ~{total // eps // 60}m {(total // eps) % 60}s")
-        logger.info(f"{'='*60}\n")
-        
-        update_progress(campaign_id, 0, 0, total, start)
-        
-        for i, chunk in enumerate(chunks):
-            send_email_chunk.delay({
-                'campaign_id': campaign_id,
-                'campaign': campaign,
-                'contacts': chunk,
-                'chunk_id': i + 1,
-                'start': start
-            })
+        return_db(conn)
         
         return {
             'success': True,
-            'campaign': campaign['name'],
-            'total': total,
-            'chunks': len(chunks),
-            'ips': len(warmed_ips),
-            'eta': f"{total // eps // 60}m {(total // eps) % 60}s"
+            'capacity': dict(capacity) if capacity else {},
+            'servers': [dict(s) for s in servers],
+            'remaining_today': (capacity['total_daily_capacity'] or 0) - (capacity['total_sent_today'] or 0) if capacity else 0
         }
+    except Exception as e:
+        logger.error(f"Capacity report error: {e}")
+        return {'success': False, 'error': str(e), 'capacity': {}, 'servers': [], 'remaining_today': 0}
+
+
+def launch_campaign(campaign_id, contacts, campaign_data, chunk_size=500):
+    """Launch a campaign by chunking contacts and queuing tasks"""
+    try:
+        total = len(contacts)
+        chunks = [contacts[i:i+chunk_size] for i in range(0, total, chunk_size)]
         
-    finally:
-        cursor.close()
-        conn.close()
+        logger.info(f"Launching campaign {campaign_id}: {total} contacts in {len(chunks)} chunks")
+        
+        for i, chunk in enumerate(chunks):
+            chunk_data = {
+                'campaign_id': campaign_id,
+                'campaign': campaign_data,
+                'contacts': chunk,
+                'chunk_id': i + 1
+            }
+            send_email_chunk.delay(chunk_data)
+        
+        return {
+            'success': True,
+            'campaign_id': campaign_id,
+            'total_contacts': total,
+            'chunks_queued': len(chunks)
+        }
+    except Exception as e:
+        logger.error(f"Launch campaign error: {e}")
+        return {'success': False, 'error': str(e)}

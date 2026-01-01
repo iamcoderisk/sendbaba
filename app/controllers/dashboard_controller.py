@@ -299,40 +299,46 @@ def get_recent_campaigns(org_id, limit=5):
         return []
 
 
+
 @dashboard_bp.route('/')
 @login_required
 def index():
-    """Dashboard home page"""
+    """Dashboard home with real usage data"""
+    from app.services.usage_service import usage_service
+    from sqlalchemy import text
+    from app import db
+    
+    org_id = str(current_user.organization_id)
+    
+    # Get usage data
+    usage = usage_service.get_organization_usage(org_id)
+    
+    # Get stats
+    stats = {}
     try:
-        org_id = current_user.organization_id
-        days = request.args.get('days', 30, type=int)
-        
-        # Validate days
-        if days not in [7, 14, 30]:
-            days = 30
-        
-        stats = get_stats(org_id)
-        recent_campaigns = get_recent_campaigns(org_id)
-        email_trends = get_email_trends(org_id, days)
-        campaign_performance = get_campaign_performance(org_id)
-        
-        return render_template('dashboard/index.html',
-            stats=stats,
-            recent_campaigns=recent_campaigns,
-            email_trends=email_trends,
-            campaign_performance=campaign_performance,
-            days=days
-        )
+        result = db.session.execute(text("""
+            SELECT 
+                (SELECT COUNT(*) FROM contacts WHERE organization_id = :org_id) as total_contacts,
+                (SELECT COUNT(*) FROM campaigns WHERE organization_id = :org_id) as total_campaigns,
+                (SELECT COUNT(*) FROM emails WHERE organization_id = :org_id AND status = 'sent' AND created_at > NOW() - INTERVAL '30 days') as emails_30d,
+                (SELECT COUNT(*) FROM emails WHERE organization_id = :org_id AND status = 'sent' AND created_at > NOW() - INTERVAL '24 hours') as emails_24h
+        """), {'org_id': org_id})
+        row = result.fetchone()
+        if row:
+            stats = {
+                'total_contacts': row[0] or 0,
+                'total_campaigns': row[1] or 0,
+                'emails_30d': row[2] or 0,
+                'emails_24h': row[3] or 0
+            }
     except Exception as e:
-        logger.error(f"[Dashboard] Index error: {e}", exc_info=True)
-        return render_template('dashboard/index.html',
-            stats=get_stats(None),
-            recent_campaigns=[],
-            email_trends=[],
-            campaign_performance=[],
-            days=30
-        )
-
+        logger.error(f"Stats error: {e}")
+        stats = {'total_contacts': 0, 'total_campaigns': 0, 'emails_30d': 0, 'emails_24h': 0}
+    
+    return render_template('dashboard/index.html', 
+                          usage=usage, 
+                          stats=stats,
+                          plan=usage.get('plan', 'free') if usage else 'free')
 
 @dashboard_bp.route('/api/stats')
 @login_required

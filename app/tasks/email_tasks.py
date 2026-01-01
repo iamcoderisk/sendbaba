@@ -671,3 +671,11 @@ def fast_send_campaign_task(campaign_id: str, max_workers: int = 100):
         return fast_send_campaign(campaign_id, max_workers)
     except ImportError:
         return execute_campaign(campaign_id)
+
+# Import the new distribution logic
+from app.tasks.distributed_sender import launch_campaign, get_capacity_report
+
+@celery_app.task
+def get_worker_capacity():
+    """Get capacity report for dashboard"""
+    return get_capacity_report()

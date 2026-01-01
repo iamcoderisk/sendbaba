@@ -163,3 +163,10 @@ def create_app():
 
         app.register_blueprint(tickets_bp)
     return app
+
+# Worker management API
+try:
+    from app.api.workers import workers_bp
+    app.register_blueprint(workers_bp)
+except Exception as e:
+    print(f"Failed to register workers_bp: {e}")

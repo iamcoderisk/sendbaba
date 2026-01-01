@@ -1,0 +1,431 @@
+{% extends "hub/base.html" %}
+
+{% block title %}Subscription Management - SendBaba Hub{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between mb-6">
+        <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-gray-800">💳 Subscription Management</h1>
+            <p class="text-gray-500 text-sm mt-1">Manage user subscriptions and upgrades</p>
+        </div>
+        <div class="flex gap-3 mt-4 lg:mt-0">
+            <button onclick="exportSubscriptions()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+            <button onclick="openManualUpgrade()" class="px-5 py-2.5 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-semibold hover:opacity-90">
+                <i class="fas fa-crown mr-2"></i>Manual Upgrade
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm">Total Users</p>
+            <p class="text-2xl font-bold text-gray-800" id="stat-total">--</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm">Free Users</p>
+            <p class="text-2xl font-bold text-gray-500" id="stat-free">--</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm">Paid Users</p>
+            <p class="text-2xl font-bold text-green-600" id="stat-paid">--</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm">Trial Users</p>
+            <p class="text-2xl font-bold text-blue-600" id="stat-trial">--</p>
+        </div>
+        <div class="bg-white rounded-2xl p-5 card-shadow">
+            <p class="text-gray-500 text-sm">MRR</p>
+            <p class="text-2xl font-bold text-orange-600" id="stat-mrr">$--</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-2xl p-4 mb-6 card-shadow flex flex-wrap items-center gap-4">
+        <div class="flex-1 min-w-[200px]">
+            <input type="text" id="search-input" placeholder="Search email or organization..." 
+                   class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-orange-400">
+        </div>
+        <select id="filter-plan" class="px-4 py-2 border border-gray-200 rounded-xl">
+            <option value="">All Plans</option>
+            <option value="free">Free</option>
+            <option value="starter">Starter</option>
+            <option value="business">Business</option>
+            <option value="enterprise">Enterprise</option>
+        </select>
+        <select id="filter-status" class="px-4 py-2 border border-gray-200 rounded-xl">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="trial">Trial</option>
+            <option value="canceled">Canceled</option>
+        </select>
+        <button onclick="loadSubscriptions()" class="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600">
+            <i class="fas fa-filter mr-2"></i>Filter
+        </button>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500">User / Org</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500">Plan</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500">Status</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500">Usage</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-gray-500">Price</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-gray-500">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="subscriptions-table" class="divide-y">
+                <tr><td colspan="6" class="px-6 py-12 text-center text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></td></tr>
+            </tbody>
+        </table>
+        <div class="px-6 py-4 border-t flex items-center justify-between">
+            <p class="text-sm text-gray-500" id="pagination-info">--</p>
+            <div class="flex gap-2" id="pagination-buttons"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Upgrade Modal -->
+<div id="upgradeModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b flex items-center justify-between">
+            <h2 class="text-xl font-bold"><i class="fas fa-crown text-orange-500 mr-2"></i>Manual Upgrade</h2>
+            <button onclick="closeUpgradeModal()" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                <i class="fas fa-times text-gray-500"></i>
+            </button>
+        </div>
+        <form id="upgradeForm" class="p-6">
+            <input type="hidden" id="upgrade-org-id">
+            
+            <div id="user-selection" class="mb-4">
+                <label class="block text-sm font-medium mb-1">Search User</label>
+                <input type="text" id="user-search" placeholder="Type email..." class="w-full px-4 py-2 border rounded-xl" autocomplete="off">
+                <div id="user-search-results" class="hidden mt-1 bg-white border rounded-xl shadow-lg max-h-48 overflow-y-auto"></div>
+            </div>
+            
+            <div id="selected-user" class="hidden mb-4 p-4 bg-gray-50 rounded-xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold" id="selected-name">--</p>
+                        <p class="text-sm text-gray-500" id="selected-email">--</p>
+                    </div>
+                    <button type="button" onclick="clearUser()" class="text-red-500"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Select Plan</label>
+                <select id="upgrade-plan" required class="w-full px-4 py-2 border rounded-xl">
+                    <option value="">Choose plan...</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Duration</label>
+                <select id="upgrade-duration" class="w-full px-4 py-2 border rounded-xl">
+                    <option value="30">1 Month</option>
+                    <option value="90">3 Months</option>
+                    <option value="365" selected>1 Year</option>
+                    <option value="0">Lifetime</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Payment Status</label>
+                <select id="upgrade-payment" class="w-full px-4 py-2 border rounded-xl">
+                    <option value="admin_granted">Admin Granted</option>
+                    <option value="paid">Marked as Paid</option>
+                    <option value="comp">Complimentary</option>
+                </select>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium mb-1">Notes</label>
+                <textarea id="upgrade-notes" rows="2" class="w-full px-4 py-2 border rounded-xl" placeholder="Internal notes..."></textarea>
+            </div>
+            
+            <div class="flex gap-3">
+                <button type="button" onclick="closeUpgradeModal()" class="flex-1 py-3 border rounded-xl font-semibold hover:bg-gray-50">Cancel</button>
+                <button type="submit" id="upgrade-btn" class="flex-1 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-semibold hover:opacity-90">
+                    <i class="fas fa-crown mr-2"></i>Apply
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div id="detailsModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b flex items-center justify-between">
+            <h2 class="text-xl font-bold"><i class="fas fa-user text-orange-500 mr-2"></i>User Details</h2>
+            <button onclick="closeDetails()" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                <i class="fas fa-times text-gray-500"></i>
+            </button>
+        </div>
+        <div class="p-6" id="details-content">Loading...</div>
+    </div>
+</div>
+
+<style>
+.plan-free { background: #F3F4F6; color: #6B7280; }
+.plan-starter { background: #DBEAFE; color: #1D4ED8; }
+.plan-business { background: #FEF3C7; color: #B45309; }
+.plan-enterprise { background: #FCE7F3; color: #BE185D; }
+.status-active { background: #D1FAE5; color: #047857; }
+.status-trial { background: #DBEAFE; color: #1D4ED8; }
+.status-canceled { background: #FEE2E2; color: #DC2626; }
+</style>
+
+<script>
+let allPlans = [];
+let currentPage = 1;
+let selectedOrgId = null;
+
+async function loadPlans() {
+    try {
+        const r = await fetch('/hub/api/plans');
+        const d = await r.json();
+        if (d.success) {
+            allPlans = d.plans.filter(p => p.is_active !== false);
+            document.getElementById('upgrade-plan').innerHTML = '<option value="">Choose plan...</option>' + 
+                allPlans.map(p => `<option value="${p.id}">${p.name} - $${p.price_monthly}/mo</option>`).join('');
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function loadSubscriptions() {
+    const search = document.getElementById('search-input').value;
+    const plan = document.getElementById('filter-plan').value;
+    const status = document.getElementById('filter-status').value;
+    
+    document.getElementById('subscriptions-table').innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i></td></tr>';
+    
+    try {
+        const r = await fetch(`/hub/api/subscriptions?page=${currentPage}&search=${search}&plan=${plan}&status=${status}`);
+        const d = await r.json();
+        
+        if (!d.success) {
+            document.getElementById('subscriptions-table').innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-red-500">${d.error}</td></tr>`;
+            return;
+        }
+        
+        document.getElementById('stat-total').textContent = d.stats.total.toLocaleString();
+        document.getElementById('stat-free').textContent = d.stats.free.toLocaleString();
+        document.getElementById('stat-paid').textContent = d.stats.paid.toLocaleString();
+        document.getElementById('stat-trial').textContent = d.stats.trial.toLocaleString();
+        document.getElementById('stat-mrr').textContent = '$' + d.stats.mrr.toLocaleString();
+        
+        if (d.subscriptions.length === 0) {
+            document.getElementById('subscriptions-table').innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-gray-400">No subscriptions found</td></tr>';
+            return;
+        }
+        
+        document.getElementById('subscriptions-table').innerHTML = d.subscriptions.map(s => {
+            const pct = s.daily_limit > 0 ? Math.round((s.emails_today || 0) / s.daily_limit * 100) : 0;
+            return `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold">
+                                ${(s.org_name || s.email || 'U')[0].toUpperCase()}
+                            </div>
+                            <div>
+                                <p class="font-semibold">${s.org_name || 'No Org'}</p>
+                                <p class="text-sm text-gray-500">${s.email || '--'}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-semibold plan-${s.plan_type || 'free'}">${s.plan_name || 'Free'}</span></td>
+                    <td class="px-6 py-4"><span class="px-3 py-1 rounded-full text-xs font-semibold status-${s.status || 'active'}">${s.status || 'active'}</span></td>
+                    <td class="px-6 py-4">
+                        <div class="w-20">
+                            <div class="text-xs mb-1">${s.emails_today || 0}/${s.daily_limit || 0}</div>
+                            <div class="h-1 bg-gray-200 rounded-full"><div class="h-full ${pct > 80 ? 'bg-red-500' : 'bg-green-500'} rounded-full" style="width:${Math.min(pct,100)}%"></div></div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 font-semibold">$${(s.current_price || 0).toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="viewDetails('${s.org_id}')" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-blue-100 text-gray-500 hover:text-blue-600"><i class="fas fa-eye"></i></button>
+                        <button onclick="openUpgrade('${s.org_id}','${s.org_name || ''}','${s.email || ''}','${s.plan_type || 'free'}')" class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600"><i class="fas fa-crown"></i></button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        
+        document.getElementById('pagination-info').textContent = `Page ${d.page} of ${d.pages}`;
+    } catch(e) {
+        console.error(e);
+        document.getElementById('subscriptions-table').innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-red-500">Error loading data</td></tr>';
+    }
+}
+
+function openManualUpgrade() {
+    selectedOrgId = null;
+    document.getElementById('upgrade-org-id').value = '';
+    document.getElementById('user-selection').classList.remove('hidden');
+    document.getElementById('selected-user').classList.add('hidden');
+    document.getElementById('user-search').value = '';
+    document.getElementById('upgradeModal').classList.remove('hidden');
+    document.getElementById('upgradeModal').classList.add('flex');
+}
+
+function openUpgrade(orgId, name, email, plan) {
+    selectedOrgId = orgId;
+    document.getElementById('upgrade-org-id').value = orgId;
+    document.getElementById('user-selection').classList.add('hidden');
+    document.getElementById('selected-user').classList.remove('hidden');
+    document.getElementById('selected-name').textContent = name || 'Organization';
+    document.getElementById('selected-email').textContent = email || '--';
+    document.getElementById('upgradeModal').classList.remove('hidden');
+    document.getElementById('upgradeModal').classList.add('flex');
+}
+
+function closeUpgradeModal() {
+    document.getElementById('upgradeModal').classList.add('hidden');
+    document.getElementById('upgradeModal').classList.remove('flex');
+}
+
+function clearUser() {
+    selectedOrgId = null;
+    document.getElementById('upgrade-org-id').value = '';
+    document.getElementById('user-selection').classList.remove('hidden');
+    document.getElementById('selected-user').classList.add('hidden');
+}
+
+let searchTimeout;
+document.getElementById('user-search').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    if (this.value.length < 2) {
+        document.getElementById('user-search-results').classList.add('hidden');
+        return;
+    }
+    searchTimeout = setTimeout(async () => {
+        const r = await fetch(`/hub/api/subscriptions/search?q=${encodeURIComponent(this.value)}`);
+        const d = await r.json();
+        if (d.success && d.users.length) {
+            document.getElementById('user-search-results').innerHTML = d.users.map(u => 
+                `<div onclick="selectUser('${u.org_id}','${u.name || ''}','${u.email || ''}')" class="px-4 py-2 hover:bg-gray-50 cursor-pointer">${u.name || u.email}</div>`
+            ).join('');
+            document.getElementById('user-search-results').classList.remove('hidden');
+        }
+    }, 300);
+});
+
+function selectUser(orgId, name, email) {
+    selectedOrgId = orgId;
+    document.getElementById('upgrade-org-id').value = orgId;
+    document.getElementById('user-selection').classList.add('hidden');
+    document.getElementById('selected-user').classList.remove('hidden');
+    document.getElementById('selected-name').textContent = name || 'Organization';
+    document.getElementById('selected-email').textContent = email || '--';
+    document.getElementById('user-search-results').classList.add('hidden');
+}
+
+document.getElementById('upgradeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const orgId = document.getElementById('upgrade-org-id').value;
+    const planId = document.getElementById('upgrade-plan').value;
+    if (!orgId || !planId) { alert('Select user and plan'); return; }
+    
+    const btn = document.getElementById('upgrade-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Applying...';
+    
+    try {
+        const r = await fetch('/hub/api/subscriptions/upgrade', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                org_id: orgId,
+                plan_id: planId,
+                billing_cycle: 'monthly',
+                duration_days: parseInt(document.getElementById('upgrade-duration').value),
+                payment_status: document.getElementById('upgrade-payment').value,
+                notes: document.getElementById('upgrade-notes').value
+            })
+        });
+        const d = await r.json();
+        if (d.success) {
+            alert(d.message);
+            closeUpgradeModal();
+            loadSubscriptions();
+        } else {
+            alert(d.error || 'Failed');
+        }
+    } catch(e) {
+        alert('Error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-crown mr-2"></i>Apply';
+    }
+});
+
+async function viewDetails(orgId) {
+    document.getElementById('detailsModal').classList.remove('hidden');
+    document.getElementById('detailsModal').classList.add('flex');
+    document.getElementById('details-content').innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i></div>';
+    
+    const r = await fetch(`/hub/api/subscriptions/${orgId}/details`);
+    const d = await r.json();
+    
+    if (!d.success) {
+        document.getElementById('details-content').innerHTML = `<p class="text-red-500">${d.error}</p>`;
+        return;
+    }
+    
+    const u = d.data;
+    document.getElementById('details-content').innerHTML = `
+        <div class="grid grid-cols-2 gap-6">
+            <div class="bg-gray-50 rounded-xl p-4">
+                <h3 class="font-semibold mb-2">Organization</h3>
+                <p><span class="text-gray-500">Name:</span> ${u.org_name || '--'}</p>
+                <p><span class="text-gray-500">Email:</span> ${u.email || '--'}</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+                <h3 class="font-semibold mb-2">Subscription</h3>
+                <p><span class="text-gray-500">Plan:</span> ${u.plan_name || 'Free'}</p>
+                <p><span class="text-gray-500">Price:</span> $${(u.current_price || 0).toFixed(2)}/${u.billing_cycle || 'mo'}</p>
+            </div>
+            <div class="col-span-2 bg-gray-50 rounded-xl p-4">
+                <h3 class="font-semibold mb-2">Usage</h3>
+                <div class="grid grid-cols-4 gap-4 text-center">
+                    <div><p class="text-2xl font-bold">${u.emails_today || 0}</p><p class="text-xs text-gray-500">Today</p></div>
+                    <div><p class="text-2xl font-bold">${u.daily_limit || 0}</p><p class="text-xs text-gray-500">Daily Limit</p></div>
+                    <div><p class="text-2xl font-bold">${u.monthly_limit || 0}</p><p class="text-xs text-gray-500">Monthly Limit</p></div>
+                    <div><p class="text-2xl font-bold">${u.contact_count || 0}</p><p class="text-xs text-gray-500">Contacts</p></div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4">
+            <button onclick="openUpgrade('${u.org_id}','${u.org_name || ''}','${u.email || ''}','${u.plan_type || 'free'}'); closeDetails();" class="w-full py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl font-semibold">
+                <i class="fas fa-crown mr-2"></i>Change Plan
+            </button>
+        </div>
+    `;
+}
+
+function closeDetails() {
+    document.getElementById('detailsModal').classList.add('hidden');
+    document.getElementById('detailsModal').classList.remove('flex');
+}
+
+function exportSubscriptions() {
+    window.location.href = '/hub/api/subscriptions/export';
+}
+
+document.getElementById('search-input').addEventListener('keypress', e => { if (e.key === 'Enter') loadSubscriptions(); });
+document.getElementById('upgradeModal').addEventListener('click', e => { if (e.target.id === 'upgradeModal') closeUpgradeModal(); });
+document.getElementById('detailsModal').addEventListener('click', e => { if (e.target.id === 'detailsModal') closeDetails(); });
+
+loadPlans();
+loadSubscriptions();
+</script>
+{% endblock %}

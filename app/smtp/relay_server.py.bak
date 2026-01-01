@@ -22,7 +22,38 @@ Usage (unchanged - backward compatible):
 """
 
 
-# IPv6 works fine on this server, no need to force IPv4
+# Force IPv4 for SMTP (avoid Gmail IPv6 PTR issues)
+
+# Force IPv4 for SMTP (avoid Gmail IPv6 PTR issues)
+import socket as _socket
+_orig_create = _socket.create_connection
+def _ipv4_conn(addr, timeout=_socket._GLOBAL_DEFAULT_TIMEOUT, src=None):
+    h, p = addr
+    for r in _socket.getaddrinfo(h, p, _socket.AF_INET, _socket.SOCK_STREAM):
+        try:
+            s = _socket.socket(r[0], r[1], r[2])
+            if timeout is not _socket._GLOBAL_DEFAULT_TIMEOUT: s.settimeout(timeout)
+            if src: s.bind(src)
+            s.connect(r[4])
+            return s
+        except: pass
+    return _orig_create(addr, timeout, src)
+_socket.create_connection = _ipv4_conn
+
+import socket as _socket
+_orig_create = _socket.create_connection
+def _ipv4_conn(addr, timeout=_socket._GLOBAL_DEFAULT_TIMEOUT, src=None):
+    h, p = addr
+    for r in _socket.getaddrinfo(h, p, _socket.AF_INET, _socket.SOCK_STREAM):
+        try:
+            s = _socket.socket(r[0], r[1], r[2])
+            if timeout is not _socket._GLOBAL_DEFAULT_TIMEOUT: s.settimeout(timeout)
+            if src: s.bind(src)
+            s.connect(r[4])
+            return s
+        except: pass
+    return _orig_create(addr, timeout, src)
+_socket.create_connection = _ipv4_conn
 
 import smtplib
 import ssl

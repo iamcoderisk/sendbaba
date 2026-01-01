@@ -421,78 +421,150 @@ def api_order_update(order_id):
 # OLD_DUPLICATE:     return render_template('hub/servers.html', admin=session)
 # OLD_DUPLICATE: 
 # OLD_DUPLICATE: 
-# OLD_DUPLICATE: @hub_bp.route('/hub/api/servers')
-# OLD_DUPLICATE: @login_required
-# OLD_DUPLICATE: def api_servers():
-# OLD_DUPLICATE:     try:
-        # Worker IPs
-# OLD_DUPLICATE:         workers = [
-# OLD_DUPLICATE:             {"ip": "161.97.170.33", "hostname": "mail10.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "75.119.151.72", "hostname": "mail9.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "75.119.153.106", "hostname": "mail8.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "173.212.214.23", "hostname": "mail5.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "173.212.213.239", "hostname": "mail6.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "173.212.213.184", "hostname": "mail7.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "185.215.180.157", "hostname": "mail11.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "185.215.164.39", "hostname": "mail12.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "176.126.87.21", "hostname": "mail13.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "185.215.167.20", "hostname": "mail14.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:             {"ip": "185.208.206.35", "hostname": "mail15.sendbaba.com", "type": "worker"},
-# OLD_DUPLICATE:         ]
-# OLD_DUPLICATE:         
-        # Get Celery worker status
-# OLD_DUPLICATE:         try:
-# OLD_DUPLICATE:             import sys
-# OLD_DUPLICATE:             sys.path.insert(0, '/opt/sendbaba-staging')
-# OLD_DUPLICATE:             from celery_worker_config import celery_app
-# OLD_DUPLICATE:             
-# OLD_DUPLICATE:             inspector = celery_app.control.inspect()
-# OLD_DUPLICATE:             ping_results = inspector.ping() or {}
-# OLD_DUPLICATE:             stats = inspector.stats() or {}
-# OLD_DUPLICATE:             
-# OLD_DUPLICATE:             for worker in workers:
-# OLD_DUPLICATE:                 worker_name = f"worker@{worker['ip']}"
-# OLD_DUPLICATE:                 worker['status'] = 'online' if worker_name in ping_results else 'offline'
-# OLD_DUPLICATE:                 worker_stats = stats.get(worker_name, {})
-# OLD_DUPLICATE:                 worker['concurrency'] = worker_stats.get('pool', {}).get('max-concurrency', 0)
-# OLD_DUPLICATE:                 worker['processed'] = worker_stats.get('total', {})
-# OLD_DUPLICATE:         except Exception as e:
-# OLD_DUPLICATE:             for worker in workers:
-# OLD_DUPLICATE:                 worker['status'] = 'unknown'
-# OLD_DUPLICATE:                 worker['concurrency'] = 0
-# OLD_DUPLICATE:                 worker['error'] = str(e)
-# OLD_DUPLICATE:         
-        # Get IP pool data
-# OLD_DUPLICATE:         conn = get_db()
-# OLD_DUPLICATE:         cur = conn.cursor(cursor_factory=RealDictCursor)
-# OLD_DUPLICATE:         cur.execute("""
-# OLD_DUPLICATE:             SELECT ip_address, hostname, warmup_day, daily_limit, sent_today, is_active,
-# OLD_DUPLICATE:                 ROUND((sent_today::numeric / NULLIF(daily_limit, 0)) * 100, 1) as usage_pct
-# OLD_DUPLICATE:             FROM ip_pools ORDER BY ip_address
-# OLD_DUPLICATE:         """)
-# OLD_DUPLICATE:         ip_pools = {row['ip_address']: row for row in cur.fetchall()}
-# OLD_DUPLICATE:         conn.close()
-# OLD_DUPLICATE:         
-        # Merge IP pool data with workers
-# OLD_DUPLICATE:         for worker in workers:
-# OLD_DUPLICATE:             ip_data = ip_pools.get(worker['ip'], {})
-# OLD_DUPLICATE:             worker['warmup_day'] = ip_data.get('warmup_day', 0)
-# OLD_DUPLICATE:             worker['daily_limit'] = ip_data.get('daily_limit', 0)
-# OLD_DUPLICATE:             worker['sent_today'] = ip_data.get('sent_today', 0)
-# OLD_DUPLICATE:             worker['usage_pct'] = ip_data.get('usage_pct', 0)
-# OLD_DUPLICATE:             worker['is_warmed'] = ip_data.get('warmup_day', 0) >= 30
-# OLD_DUPLICATE:         
-# OLD_DUPLICATE:         return jsonify({
-# OLD_DUPLICATE:             'success': True,
-# OLD_DUPLICATE:             'servers': workers,
-# OLD_DUPLICATE:             'total_workers': len([w for w in workers if w.get('status') == 'online']),
-# OLD_DUPLICATE:             'total_capacity': sum(w.get('daily_limit', 0) for w in workers),
-# OLD_DUPLICATE:             'total_sent': sum(w.get('sent_today', 0) for w in workers)
-# OLD_DUPLICATE:         })
-# OLD_DUPLICATE:     except Exception as e:
-# OLD_DUPLICATE:         return jsonify({'success': False, 'error': str(e)}), 500
 # OLD_DUPLICATE: 
-# OLD_DUPLICATE: 
+@hub_bp.route('/hub/api/servers')
+@login_required
+def api_servers():
+    """Get real server capacity from database"""
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get all worker servers from database
+        cur.execute("""
+            SELECT 
+                ip_address, hostname, status, warmup_day, daily_limit, 
+                sent_today, last_heartbeat, is_active, error_rate,
+                ROUND((sent_today::numeric / NULLIF(daily_limit, 0)) * 100, 1) as usage_percent
+            FROM worker_servers
+            WHERE is_active = TRUE
+            ORDER BY status DESC, daily_limit DESC
+        """)
+        servers = cur.fetchall()
+        
+        # Get capacity summary
+        cur.execute("SELECT * FROM server_capacity")
+        capacity = cur.fetchone()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'servers': servers,
+            'capacity': {
+                'active_servers': capacity['active_servers'] if capacity else 0,
+                'warming_servers': capacity['warming_servers'] if capacity else 0,
+                'total_servers': capacity['total_servers'] if capacity else 0,
+                'total_daily_capacity': capacity['total_daily_capacity'] if capacity else 0,
+                'total_sent_today': capacity['total_sent_today'] if capacity else 0,
+                'online_servers': capacity['online_servers'] if capacity else 0
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@hub_bp.route('/hub/api/servers/sync', methods=['POST'])
+@login_required
+def api_servers_sync():
+    """Sync server status from live workers"""
+    try:
+        import subprocess
+        
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get all servers
+        cur.execute("SELECT ip_address, hostname FROM worker_servers WHERE is_active = TRUE")
+        servers = cur.fetchall()
+        
+        SSH_PASS = "B@ttl3k0d3@Se"
+        results = []
+        
+        for server in servers:
+            ip = server['ip_address']
+            try:
+                # Check if worker is online via SSH
+                result = subprocess.run(
+                    ['sshpass', '-p', SSH_PASS, 'ssh', '-o', 'StrictHostKeyChecking=no', 
+                     '-o', 'ConnectTimeout=5', f'root@{ip}', 
+                     'pm2 list 2>/dev/null | grep -c online || echo 0'],
+                    capture_output=True, text=True, timeout=10
+                )
+                
+                online = int(result.stdout.strip()) > 0
+                
+                # Update database
+                cur.execute("""
+                    UPDATE worker_servers 
+                    SET status = CASE WHEN %s THEN 'active' ELSE 'offline' END,
+                        last_heartbeat = CASE WHEN %s THEN NOW() ELSE last_heartbeat END,
+                        updated_at = NOW()
+                    WHERE ip_address = %s
+                """, (online, online, ip))
+                
+                results.append({'ip': ip, 'online': online})
+                
+            except Exception as e:
+                cur.execute("""
+                    UPDATE worker_servers SET status = 'error', updated_at = NOW()
+                    WHERE ip_address = %s
+                """, (ip,))
+                results.append({'ip': ip, 'online': False, 'error': str(e)})
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'results': results})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@hub_bp.route('/hub/api/servers/<ip>/update', methods=['POST'])
+@login_required
+def api_server_update(ip):
+    """Update a server's settings"""
+    try:
+        data = request.get_json() or {}
+        
+        conn = get_db()
+        cur = conn.cursor()
+        
+        updates = []
+        params = []
+        
+        if 'daily_limit' in data:
+            updates.append("daily_limit = %s")
+            params.append(data['daily_limit'])
+        if 'warmup_day' in data:
+            updates.append("warmup_day = %s")
+            params.append(data['warmup_day'])
+        if 'is_active' in data:
+            updates.append("is_active = %s")
+            params.append(data['is_active'])
+        if 'status' in data:
+            updates.append("status = %s")
+            params.append(data['status'])
+        if 'hostname' in data:
+            updates.append("hostname = %s")
+            params.append(data['hostname'])
+        
+        if updates:
+            updates.append("updated_at = NOW()")
+            params.append(ip)
+            
+            cur.execute(f"""
+                UPDATE worker_servers SET {', '.join(updates)}
+                WHERE ip_address = %s
+            """, params)
+            conn.commit()
+        
+        conn.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # ============================================================
 # DASHBOARD API
 # ============================================================
@@ -7335,4 +7407,423 @@ def api_campaign_delete(campaign_id):
         conn.close()
         return jsonify({'success': True})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# ============================================================
+# SUBSCRIPTION MANAGEMENT ROUTES
+# ============================================================
+
+@hub_bp.route('/hub/subscriptions')
+@login_required
+def subscriptions_page():
+    """Subscription management page"""
+    return render_template('hub/subscriptions.html')
+
+
+@hub_bp.route('/hub/api/subscriptions')
+@login_required
+def api_subscriptions():
+    """Get all subscriptions with filters"""
+    page = int(request.args.get('page', 1))
+    per_page = 20
+    search = request.args.get('search', '').strip()
+    plan_filter = request.args.get('plan', '')
+    status_filter = request.args.get('status', '')
+    
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Build query
+        where_clauses = []
+        params = []
+        
+        if search:
+            where_clauses.append("(o.name ILIKE %s OR o.email ILIKE %s OR u.email ILIKE %s)")
+            params.extend([f'%{search}%', f'%{search}%', f'%{search}%'])
+        
+        if plan_filter:
+            where_clauses.append("COALESCE(s.plan_type, o.plan_type, o.plan, 'free') = %s")
+            params.append(plan_filter)
+        
+        if status_filter:
+            where_clauses.append("COALESCE(s.status, 'active') = %s")
+            params.append(status_filter)
+        
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+        
+        # Get total count
+        cur.execute(f"""
+            SELECT COUNT(DISTINCT o.id)
+            FROM organizations o
+            LEFT JOIN subscriptions s ON s.organization_id = o.id
+            LEFT JOIN users u ON u.organization_id = o.id
+            WHERE {where_sql}
+        """, params)
+        total = cur.fetchone()['count']
+        
+        # Get stats
+        cur.execute("""
+            SELECT 
+                COUNT(DISTINCT o.id) as total,
+                COUNT(DISTINCT o.id) FILTER (WHERE COALESCE(s.plan_type, o.plan_type, o.plan, 'free') = 'free') as free,
+                COUNT(DISTINCT o.id) FILTER (WHERE COALESCE(s.plan_type, o.plan_type, o.plan, 'free') != 'free' AND COALESCE(s.current_price, 0) > 0) as paid,
+                COUNT(DISTINCT o.id) FILTER (WHERE COALESCE(s.is_trial, false) = true) as trial,
+                COALESCE(SUM(CASE WHEN s.billing_cycle = 'monthly' THEN s.current_price ELSE s.current_price / 12 END), 0) as mrr
+            FROM organizations o
+            LEFT JOIN subscriptions s ON s.organization_id = o.id
+        """)
+        stats = cur.fetchone()
+        
+        # Get subscriptions
+        offset = (page - 1) * per_page
+        cur.execute(f"""
+            SELECT DISTINCT ON (o.id)
+                o.id as org_id,
+                o.name as org_name,
+                COALESCE(o.email, u.email) as email,
+                COALESCE(s.plan_type, o.plan_type, o.plan, 'free') as plan_type,
+                COALESCE(s.plan_name, 'Free') as plan_name,
+                COALESCE(s.status, 'active') as status,
+                COALESCE(s.current_price, 0) as current_price,
+                COALESCE(s.billing_cycle, 'monthly') as billing_cycle,
+                COALESCE(s.email_limit_daily, o.daily_email_limit, 500) as daily_limit,
+                COALESCE(s.email_limit_monthly, o.monthly_email_limit, 5000) as monthly_limit,
+                s.is_trial,
+                s.current_period_end,
+                o.created_at,
+                (SELECT COUNT(*) FROM emails e WHERE e.organization_id = o.id AND DATE(e.created_at) = CURRENT_DATE) as emails_today
+            FROM organizations o
+            LEFT JOIN subscriptions s ON s.organization_id = o.id
+            LEFT JOIN users u ON u.organization_id = o.id
+            WHERE {where_sql}
+            ORDER BY o.id, s.created_at DESC
+            LIMIT %s OFFSET %s
+        """, params + [per_page, offset])
+        
+        subscriptions = cur.fetchall()
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'subscriptions': [dict(s) for s in subscriptions],
+            'stats': {
+                'total': stats['total'] or 0,
+                'free': stats['free'] or 0,
+                'paid': stats['paid'] or 0,
+                'trial': stats['trial'] or 0,
+                'mrr': float(stats['mrr'] or 0)
+            },
+            'page': page,
+            'pages': (total + per_page - 1) // per_page,
+            'total': total
+        })
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@hub_bp.route('/hub/api/subscriptions/search')
+@login_required
+def api_subscription_search():
+    """Search users for upgrade modal"""
+    q = request.args.get('q', '').strip()
+    
+    if len(q) < 2:
+        return jsonify({'success': True, 'users': []})
+    
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        cur.execute("""
+            SELECT DISTINCT ON (o.id)
+                o.id as org_id,
+                o.name,
+                COALESCE(o.email, u.email) as email,
+                COALESCE(s.plan_type, o.plan_type, o.plan, 'free') as plan_type
+            FROM organizations o
+            LEFT JOIN users u ON u.organization_id = o.id
+            LEFT JOIN subscriptions s ON s.organization_id = o.id
+            WHERE o.name ILIKE %s OR o.email ILIKE %s OR u.email ILIKE %s
+            ORDER BY o.id, o.created_at DESC
+            LIMIT 10
+        """, [f'%{q}%', f'%{q}%', f'%{q}%'])
+        
+        users = cur.fetchall()
+        conn.close()
+        
+        return jsonify({'success': True, 'users': [dict(u) for u in users]})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@hub_bp.route('/hub/api/subscriptions/upgrade', methods=['POST'])
+@login_required
+def api_subscription_upgrade():
+    """Manually upgrade a user's subscription"""
+    data = request.get_json()
+    
+    org_id = data.get('org_id')
+    plan_id = data.get('plan_id')
+    billing_cycle = data.get('billing_cycle', 'monthly')
+    duration_days = int(data.get('duration_days', 365))
+    payment_status = data.get('payment_status', 'admin_granted')
+    notes = data.get('notes', '')
+    
+    if not org_id or not plan_id:
+        return jsonify({'success': False, 'error': 'Missing org_id or plan_id'})
+    
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Get plan details
+        cur.execute("""
+            SELECT id, name, slug, price_monthly, price_annual, 
+                   email_limit_daily, email_limit_monthly, contact_limit, team_member_limit
+            FROM pricing_plans WHERE id = %s
+        """, [plan_id])
+        plan = cur.fetchone()
+        
+        if not plan:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Plan not found'})
+        
+        now = datetime.now()
+        period_end = now + timedelta(days=duration_days) if duration_days > 0 else None
+        price = float(plan['price_annual']) if billing_cycle == 'annual' else float(plan['price_monthly'])
+        
+        # Check if subscription exists
+        cur.execute("SELECT id FROM subscriptions WHERE organization_id = %s", [org_id])
+        existing = cur.fetchone()
+        
+        if existing:
+            # Update existing subscription
+            cur.execute("""
+                UPDATE subscriptions SET
+                    plan_id = %s,
+                    plan_type = %s,
+                    plan_name = %s,
+                    status = 'active',
+                    billing_cycle = %s,
+                    current_price = %s,
+                    email_limit_daily = %s,
+                    email_limit_monthly = %s,
+                    contact_limit = %s,
+                    team_member_limit = %s,
+                    is_trial = false,
+                    current_period_start = %s,
+                    current_period_end = %s,
+                    updated_at = %s
+                WHERE organization_id = %s
+            """, [plan_id, plan['slug'], plan['name'], billing_cycle, price,
+                  plan['email_limit_daily'], plan['email_limit_monthly'],
+                  plan['contact_limit'], plan['team_member_limit'],
+                  now, period_end, now, org_id])
+        else:
+            # Create new subscription
+            import uuid
+            sub_id = str(uuid.uuid4())
+            cur.execute("""
+                INSERT INTO subscriptions (
+                    id, organization_id, plan_id, plan_type, plan_name, status,
+                    billing_cycle, current_price, email_limit_daily, email_limit_monthly,
+                    contact_limit, team_member_limit, is_trial, current_period_start,
+                    current_period_end, started_at, created_at
+                ) VALUES (%s, %s, %s, %s, %s, 'active', %s, %s, %s, %s, %s, %s, false, %s, %s, %s, %s)
+            """, [sub_id, org_id, plan_id, plan['slug'], plan['name'], billing_cycle, price,
+                  plan['email_limit_daily'], plan['email_limit_monthly'],
+                  plan['contact_limit'], plan['team_member_limit'],
+                  now, period_end, now, now])
+        
+        # Update organization
+        cur.execute("""
+            UPDATE organizations SET
+                plan = %s,
+                plan_type = %s,
+                daily_email_limit = %s,
+                monthly_email_limit = %s,
+                updated_at = %s
+            WHERE id = %s
+        """, [plan['slug'], plan['slug'], plan['email_limit_daily'], 
+              plan['email_limit_monthly'], now, org_id])
+        
+        # Log the admin action
+        admin_email = session.get('hub_admin_email', 'unknown')
+        cur.execute("""
+            INSERT INTO billing_history (id, organization_id, transaction_type, amount, currency, status, description, created_at)
+            VALUES (%s, %s, 'admin_upgrade', %s, 'USD', %s, %s, %s)
+        """, [str(uuid.uuid4()), org_id, price, payment_status, 
+              f"Admin upgrade to {plan['name']} by {admin_email}. Notes: {notes}", now])
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True, 
+            'message': f"Successfully upgraded to {plan['name']} plan"
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@hub_bp.route('/hub/api/subscriptions/<org_id>/details')
+@login_required
+def api_subscription_details(org_id):
+    """Get detailed subscription info for a user"""
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        # Get organization and subscription
+        cur.execute("""
+            SELECT 
+                o.id as org_id,
+                o.name as org_name,
+                COALESCE(o.email, u.email) as email,
+                o.created_at,
+                o.status,
+                COALESCE(s.plan_type, o.plan_type, o.plan, 'free') as plan_type,
+                COALESCE(s.plan_name, 'Free') as plan_name,
+                COALESCE(s.status, 'active') as sub_status,
+                COALESCE(s.current_price, 0) as current_price,
+                COALESCE(s.billing_cycle, 'monthly') as billing_cycle,
+                COALESCE(s.email_limit_daily, o.daily_email_limit, 500) as daily_limit,
+                COALESCE(s.email_limit_monthly, o.monthly_email_limit, 5000) as monthly_limit,
+                s.is_trial,
+                s.trial_ends_at,
+                s.current_period_start,
+                s.current_period_end,
+                (SELECT COUNT(*) FROM emails e WHERE e.organization_id = o.id AND DATE(e.created_at) = CURRENT_DATE) as emails_today,
+                (SELECT COUNT(*) FROM contacts c WHERE c.organization_id = o.id) as contact_count
+            FROM organizations o
+            LEFT JOIN subscriptions s ON s.organization_id = o.id
+            LEFT JOIN users u ON u.organization_id = o.id
+            WHERE o.id = %s
+            LIMIT 1
+        """, [org_id])
+        
+        org = cur.fetchone()
+        
+        if not org:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Organization not found'})
+        
+        # Get payment history
+        cur.execute("""
+            SELECT created_at as date, transaction_type as type, amount, status, description
+            FROM billing_history
+            WHERE organization_id = %s
+            ORDER BY created_at DESC
+            LIMIT 10
+        """, [org_id])
+        payments = cur.fetchall()
+        
+        conn.close()
+        
+        result = dict(org)
+        result['payments'] = [dict(p) for p in payments]
+        
+        return jsonify({'success': True, 'data': result})
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@hub_bp.route('/hub/api/subscriptions/<org_id>/cancel', methods=['POST'])
+@login_required
+def api_subscription_cancel(org_id):
+    """Cancel a subscription"""
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        now = datetime.now()
+        admin_email = session.get('hub_admin_email', 'unknown')
+        
+        # Update subscription
+        cur.execute("""
+            UPDATE subscriptions SET
+                status = 'canceled',
+                canceled_at = %s,
+                updated_at = %s
+            WHERE organization_id = %s
+        """, [now, now, org_id])
+        
+        # Log action
+        import uuid
+        cur.execute("""
+            INSERT INTO billing_history (id, organization_id, transaction_type, amount, currency, status, description, created_at)
+            VALUES (%s, %s, 'cancellation', 0, 'USD', 'completed', %s, %s)
+        """, [str(uuid.uuid4()), org_id, f"Subscription canceled by admin {admin_email}", now])
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Subscription canceled'})
+        
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@hub_bp.route('/hub/api/subscriptions/export')
+@login_required
+def api_subscriptions_export():
+    """Export subscriptions as CSV"""
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    
+    try:
+        cur.execute("""
+            SELECT 
+                o.name as organization,
+                COALESCE(o.email, u.email) as email,
+                COALESCE(s.plan_type, o.plan_type, o.plan, 'free') as plan,
+                COALESCE(s.status, 'active') as status,
+                COALESCE(s.current_price, 0) as price,
+                COALESCE(s.billing_cycle, 'monthly') as billing_cycle,
+                COALESCE(s.email_limit_daily, 500) as daily_limit,
+                COALESCE(s.email_limit_monthly, 5000) as monthly_limit,
+                s.current_period_end as period_end,
+                o.created_at
+            FROM organizations o
+            LEFT JOIN subscriptions s ON s.organization_id = o.id
+            LEFT JOIN users u ON u.organization_id = o.id
+            ORDER BY o.created_at DESC
+        """)
+        
+        rows = cur.fetchall()
+        conn.close()
+        
+        # Build CSV
+        import io
+        import csv
+        
+        output = io.StringIO()
+        if rows:
+            writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows([dict(r) for r in rows])
+        
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=subscriptions_export.csv'}
+        )
+        
+    except Exception as e:
+        conn.close()
         return jsonify({'success': False, 'error': str(e)})

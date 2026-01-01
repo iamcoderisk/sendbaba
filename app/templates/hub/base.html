@@ -272,7 +272,11 @@
                 <span class="nav-text">Sales CRM</span>
                 <span class="nav-text ml-auto bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">NEW</span>
             </a>
-            <a href="/hub/billing" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'billing' %}bg-orange-50 text-[#f86d31]{% endif %}">
+            <a href="/hub/subscriptions" class="nav-link {% if request.path == '/hub/subscriptions' %}active{% endif %}">
+                        <i class="fas fa-users-cog nav-icon mr-3"></i>
+                        <span class="nav-text">Subscriptions</span>
+                    </a>
+                    <a href="/hub/billing" class="nav-item flex items-center px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all {% if active_page == 'billing' %}bg-orange-50 text-[#f86d31]{% endif %}">
                 <i class="fas fa-credit-card nav-icon w-5 mr-3"></i>
                 <span class="nav-text">Billing</span>
             </a>

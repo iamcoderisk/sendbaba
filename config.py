@@ -1,13 +1,21 @@
 """
 SendBaba Production Configuration
+=================================
+All paths and settings use environment variables with sensible defaults.
 """
 import os
+
+# Base path - auto-detect or use environment variable
+BASE_PATH = os.environ.get('SENDBABA_PATH', '/opt/sendbaba-staging')
 
 class Config:
     # Security
     SECRET_KEY = os.environ.get('SECRET_KEY', '60b55ca25a3391f98774c37d68c65b88')
-    DEBUG = False
+    DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
     TESTING = False
+    
+    # Base Path
+    BASE_PATH = BASE_PATH
     
     # Database
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://emailer:SecurePassword123@localhost:5432/emailer')
@@ -26,9 +34,14 @@ class Config:
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
     
+    # File Paths (use BASE_PATH)
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(BASE_PATH, 'uploads'))
+    DKIM_PRIVATE_KEY_PATH = os.environ.get('DKIM_PRIVATE_KEY_PATH', os.path.join(BASE_PATH, 'keys/dkim_private.pem'))
+    DKIM_PUBLIC_KEY_PATH = os.environ.get('DKIM_PUBLIC_KEY_PATH', os.path.join(BASE_PATH, 'keys/dkim_public.pem'))
+    
     # Email Settings
-    SMTP_POOL_SIZE = 10
-    SMTP_TIMEOUT = 30
+    SMTP_POOL_SIZE = int(os.environ.get('SMTP_POOL_SIZE', '10'))
+    SMTP_TIMEOUT = int(os.environ.get('SMTP_TIMEOUT', '30'))
     
     # Rate Limiting (per domain per minute)
     RATE_LIMITS = {
@@ -45,11 +58,13 @@ class Config:
     
     # Tracking
     TRACKING_DOMAIN = os.environ.get('TRACKING_DOMAIN', 'track.sendbaba.com')
+    
+    # Application URLs
+    APP_URL = os.environ.get('APP_URL', 'https://sendbaba.com')
+    HUB_URL = os.environ.get('HUB_URL', 'https://hub.sendbaba.com')
 
 class ProductionConfig(Config):
     DEBUG = False
 
 class DevelopmentConfig(Config):
     DEBUG = True
-
-config = ProductionConfig()

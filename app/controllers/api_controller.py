@@ -101,3 +101,63 @@ def get_infrastructure_stats():
         return jsonify({'success': True, 'stats': stats})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+# ============================================
+# USAGE & BILLING API ENDPOINTS
+# ============================================
+
+@api_bp.route('/usage')
+@login_required
+def api_get_usage():
+    """Get current organization usage"""
+    from app.services.usage_service import usage_service
+    
+    usage = usage_service.get_organization_usage(str(current_user.organization_id))
+    if not usage:
+        return jsonify({'error': 'Organization not found'}), 404
+    
+    return jsonify({'success': True, 'usage': usage})
+
+
+@api_bp.route('/usage/check', methods=['POST'])
+@login_required
+def api_check_usage():
+    """Check if organization can send emails"""
+    from app.services.usage_service import usage_service
+    
+    data = request.get_json() or {}
+    count = data.get('count', 1)
+    
+    result = usage_service.can_send(str(current_user.organization_id), count)
+    return jsonify({'success': True, **result})
+
+
+@api_bp.route('/plans')
+def api_get_plans():
+    """Get all available plans"""
+    from app.services.usage_service import usage_service
+    
+    plans = usage_service.get_all_plans()
+    return jsonify({'success': True, 'plans': plans})
+
+
+@api_bp.route('/plan/current')
+@login_required
+def api_current_plan():
+    """Get current organization's plan"""
+    from app.services.usage_service import usage_service
+    
+    org = current_user.organization
+    plan_name = org.plan_type or org.plan or 'free'
+    plan = usage_service.get_plan_details(plan_name)
+    
+    return jsonify({
+        'success': True,
+        'plan': plan,
+        'organization': {
+            'id': org.id,
+            'name': org.name,
+            'plan': plan_name
+        }
+    })
